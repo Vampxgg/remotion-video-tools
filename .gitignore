@@ -1,0 +1,41 @@
+# .gitignore
+
+# Environment variables
+.env
+ceshi/ceshi3.json
+ceshi/env.txt
+
+# Docker data volumes
+volumes/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+temp_audio_test/
+tmp/
+.temp/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output/Media (Optional, depending on if you want to track generated files)
+# www/
