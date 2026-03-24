@@ -275,14 +275,6 @@ class FenbiArticleRequest(BaseModel):
     )
 
 
-class FenbiTimelineRequest(BaseModel):
-    district_id: int = Field(0, description="地区 id，0 表示全国/不限")
-    offset: int = Field(0, ge=0)
-    size: int = Field(10, ge=1, le=50)
-
-
-class FenbiHomeLinksRequest(BaseModel):
-    max_links: int = Field(80, ge=1, le=200, description="从首页解析的最大链接数")
 
 class FenbiDataRequest(BaseModel):
     query_type: str = Field(
@@ -515,37 +507,6 @@ async def fenbi_article(payload: FenbiArticleRequest):
     return _json_ok(out, message=msg)
 
 
-@router.post(
-    "/scrape/fenbi/timeline",
-    summary="粉笔 — 考试日历时间线（market-api）",
-    description="分页获取首页「考试日历」类条目，字段含 id/topic/省份等，详情需再用 /scrape/fenbi/article 或 exam-timeline-detail 页。",
-)
-async def fenbi_timeline(payload: FenbiTimelineRequest):
-    url = f"{MARKET_API}/exam/getTimeLineDetails"
-    params = _market_params(
-        {
-            "districtId": payload.district_id,
-            "offset": payload.offset,
-            "size": payload.size,
-        }
-    )
-    async with httpx.AsyncClient(headers=_client_headers(), timeout=30.0) as client:
-        r = await client.get(url, params=params)
-        if r.status_code != 200:
-            return _json_err(502, f"HTTP {r.status_code}")
-        try:
-            d = r.json()
-        except Exception:
-            return _json_err(502, "非 JSON 响应")
-
-    return _json_ok(
-        {
-            "total": d.get("total"),
-            "items": d.get("datas") or [],
-            "raw_code": d.get("code"),
-            "raw_msg": d.get("msg"),
-        }
-    )
 
 
 @router.get(
@@ -607,33 +568,5 @@ async def fenbi_options():
         _GLOBAL_OPTIONS_CACHE = out
         return _json_ok(out)
 
-@router.post(
-    "/scrape/fenbi/home-links",
-    summary="粉笔首页 — 招考信息详情链接列表",
-    description="抓取 fenbi.com 首页 HTML，正则提取 /page/exam-information-detail/{id} 链接与标题（SSR 可见部分）。",
-)
-async def fenbi_home_links(payload: FenbiHomeLinksRequest):
-    async with httpx.AsyncClient(headers=_client_headers(), timeout=45.0) as client:
-        r = await client.get("https://fenbi.com/")
-        if r.status_code != 200:
-            return _json_err(502, f"首页 HTTP {r.status_code}")
-        html = r.text
-
-    pat = re.compile(
-        r'href="(https://fenbi\.com/page/exam-information-detail/(\d+))"[^>]*>([^<]{2,300})</a>',
-        re.I,
-    )
-    seen = set()
-    items: List[Dict[str, str]] = []
-    for m in pat.finditer(html):
-        url, aid, title = m.group(1), m.group(2), m.group(3).strip()
-        if aid in seen:
-            continue
-        seen.add(aid)
-        items.append({"article_id": aid, "title": title, "url": url})
-        if len(items) >= payload.max_links:
-            break
-
-    return _json_ok({"total": len(items), "items": items})
 
 
