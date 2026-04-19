@@ -1,0 +1,572 @@
+2025-11-17 23:07:24,776 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2025-11-17 23:07:24,776 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2025-11-17 23:07:24,776 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2025-11-17 23:07:24,776 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2025-11-17 23:07:24,787 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2025-11-17 23:07:24,788 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2025-11-17 23:07:24,788 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2025-11-17 23:07:24,791 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2025-11-17 23:07:24,791 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2025-11-17 23:07:24,792 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2025-11-17 23:07:24,792 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2025-11-17 23:07:24,792 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2025-11-17 23:07:24,818 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2025-11-17 23:07:24,819 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2025-11-17 23:07:24,819 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2025-11-17 23:07:24,819 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2025-11-17 23:10:37,807 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 收到单文件 ASR 请求。
+2025-11-17 23:10:37,815 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 1/3 次尝试调用 ASR API...
+2025-11-17 23:10:39,878 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:10:39,879 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 1.5 秒后重试...
+2025-11-17 23:10:41,376 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 2/3 次尝试调用 ASR API...
+2025-11-17 23:10:43,410 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:10:43,410 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 3.0 秒后重试...
+2025-11-17 23:10:46,435 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 3/3 次尝试调用 ASR API...
+2025-11-17 23:10:48,478 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:10:48,478 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 在批量任务中处理失败. Error: ASR 请求在 3 次尝试后失败。最终错误: All connection attempts failed
+2025-11-17 23:10:48,478 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR 任务处理失败，耗时: 10.67 秒。错误: ASR 请求在 3 次尝试后失败。最终错误: All connection attempts failed
+2025-11-17 23:11:46,056 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 收到单文件 ASR 请求。
+2025-11-17 23:11:46,064 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 1/3 次尝试调用 ASR API...
+2025-11-17 23:11:48,106 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:11:48,106 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 1.5 秒后重试...
+2025-11-17 23:11:49,584 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 2/3 次尝试调用 ASR API...
+2025-11-17 23:11:51,627 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:11:51,627 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 3.0 秒后重试...
+2025-11-17 23:11:54,644 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 3/3 次尝试调用 ASR API...
+2025-11-17 23:11:56,675 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:11:56,675 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 在批量任务中处理失败. Error: ASR 请求在 3 次尝试后失败。最终错误: All connection attempts failed
+2025-11-17 23:11:56,675 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR 任务处理失败，耗时: 10.62 秒。错误: ASR 请求在 3 次尝试后失败。最终错误: All connection attempts failed
+2025-11-17 23:12:32,506 - INFO     - [api.fish_asr] [MainThread] - [11-17] 收到批量 ASR 请求，共 1 个文件。
+2025-11-17 23:12:32,515 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 1/3 次尝试调用 ASR API...
+2025-11-17 23:12:34,567 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:12:34,567 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 1.5 秒后重试...
+2025-11-17 23:12:36,078 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 2/3 次尝试调用 ASR API...
+2025-11-17 23:12:38,135 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:12:38,135 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 3.0 秒后重试...
+2025-11-17 23:12:41,137 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 3/3 次尝试调用 ASR API...
+2025-11-17 23:12:43,164 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:12:43,164 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 在批量任务中处理失败. Error: ASR 请求在 3 次尝试后失败。最终错误: All connection attempts failed
+2025-11-17 23:12:43,164 - INFO     - [api.fish_asr] [MainThread] - [11-17] 批量处理完成。成功: 0, 失败: 1。总耗时: 10.66 秒。
+2025-11-17 23:14:55,191 - INFO     - [api.fish_asr] [MainThread] - [11-17] 收到批量 ASR 请求，共 1 个文件。
+2025-11-17 23:14:55,203 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 1/3 次尝试调用 ASR API...
+2025-11-17 23:14:57,254 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:14:57,254 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 1.5 秒后重试...
+2025-11-17 23:14:58,771 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 2/3 次尝试调用 ASR API...
+2025-11-17 23:15:00,824 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:15:00,824 - WARNING  - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 将在 3.0 秒后重试...
+2025-11-17 23:15:03,827 - INFO     - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 第 3/3 次尝试调用 ASR API...
+2025-11-17 23:15:05,867 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] ASR API 请求时发生网络错误: All connection attempts failed
+2025-11-17 23:15:05,867 - ERROR    - [api.fish_asr] [MainThread] - [11-17-现场录音_20251113182813_20251113190755816345_PQCICl.wav] 在批量任务中处理失败. Error: ASR 请求在 3 次尝试后失败。最终错误: All connection attempts failed
+2025-11-17 23:15:05,869 - INFO     - [api.fish_asr] [MainThread] - [11-17] 批量处理完成。成功: 0, 失败: 1。总耗时: 10.67 秒。
+2026-01-25 22:00:19,433 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:00:19,436 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:00:19,436 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:00:19,436 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:00:19,436 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:00:19,436 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:00:19,436 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:00:19,438 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:00:19,438 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:00:19,438 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:00:19,438 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:00:19,443 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:00:19,443 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:00:19,443 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:00:19,443 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:07:22,056 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:07:22,056 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:07:22,056 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:07:22,056 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-01-25 22:07:22,056 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-01-25 22:07:22,072 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:07:22,072 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:07:22,072 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:07:22,078 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-01-25 22:07:22,079 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-01-25 22:07:41,900 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:07:41,900 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:07:41,900 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:07:41,900 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:07:41,920 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:07:41,920 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:07:41,921 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:07:41,921 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:07:41,927 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:07:41,928 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:07:41,928 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:07:41,928 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:07:41,928 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:07:41,929 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:07:41,929 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:07:41,929 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:14:43,933 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:14:43,933 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:14:43,934 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:14:43,934 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-01-25 22:14:43,934 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-01-25 22:18:28,048 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:18:28,048 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:18:28,048 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:18:28,048 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:18:28,065 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:18:28,065 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:18:28,065 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:18:28,065 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:18:28,074 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:18:28,074 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:18:28,074 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:18:28,074 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:18:28,080 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:18:28,081 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:18:28,081 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:18:28,081 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:30:23,029 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:30:23,029 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:30:23,029 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:30:23,045 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:30:37,233 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:30:37,233 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:30:37,233 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:30:37,233 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:30:37,294 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:30:37,294 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:30:37,294 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:30:37,294 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:30:37,298 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:30:37,298 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:30:37,298 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:30:37,298 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:30:37,303 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:30:37,303 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:30:37,303 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:30:37,303 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:32:37,458 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:32:37,458 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:32:37,458 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:32:37,490 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 22:32:37,490 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 22:32:37,490 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 22:32:37,501 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-01-25 22:32:37,501 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-01-25 22:32:49,108 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:32:49,109 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:32:49,109 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:32:49,109 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:32:49,119 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:32:49,119 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:32:49,119 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:32:49,119 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:32:49,145 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:32:49,145 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:32:49,145 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:32:49,145 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:32:49,156 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:32:49,157 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:32:49,157 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:32:49,157 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:45:54,717 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:45:54,717 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:45:54,717 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:45:54,717 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:45:54,726 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:45:54,726 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:45:54,726 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:45:54,726 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:45:54,737 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:45:54,737 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:45:54,737 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:45:54,737 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:45:54,747 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:45:54,747 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:45:54,747 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:45:54,747 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:51:41,368 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:51:41,368 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:51:41,368 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:51:41,368 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:51:41,410 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:51:41,410 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:51:41,410 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:51:41,410 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:51:41,430 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:51:41,430 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:51:41,430 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:51:41,430 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 22:51:41,440 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 22:51:41,440 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 22:51:41,440 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 22:51:41,440 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:03:41,066 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 23:03:41,066 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 23:03:41,066 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 23:03:41,066 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-01-25 23:03:41,067 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-01-25 23:03:52,981 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:03:52,983 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:03:52,983 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:03:52,983 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:03:53,003 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:03:53,005 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:03:53,005 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:03:53,005 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:03:53,010 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:03:53,010 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:03:53,010 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:03:53,010 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:03:53,032 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:03:53,032 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:03:53,032 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:03:53,032 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:05:18,942 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 23:05:18,942 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-25 23:05:18,942 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 23:05:18,942 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 23:05:18,942 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-25 23:05:18,942 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-25 23:05:18,948 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-01-25 23:05:18,948 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-01-25 23:05:30,686 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:05:30,686 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:05:30,686 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:05:30,686 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:05:30,691 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:05:30,691 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:05:30,691 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:05:30,691 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:05:30,697 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:05:30,697 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:05:30,697 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:05:30,699 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-25 23:05:30,699 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-25 23:05:30,699 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-25 23:05:30,699 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-25 23:05:30,699 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:39:18,605 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:39:18,606 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:39:18,606 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:39:18,606 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:39:18,616 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:39:18,616 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:39:18,617 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:39:18,617 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:39:18,624 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:39:18,625 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:39:18,625 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:39:18,625 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:39:18,630 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:39:18,630 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:39:18,630 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:39:18,630 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:43:35,184 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-01-26 01:43:35,184 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-01-26 01:43:35,184 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-01-26 01:43:35,184 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-01-26 01:43:35,184 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-01-26 01:43:46,352 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:43:46,353 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:43:46,353 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:43:46,353 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:43:46,362 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:43:46,362 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:43:46,362 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:43:46,363 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:43:46,380 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:43:46,380 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:43:46,380 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:43:46,381 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-01-26 01:43:46,386 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-01-26 01:43:46,386 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-01-26 01:43:46,386 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-01-26 01:43:46,386 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:26:39,389 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:26:39,397 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:26:39,397 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:26:39,397 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:26:39,435 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:26:39,435 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:26:39,435 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:26:39,435 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:26:39,445 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:26:39,445 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:26:39,445 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:26:39,445 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:26:39,454 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:26:39,454 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:26:39,454 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:26:39,454 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:29:31,314 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:29:31,314 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:29:31,314 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:29:31,314 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:29:31,315 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:29:31,315 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:29:31,315 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:29:31,315 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:29:31,345 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:29:31,345 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:29:31,345 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:29:31,345 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:29:31,349 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:29:31,350 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:29:31,350 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:29:31,350 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:43:40,405 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:43:40,405 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:43:40,405 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:43:40,405 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:43:40,432 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:43:40,433 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:43:40,433 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:43:40,433 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:43:40,443 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:43:40,443 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:43:40,443 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:43:40,443 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:43:40,451 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:43:40,451 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:43:40,451 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:43:40,451 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:45:16,618 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:45:16,619 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:45:16,619 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:45:16,619 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:45:16,619 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:45:16,619 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:45:16,619 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:45:16,620 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:45:16,624 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:45:16,625 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:45:16,625 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:45:16,625 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 01:45:16,631 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 01:45:16,631 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 01:45:16,631 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 01:45:16,631 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:05:43,892 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:05:43,892 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:05:43,892 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:05:43,892 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:05:43,892 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:05:55,175 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:05:55,176 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:05:55,176 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:05:55,176 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:05:55,228 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:05:55,229 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:05:55,229 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:05:55,229 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:05:55,234 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:05:55,235 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:05:55,235 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:05:55,235 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:05:55,252 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:05:55,252 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:05:55,252 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:05:55,252 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:06:40,110 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:06:40,111 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:06:40,111 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:06:40,111 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:06:40,124 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:06:40,124 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:06:40,124 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:06:40,124 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:06:40,152 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:06:40,152 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:06:40,152 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:06:40,152 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:06:40,160 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-02-28 02:06:40,160 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-02-28 02:06:48,240 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:06:48,240 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:06:48,240 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:06:48,240 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:07:49,495 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:07:49,495 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:07:49,496 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:07:49,496 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-02-28 02:07:49,497 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-02-28 02:07:49,508 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:07:49,508 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:07:49,508 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:08:00,677 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:08:00,678 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:08:00,678 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:08:00,678 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:08:00,718 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:08:00,718 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:08:00,718 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:08:00,718 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:08:00,743 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:08:00,743 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:08:00,743 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:08:00,743 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:08:00,760 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:08:00,760 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:08:00,760 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:08:00,760 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:35:47,298 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:35:47,298 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:35:47,298 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:35:47,298 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:35:47,298 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:35:47,298 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-02-28 02:35:47,298 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-02-28 02:47:19,319 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:47:19,319 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:47:19,319 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:47:19,319 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:47:19,321 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:47:19,321 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:47:19,321 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:47:19,321 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:47:19,360 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:47:19,360 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:47:19,360 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:47:19,360 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:47:19,366 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:47:19,366 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:47:19,366 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:47:19,366 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:51:55,718 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:51:55,718 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:51:55,718 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:51:55,718 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-02-28 02:51:55,718 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-02-28 02:53:10,882 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:53:10,882 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:53:10,882 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:53:10,882 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:53:10,902 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:53:10,902 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:53:10,902 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:53:10,902 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:53:10,919 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:53:10,919 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:53:10,919 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:53:10,919 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:53:10,921 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:53:10,921 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:53:10,921 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:53:10,921 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:56:39,923 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:56:39,923 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:56:39,923 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:56:39,923 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:56:39,956 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:56:39,957 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:56:39,957 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:56:39,957 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:56:39,990 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:56:39,990 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:56:39,990 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:56:39,990 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:56:39,997 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:56:39,997 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:56:39,997 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:56:39,997 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:58:33,425 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:58:33,425 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:58:33,425 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:58:33,425 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:58:33,438 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:58:33,438 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:58:33,439 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:58:33,439 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:58:33,459 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:58:33,459 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:58:33,459 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:58:33,459 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:58:33,461 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:58:33,461 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:58:33,461 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:58:33,461 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已成功关闭。
+2026-02-28 02:59:31,102 - INFO     - [api.fish_asr] [MainThread] - ASR 模块已成功关闭。
+2026-02-28 02:59:31,133 - INFO     - [api.fish_asr] [MainThread] - 正在关闭 ASR 线程池...
+2026-02-28 02:59:31,133 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已成功关闭。
+2026-02-28 02:59:31,133 - INFO     - [api.fish_asr] [MainThread] - 正在关闭全局共享的 httpx.AsyncClient...
+2026-02-28 02:59:54,649 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:59:54,649 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:59:54,649 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:59:54,649 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:59:54,710 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:59:54,710 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:59:54,710 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:59:54,710 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:59:54,721 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:59:54,721 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:59:54,721 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:59:54,721 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-02-28 02:59:54,723 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-02-28 02:59:54,723 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-02-28 02:59:54,723 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-02-28 02:59:54,723 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-24 23:46:01,233 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-24 23:46:01,237 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-24 23:46:01,237 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-24 23:46:01,238 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-24 23:46:01,258 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-24 23:46:01,258 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-24 23:46:01,258 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-24 23:46:01,258 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-24 23:46:01,261 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-24 23:46:01,261 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-24 23:46:01,261 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-24 23:46:01,261 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-24 23:46:01,268 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-24 23:46:01,268 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-24 23:46:01,268 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-24 23:46:01,268 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-25 02:11:36,518 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-25 02:11:36,518 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-25 02:11:36,519 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-25 02:11:36,519 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-25 02:11:36,565 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-25 02:11:36,565 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-25 02:11:36,565 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-25 02:11:36,565 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-25 02:11:36,572 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-25 02:11:36,572 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-25 02:11:36,572 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-25 02:11:36,572 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-25 02:11:36,577 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-25 02:11:36,578 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-25 02:11:36,578 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-25 02:11:36,578 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-27 01:08:02,695 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-27 01:08:02,697 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-27 01:08:02,697 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-27 01:08:02,697 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-27 01:08:02,747 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-27 01:08:02,747 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-27 01:08:02,747 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-27 01:08:02,747 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-27 01:08:02,750 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-27 01:08:02,750 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-27 01:08:02,750 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-27 01:08:02,750 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置
+2026-03-27 01:08:02,751 - INFO     - [api.fish_asr] [MainThread] - ASR 模块启动完成。
+2026-03-27 01:08:02,751 - INFO     - [api.fish_asr] [MainThread] - ASR 线程池已创建，最大工作线程数: 10
+2026-03-27 01:08:02,751 - INFO     - [api.fish_asr] [MainThread] - ASR API 信号量已创建，许可数: 20
+2026-03-27 01:08:02,751 - INFO     - [api.fish_asr] [MainThread] - 全局共享的 httpx.AsyncClient 已创建。代理: 未配置

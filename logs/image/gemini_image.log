@@ -1,0 +1,776 @@
+2026-01-25 22:45:53,733 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:45:53,740 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:45:53,740 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:45:53,740 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:46:44,189 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求: 一只在太空中弹吉他的赛博朋克风格猫咪... (Model: GeminiImageModelID.GEMINI_3_PRO_IMAGE_PREVIEW)
+2026-01-25 22:46:55,566 - ERROR    - [api.cre_image] [MainThread] - API Error: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"outputMimeType\" at 'generation_config.image_config': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "generation_config.image_config",
+            "description": "Invalid JSON payload received. Unknown name \"outputMimeType\" at 'generation_config.image_config': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+
+2026-01-25 22:46:55,566 - ERROR    - [api.cre_image] [MainThread] - Unexpected error: 400: Vertex AI Error: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"outputMimeType\" at 'generation_config.image_config': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "generation_config.image_config",
+            "description": "Invalid JSON payload received. Unknown name \"outputMimeType\" at 'generation_config.image_config': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 199, in generate_image
+    raise HTTPException(status_code=response.status_code, detail=f"Vertex AI Error: {response.text}")
+fastapi.exceptions.HTTPException: 400: Vertex AI Error: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"outputMimeType\" at 'generation_config.image_config': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "generation_config.image_config",
+            "description": "Invalid JSON payload received. Unknown name \"outputMimeType\" at 'generation_config.image_config': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+
+2026-01-25 22:51:40,346 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:51:40,366 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:51:40,381 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:51:40,396 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 22:51:41,521 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求: 一只在太空中弹吉他的赛博朋克风格猫咪... (Model: GeminiImageModelID.GEMINI_3_PRO_IMAGE_PREVIEW)
+2026-01-25 22:51:47,519 - ERROR    - [api.cre_image] [MainThread] - 获取默认凭证失败: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))
+2026-01-25 22:51:47,519 - ERROR    - [api.cre_image] [MainThread] - Unexpected error: 500: Auth Error: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 773, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 1042, in _prepare_proxy
+    conn.connect()
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connection.py", line 741, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connection.py", line 920, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+               ^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\ssl.py", line 517, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\ssl.py", line 1104, in _create
+    self.do_handshake()
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\ssl.py", line 1382, in do_handshake
+    self._sslobj.do_handshake()
+ConnectionResetError: [WinError 10054] 远程主机强迫关闭了一个现有的连接。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 667, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\retry.py", line 474, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\util.py", line 38, in reraise
+    raise value.with_traceback(tb)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 773, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 1042, in _prepare_proxy
+    conn.connect()
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connection.py", line 741, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connection.py", line 920, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+               ^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\ssl.py", line 517, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\ssl.py", line 1104, in _create
+    self.do_handshake()
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\ssl.py", line 1382, in do_handshake
+    self._sslobj.do_handshake()
+urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 187, in __call__
+    response = self.session.request(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 682, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 79, in get_gcloud_auth_token
+    credentials.refresh(auth_req)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\credentials.py", line 409, in refresh
+    ) = reauth.refresh_grant(
+        ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\reauth.py", line 333, in refresh_grant
+    response_status_ok, response_data, retryable_error = _client._token_endpoint_request_no_throw(
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\_client.py", line 192, in _token_endpoint_request_no_throw
+    response = request(
+               ^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 194, in __call__
+    raise new_exc from caught_exc
+google.auth.exceptions.TransportError: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 148, in generate_image
+    auth_token = await get_gcloud_auth_token()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 85, in get_gcloud_auth_token
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Auth Error: {e}")
+fastapi.exceptions.HTTPException: 500: Auth Error: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))
+2026-01-25 22:51:50,336 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求: 一只在太空中弹吉他的赛博朋克风格猫咪... (Model: GeminiImageModelID.GEMINI_3_PRO_IMAGE_PREVIEW)
+2026-01-25 22:51:56,873 - ERROR    - [api.cre_image] [MainThread] - API Error: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"mimeType\" at 'generation_config.image_config': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "generation_config.image_config",
+            "description": "Invalid JSON payload received. Unknown name \"mimeType\" at 'generation_config.image_config': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+
+2026-01-25 22:51:56,873 - ERROR    - [api.cre_image] [MainThread] - Unexpected error: 400: Vertex AI Error: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"mimeType\" at 'generation_config.image_config': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "generation_config.image_config",
+            "description": "Invalid JSON payload received. Unknown name \"mimeType\" at 'generation_config.image_config': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 210, in generate_image
+    raise HTTPException(status_code=response.status_code, detail=f"Vertex AI Error: {response.text}")
+fastapi.exceptions.HTTPException: 400: Vertex AI Error: {
+  "error": {
+    "code": 400,
+    "message": "Invalid JSON payload received. Unknown name \"mimeType\" at 'generation_config.image_config': Cannot find field.",
+    "status": "INVALID_ARGUMENT",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.BadRequest",
+        "fieldViolations": [
+          {
+            "field": "generation_config.image_config",
+            "description": "Invalid JSON payload received. Unknown name \"mimeType\" at 'generation_config.image_config': Cannot find field."
+          }
+        ]
+      }
+    ]
+  }
+}
+
+2026-01-25 23:03:41,067 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已关闭。
+2026-01-25 23:03:51,934 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 23:03:51,941 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 23:03:51,952 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 23:03:51,956 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已创建。
+2026-01-25 23:03:54,507 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求: 一只在太空中弹吉他的赛博朋克风格猫咪... (Model: GeminiImageModelID.GEMINI_3_PRO_IMAGE_PREVIEW)
+2026-01-25 23:03:57,345 - ERROR    - [api.cre_image] [MainThread] - 获取默认凭证失败: property 'quota_project_id' of 'Credentials' object has no setter
+2026-01-25 23:03:57,345 - ERROR    - [api.cre_image] [MainThread] - Unexpected error: 500: Auth Error: property 'quota_project_id' of 'Credentials' object has no setter
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 82, in get_gcloud_auth_token
+    credentials.quota_project_id = GOOGLE_PROJECT_ID
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: property 'quota_project_id' of 'Credentials' object has no setter
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 155, in generate_image
+    auth_token = await get_gcloud_auth_token()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 92, in get_gcloud_auth_token
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Auth Error: {str(e)}")
+fastapi.exceptions.HTTPException: 500: Auth Error: property 'quota_project_id' of 'Credentials' object has no setter
+2026-01-25 23:04:01,499 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求: 一只在太空中弹吉他的赛博朋克风格猫咪... (Model: GeminiImageModelID.GEMINI_3_PRO_IMAGE_PREVIEW)
+2026-01-25 23:04:02,621 - ERROR    - [api.cre_image] [MainThread] - 获取默认凭证失败: property 'quota_project_id' of 'Credentials' object has no setter
+2026-01-25 23:04:02,621 - ERROR    - [api.cre_image] [MainThread] - Unexpected error: 500: Auth Error: property 'quota_project_id' of 'Credentials' object has no setter
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 82, in get_gcloud_auth_token
+    credentials.quota_project_id = GOOGLE_PROJECT_ID
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: property 'quota_project_id' of 'Credentials' object has no setter
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 155, in generate_image
+    auth_token = await get_gcloud_auth_token()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 92, in get_gcloud_auth_token
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Auth Error: {str(e)}")
+fastapi.exceptions.HTTPException: 500: Auth Error: property 'quota_project_id' of 'Credentials' object has no setter
+2026-01-25 23:05:18,948 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient (Image) 已关闭。
+2026-01-26 01:39:17,547 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:39:17,550 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:39:17,572 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:39:17,572 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:39:35,267 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-2.5-flash-image, Prompt: '小猫钓鱼...'
+2026-01-26 01:39:50,705 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/4d67b89b-aff3-4d0d-b000-dae6ecebf748.png
+2026-01-26 01:41:41,250 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '一张飞机，使用中文写着‘德国制造’...'
+2026-01-26 01:41:44,168 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - {
+  "error": {
+    "code": 404,
+    "message": "Publisher Model `projects/x-pilot-469902/locations/us-central1/publishers/google/models/gemini-3-pro-image-preview` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-01-26 01:43:35,185 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭 (cre_image)。
+2026-01-26 01:43:45,446 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:43:45,456 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:43:45,484 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:43:45,485 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-01-26 01:44:06,879 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '一张飞机，使用中文写着‘德国制造’...'
+2026-01-26 01:44:12,147 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - {
+  "error": {
+    "code": 404,
+    "message": "Publisher Model `projects/x-pilot-469902/locations/us-central1/publishers/google/models/gemini-3-pro-image-preview` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-01-26 01:44:55,958 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-2.5-flash-image, Prompt: '一张飞机，使用中文写着‘德国制造’...'
+2026-01-26 01:45:10,828 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/bf7835d2-a1e9-4af9-8f1f-f21f8f3d7f89.png
+2026-02-28 01:26:38,440 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:26:38,447 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:26:38,465 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:26:38,485 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:29:30,399 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:29:30,400 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:29:30,425 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:29:30,436 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:30:01,187 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3.1-flash-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 01:30:17,165 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - {
+  "error": {
+    "code": 404,
+    "message": "Publisher Model `projects/x-pilot-469902/locations/us-central1/publishers/google/models/gemini-3.1-flash-image-preview` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-02-28 01:43:39,512 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:43:39,552 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:43:39,565 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:43:39,568 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:43:59,655 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3.1-flash-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 01:44:08,703 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1beta1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-3.1-flash-image-preview:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 01:45:15,643 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:45:15,664 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:45:15,669 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 01:45:15,670 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:05:54,227 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:05:54,266 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:05:54,282 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:05:54,309 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:06:39,100 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:06:39,101 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:06:39,120 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:06:39,158 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:06:40,160 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭 (cre_image)。
+2026-02-28 02:06:41,858 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3.1-flash-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:06:47,651 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:06:57,047 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - {
+  "error": {
+    "code": 404,
+    "message": "Publisher Model `projects/x-pilot-469902/locations/us-central1/publishers/google/models/gemini-3.1-flash-image-preview` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-02-28 02:07:49,498 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭 (cre_image)。
+2026-02-28 02:07:59,748 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:07:59,786 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:07:59,786 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:07:59,841 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:08:02,467 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3.1-flash-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:08:06,451 - ERROR    - [api.cre_image] [MainThread] - 使用 google-auth 获取默认凭证失败: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2026-02-28 02:08:06,451 - ERROR    - [api.cre_image] [MainThread] - 图片生成过程中发生内部错误: Failed to get application default credentials: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+urllib3.exceptions.SSLError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 667, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 187, in __call__
+    response = self.session.request(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 698, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 92, in get_gcloud_auth_token
+    credentials.refresh(auth_req)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\credentials.py", line 409, in refresh
+    ) = reauth.refresh_grant(
+        ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\reauth.py", line 333, in refresh_grant
+    response_status_ok, response_data, retryable_error = _client._token_endpoint_request_no_throw(
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\_client.py", line 192, in _token_endpoint_request_no_throw
+    response = request(
+               ^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 194, in __call__
+    raise new_exc from caught_exc
+google.auth.exceptions.TransportError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 196, in generate_image
+    auth_token = await get_gcloud_auth_token()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 101, in get_gcloud_auth_token
+    raise Exception(f"Failed to get application default credentials: {e}")
+Exception: Failed to get application default credentials: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2026-02-28 02:08:15,420 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3.1-flash-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:08:18,985 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-3.1-flash-image-preview:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 02:09:09,720 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3.1-flash-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:09:14,729 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-3.1-flash-image-preview:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 02:35:47,299 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭 (cre_image)。
+2026-02-28 02:47:18,396 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:47:18,412 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:47:18,446 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:47:18,451 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:47:43,067 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3.1-flash-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:48:16,388 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/d4996125-d9d1-45a0-8446-a78a29165093.png
+2026-02-28 02:51:55,719 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭 (cre_image)。
+2026-02-28 02:53:09,858 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:53:09,871 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:53:09,884 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:53:09,897 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:53:32,102 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:54:00,337 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/3b19814c-bd86-407a-88d3-e00068bea76c.png
+2026-02-28 02:56:38,856 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:56:38,885 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:56:38,934 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:56:38,947 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:56:41,728 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:56:45,840 - ERROR    - [api.cre_image] [MainThread] - 使用 google-auth 获取默认凭证失败: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2026-02-28 02:56:45,840 - ERROR    - [api.cre_image] [MainThread] - 图片生成过程中发生内部错误: Failed to get application default credentials: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+urllib3.exceptions.SSLError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 667, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 187, in __call__
+    response = self.session.request(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 698, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 92, in get_gcloud_auth_token
+    credentials.refresh(auth_req)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\credentials.py", line 409, in refresh
+    ) = reauth.refresh_grant(
+        ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\reauth.py", line 333, in refresh_grant
+    response_status_ok, response_data, retryable_error = _client._token_endpoint_request_no_throw(
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\_client.py", line 192, in _token_endpoint_request_no_throw
+    response = request(
+               ^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 194, in __call__
+    raise new_exc from caught_exc
+google.auth.exceptions.TransportError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 196, in generate_image
+    auth_token = await get_gcloud_auth_token()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 101, in get_gcloud_auth_token
+    raise Exception(f"Failed to get application default credentials: {e}")
+Exception: Failed to get application default credentials: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2026-02-28 02:56:48,637 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:56:51,608 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1beta1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 02:57:08,589 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:57:11,216 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1beta1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 02:57:23,734 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 02:57:26,242 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1beta1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-3-pro-image-preview:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 02:57:53,375 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-2.5-flash-image, Prompt: '生成飞机的图片...'
+2026-02-28 02:57:58,371 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1beta1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-2.5-flash-image:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 02:58:01,453 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-2.5-flash-image, Prompt: '生成飞机的图片...'
+2026-02-28 02:58:03,801 - ERROR    - [api.cre_image] [MainThread] - Gemini API 请求失败: 404 - <!DOCTYPE html>
+<html lang=en>
+  <meta charset=utf-8>
+  <meta name=viewport content="initial-scale=1, minimum-scale=1, width=device-width">
+  <title>Error 404 (Not Found)!!1</title>
+  <style>
+    *{margin:0;padding:0}html,code{font:15px/22px arial,sans-serif}html{background:#fff;color:#222;padding:15px}body{margin:7% auto 0;max-width:390px;min-height:180px;padding:30px 0 15px}* > body{background:url(//www.google.com/images/errors/robot.png) 100% 5px no-repeat;padding-right:205px}p{margin:11px 0 22px;overflow:hidden}ins{color:#777;text-decoration:none}a img{border:0}@media screen and (max-width:772px){body{background:none;margin-top:0;max-width:none;padding-right:0}}#logo{background:url(//www.google.com/images/branding/googlelogo/1x/googlelogo_color_150x54dp.png) no-repeat;margin-left:-5px}@media only screen and (min-resolution:192dpi){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat 0% 0%/100% 100%;-moz-border-image:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) 0}}@media only screen and (-webkit-min-device-pixel-ratio:2){#logo{background:url(//www.google.com/images/branding/googlelogo/2x/googlelogo_color_150x54dp.png) no-repeat;-webkit-background-size:100% 100%}}#logo{display:inline-block;height:54px;width:150px}
+  </style>
+  <a href=//www.google.com/><span id=logo aria-label=Google></span></a>
+  <p><b>404.</b> <ins>That’s an error.</ins>
+  <p>The requested URL <code>/v1beta1/projects/x-pilot-469902/locations/global/publishers/google/models/gemini-2.5-flash-image:generateContent</code> was not found on this server.  <ins>That’s all we know.</ins>
+
+2026-02-28 02:58:32,434 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:58:32,463 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:58:32,489 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:58:32,509 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:58:38,371 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-2.5-flash-image, Prompt: '生成飞机的图片...'
+2026-02-28 02:58:42,372 - ERROR    - [api.cre_image] [MainThread] - 使用 google-auth 获取默认凭证失败: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2026-02-28 02:58:42,372 - ERROR    - [api.cre_image] [MainThread] - 图片生成过程中发生内部错误: Failed to get application default credentials: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+urllib3.exceptions.SSLError: [SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 667, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 187, in __call__
+    response = self.session.request(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\requests\adapters.py", line 698, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 92, in get_gcloud_auth_token
+    credentials.refresh(auth_req)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\credentials.py", line 409, in refresh
+    ) = reauth.refresh_grant(
+        ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\reauth.py", line 333, in refresh_grant
+    response_status_ok, response_data, retryable_error = _client._token_endpoint_request_no_throw(
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\oauth2\_client.py", line 192, in _token_endpoint_request_no_throw
+    response = request(
+               ^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\google\auth\transport\requests.py", line 194, in __call__
+    raise new_exc from caught_exc
+google.auth.exceptions.TransportError: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 196, in generate_image
+    auth_token = await get_gcloud_auth_token()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 101, in get_gcloud_auth_token
+    raise Exception(f"Failed to get application default credentials: {e}")
+Exception: Failed to get application default credentials: HTTPSConnectionPool(host='oauth2.googleapis.com', port=443): Max retries exceeded with url: /token (Caused by SSLError(SSLEOFError(8, '[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1006)')))
+2026-02-28 02:58:44,563 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-2.5-flash-image, Prompt: '生成飞机的图片...'
+2026-02-28 02:58:59,324 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/f4f3bce2-0cee-4fd9-8c43-0bb7b347c484.png
+2026-02-28 02:59:31,103 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭 (cre_image)。
+2026-02-28 02:59:53,780 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:59:53,836 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:59:53,848 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:59:53,873 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-02-28 02:59:59,603 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-2.5-flash-image, Prompt: '生成飞机的图片...'
+2026-02-28 03:00:15,726 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/5fa4fea3-5688-4b5f-a0b1-6cb73b647a0f.png
+2026-02-28 03:00:31,152 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 03:00:55,950 - ERROR    - [api.cre_image] [MainThread] - 图片生成过程中发生内部错误: 
+Traceback (most recent call last):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpcore\_async\http_proxy.py", line 316, in handle_async_request
+    stream = await stream.start_tls(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpcore\_async\http11.py", line 376, in start_tls
+    return await self._stream.start_tls(ssl_context, server_hostname, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpcore\_backends\anyio.py", line 67, in start_tls
+    with map_exceptions(exc_map):
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 253, in generate_image
+    public_url = await upload_to_gcs(image_bytes, mime_type)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\pythonprojects\script_tools\api\cre_image.py", line 118, in upload_to_gcs
+    response = await http_client.post(upload_url, content=image_data, headers=headers)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_client.py", line 1859, in post
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "D:\Codeing\miniconda\envs\scripts_tools\Lib\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError
+2026-02-28 03:01:13,652 - INFO     - [api.cre_image] [MainThread] - 收到图片生成请求, Model: gemini-3-pro-image-preview, Prompt: '生成飞机的图片...'
+2026-02-28 03:01:41,406 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/fb4c193e-f288-44ed-8948-de41a2da1fb4.png
+2026-03-24 23:46:00,276 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-24 23:46:00,317 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-24 23:46:00,322 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-24 23:46:00,323 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-25 02:11:35,601 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-25 02:11:35,641 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-25 02:11:35,658 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-25 02:11:35,658 - INFO     - [api.cre_image] [MainThread] - 全局共享 httpx.AsyncClient 已创建 (cre_image)。
+2026-03-27 01:08:01,647 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360s 供单次请求覆盖使用。
+2026-03-27 01:08:01,681 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360s 供单次请求覆盖使用。
+2026-03-27 01:08:01,694 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360s 供单次请求覆盖使用。
+2026-03-27 01:08:01,694 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360s 供单次请求覆盖使用。
+2026-03-27 01:09:05,335 - INFO     - [api.cre_image] [MainThread] - 图片请求 [9f0db0d4-f644-4d92-a5af-4e0f2607ab43] model=gemini-3.1-flash-image-preview refs=1 n=1
+2026-03-27 01:09:21,560 - INFO     - [api.cre_image] [MainThread] - 图片请求 [3c8c68c3-3e6c-422d-be56-c16b35354d6c] model=gemini-3.1-flash-image-preview refs=1 n=1
+2026-03-27 01:09:34,684 - INFO     - [api.cre_image] [MainThread] - 图片请求 [df66b8ca-f145-4729-bb27-ca38954917bf] model=gemini-3.1-flash-image-preview refs=0 n=1
+2026-03-27 01:10:42,439 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/7e067852-f184-454a-9e02-491ba1bc86c7.png
+2026-03-27 01:12:52,741 - INFO     - [api.cre_image] [MainThread] - 图片请求 [39843b4c-ab46-457d-ba08-9a47a1d9045e] model=gemini-3.1-flash-image-preview refs=1 n=1
+2026-03-27 01:14:46,527 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/ca74878b-6e48-4f6c-b709-0542322858ba.png
+2026-03-27 01:20:11,839 - INFO     - [api.cre_image] [MainThread] - 图片请求 [2e071051-6299-4030-8ff0-99f041f3cfcb] model=gemini-3.1-flash-image-preview refs=2 n=1
+2026-03-27 01:21:48,725 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/137d8f2e-5736-43bb-981d-d07f8673d03a.png
+2026-03-27 01:24:33,934 - INFO     - [api.cre_image] [MainThread] - 图片请求 [a38f8e19-563a-4cea-8d31-ba125a008848] model=gemini-3.1-flash-image-preview refs=0 n=4
+2026-03-27 01:25:31,755 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/986b0e42-b914-4ec1-82da-b1394a6278bc.png
+2026-03-27 01:25:56,567 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/e024aef9-b50b-49e6-afc8-781a5c760083.png
+2026-03-27 01:26:00,180 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/687f03ed-b367-4e4d-9564-296f13986684.png
+2026-03-27 01:26:39,093 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/59b08628-a379-4da5-83d3-fc63070cf10c.png
+2026-03-27 01:29:44,750 - INFO     - [api.cre_image] [MainThread] - 图片请求 [9798e1c5-2922-4718-a4da-fbba5fd02f7b] model=gemini-3.1-flash-image-preview refs=0 n=1
+2026-03-27 01:30:25,675 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/1460a6e8-77f0-4158-8215-8e8cdf35c024.png
+2026-03-27 01:38:27,948 - INFO     - [api.cre_image] [MainThread] - 图片请求 [a9f257df-ecd8-48c5-a9ce-f6c6d4f48147] model=gemini-3.1-flash-image-preview refs=0 n=1
+2026-03-27 01:39:34,018 - INFO     - [api.cre_image] [MainThread] - 图片请求 [b2779f63-1f07-452f-aae7-c5d6221d59c2] model=gemini-3.1-flash-image-preview refs=0 n=1
+2026-03-27 02:21:58,763 - INFO     - [api.cre_image] [MainThread] - 图片请求 [d1e8aa3c-be8a-4e35-a7e4-781fa0851089] model=gemini-3.1-flash-image-preview refs=2 n=1
+2026-03-27 02:22:40,115 - INFO     - [api.cre_image] [MainThread] - 图片已上传至 GCS: https://storage.googleapis.com/x-pilot-storage/gemini_images/26efe140-065a-4aeb-9170-dde015ac84aa.png

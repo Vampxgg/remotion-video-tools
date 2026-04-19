@@ -17,5 +17,29 @@ services:
       - "5432:5432"
     volumes:
       # 数据持久化配置，将数据存储在宿主机的 ./volumes 目录下
-      - ./volumes:/var/lib/postgresql/data
+      - ./volumes/db_data:/var/lib/postgresql/data
 
+  rabbitmq:
+    # 使用带有管理插件的官方镜像，方便调试和监控
+    image: rabbitmq:3-management-alpine
+    container_name: script_tools_rabbitmq
+    restart: always
+    hostname: my-rabbit # 设置 hostname 对 RabbitMQ 很重要，尤其是在集群模式下
+    environment:
+      # 设置默认的用户名和密码，同样建议使用 .env 文件
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    ports:
+      # 5672: AMQP 协议端口，供应用程序连接
+      - "5672:5672"
+      # 15672: Web 管理界面的端口
+      - "15672:15672"
+    volumes:
+      # 将 RabbitMQ 的元数据（如队列、交换机定义）持久化
+      - ./volumes/rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      # 添加健康检查，确保 RabbitMQ 服务正常运行
+      test: [ "CMD", "rabbitmq-diagnostics", "check_port_connectivity" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5

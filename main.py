@@ -12,8 +12,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # from fastapi.openapi.utils import get_openapi
-from api import Online_search, block_generator, tts, cre_audio, converter, cre_audio_json, cre_video, voice_models, \
-    google_tts, job_search, fish_asr, cre_image
+from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
+    job_search, fish_asr, fenbi_getway
 from fastapi.staticfiles import StaticFiles
 from db.database import engine, Base, get_db
 
@@ -82,7 +82,7 @@ tags_metadata = [
 ]
 
 app = FastAPI(
-    title="联网搜索 Api",
+    title="X-Pilot Api",
     description=description,
     version="V1.0.1",
     terms_of_service="https://www.msn.cn/zh-cn/news/other/%E5%85%A8%E7%BA%A2%E5%A9%B5%E7%8E%B0%E8%BA%AB%E4%B8%8A%E6"
@@ -124,14 +124,14 @@ app.include_router(Online_search.router, prefix="/api", tags=["Source Parser"])
 app.include_router(block_generator.router, prefix="/api", tags=["block_generator"])
 app.include_router(tts.router, prefix="/api", tags=["tts"])
 app.include_router(cre_audio.router, prefix="/api", tags=["create_audio"])
-app.include_router(cre_audio_json.router, prefix="/api", tags=["create_audio"])
-app.include_router(google_tts.router, prefix="/api", tags=["create_audio"])
+# app.include_router(google_tts.router, prefix="/api", tags=["create_audio"])
 app.include_router(converter.router, prefix="/api", tags=["Converter"])
 app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
+app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
 app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
-app.include_router(fish_asr.router_asr, prefix="/api", tags=["asr"])
-app.include_router(cre_image.router, prefix="/api", tags=["create_image"])
+app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
+app.include_router(fenbi_getway.router, prefix="/api", tags=["fenbi_requestes"])
 
 
 # app.include_router(auth.router)

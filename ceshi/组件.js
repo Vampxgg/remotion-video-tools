@@ -1,0 +1,474 @@
+{
+  _comment:
+  "这是权威的、统一的视觉组件工具箱定义。所有生成的剧本都必须使用此处的 'type' 作为组件的唯一标识符。",
+    _definitions: {
+    STANDARD_IMAGE_OBJECT: {
+      description: "所有图片字段必须符合此统一结构，严禁直接填字符串URL。",
+        oneOf: [
+          {
+            comment: "情况A: 用户提供了现成图片的URL（来自Web或上传）",
+            source_type: "external-url",
+            url: "string (https://...)",
+            alt_text: "string (图片描述)",
+          },
+          {
+            comment: "情况B: 需要AI现场生成的图片（抽象概念/无素材时）",
+            source_type: "ai-generated",
+            generation_prompt: "string (用于SD/Midjourney的详细绘图Prompt)",
+            style_preset: "string (photorealistic | vector-art | 3d-render)",
+            generated_url: "null (初始为null，等待注入)",
+          },
+        ],
+  },
+  },
+  toolbox: [
+    {
+      category: "essential-info",
+      displayName: "基础信息与陈述 (Essential Info)",
+      components: [
+        {
+          type: "info-card",
+          displayName: "信息卡片",
+          description: "突出展示一个核心标题和描述，可选图标。",
+          contentSchema: {
+            title: "string",
+            description: "string",
+            icon: "string (optional)",
+          },
+        },
+        {
+          type: "key-value-list",
+          displayName: "键值对列表",
+          description: "展示成对的属性信息（如参数、档案）。",
+          contentSchema: {
+            items: [
+              {
+                label: "string",
+                value: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "bullet-points",
+          displayName: "要点列表",
+          description: "结构化罗列并列的信息点或步骤。",
+          contentSchema: {
+            title: "string (optional)",
+            points: [
+              {
+                text: "string",
+                icon: "string (optional)",
+              },
+            ],
+          },
+        },
+        {
+          type: "quote-block",
+          displayName: "引用/定义块",
+          description: "权威展示名言、评价或定义。",
+          contentSchema: {
+            text: "string",
+            source: "string",
+            source_details: "string (optional)",
+          },
+        },
+        {
+          type: "code-block",
+          displayName: "静态代码展示",
+          description: "展示代码片段，支持高亮。",
+          contentSchema: {
+            language: "string",
+            code: "string",
+            title: "string (optional)",
+          },
+        },
+        {
+          type: "formula-block",
+          displayName: "公式展示",
+          description: "渲染数学/化学公式 (LaTeX)。",
+          contentSchema: {
+            formula_latex: "string",
+            annotations: [
+              {
+                variable: "string",
+                explanation: "string",
+              },
+            ],
+          },
+        },
+
+        {
+          type: "dialogue-block",
+          displayName: "情景对话",
+          description: "展示角色间的对话流。",
+          contentSchema: {
+            lines: [
+              {
+                character: "string",
+                text: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "kinetic-typography",
+          displayName: "动态排版 (Advanced)",
+          description: "使用文字破碎、液体流动、Glitch故障等特效展示核心概念。",
+          contentSchema: {
+            text: "string",
+            effect_style: "glitch | liquid | mask_reveal | kinetic_motion",
+            font_weight: "bold | extra_bold",
+          },
+        },
+        {
+          type: "solution-steps",
+          displayName: "解题步骤条",
+          description: "清晰展示解题、推导或操作的每一步。",
+          contentSchema: {
+            title: "string (optional)",
+            steps: [
+              {
+                label: "string",
+                content: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "single-image",
+          displayName: "单张图片",
+          description: "展示一张图片及其说明文字。",
+          contentSchema: {
+            image: "object (Ref: STANDARD_IMAGE_OBJECT)",
+            caption: "string",
+          },
+        },
+        {
+          type: "image-grid",
+          displayName: "图片网格",
+          description: "以网格形式展示多张图片。",
+          contentSchema: {
+            columns: "number",
+            images: [
+              {
+                image: "object (Ref: STANDARD_IMAGE_OBJECT)",
+                caption: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "annotated-image",
+          displayName: "带标注的图片",
+          description: "在图片上叠加多个说明性标注。",
+          contentSchema: {
+            background_image: "object (Ref: STANDARD_IMAGE_OBJECT)",
+            annotations: [
+              {
+                point: {
+                  x: "number (0~1)",
+                  y: "number (0~1)",
+                },
+                text: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "before-after-comparison",
+          displayName: "前后对比图",
+          description: "左右并排展示两张对比图片。",
+          contentSchema: {
+            image_left: "object (Ref: STANDARD_IMAGE_OBJECT)",
+            image_right: "object (Ref: STANDARD_IMAGE_OBJECT)",
+            labels: {
+              left: "string",
+              right: "string",
+            },
+          },
+        }
+      ],
+    },
+    {
+      category: "data-insights",
+      displayName: "数据透视与关系 (Data Insights)",
+      components: [
+        {
+          type: "data-table",
+          displayName: "数据表格",
+          description: "标准行列数据展示，呈现精确数值。",
+          contentSchema: {
+            headers: ["string"],
+            rows: [["string"]],
+          },
+        },
+        {
+          type: "chart",
+          displayName: "通用图表",
+          description: "条形/折线/饼图等统计图表。",
+          contentSchema: {
+            title: "string",
+            chart_type:
+              "bar | line | pie | doughnut | radar | scatter | heatmap",
+            data: "object",
+          },
+        },
+        {
+          type: "infographic-number",
+          displayName: "信息图数字",
+          description: "用动画突出显示一个关键的数字指标。",
+          contentSchema: {
+            prefix: "string (optional)",
+            number: "number",
+            suffix: "string (optional)",
+            label: "string",
+          },
+        },
+        {
+          type: "coordinate-system",
+          displayName: "坐标系",
+          description: "数学函数图像、散点或向量坐标系。",
+          contentSchema: {
+            x_axis: "object",
+            y_axis: "object",
+            elements: [
+              {
+                type: "function | point | vector",
+                value: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "vector-field-sim",
+          displayName: "动态矢量场 (Advanced)",
+          description:
+            "可视化不可见的'场'（风场、磁场、引力场），数千个向量实时流动。",
+          contentSchema: {
+            field_type: "wind | magnetic | gravitational | fluid",
+            intensity: "number",
+            color_map: "string",
+          },
+        },
+        {
+          type: "globe-connections-3d",
+          displayName: "3D全球连线",
+          description: "地球模型上的地理连接与网络。",
+          contentSchema: {
+            points_of_interest: [
+              {
+                lat: "number",
+                lng: "number",
+                label: "string",
+              },
+            ],
+            connections: [
+              {
+                from_index: "number",
+                to_index: "number",
+              },
+            ],
+          },
+        },
+        {
+          type: "graph-viz",
+          displayName: "图形/网络可视化",
+          description: "拓扑关系、知识图谱、节点链接。",
+          contentSchema: {
+            nodes: [
+              {
+                id: "string",
+                label: "string",
+              },
+            ],
+            links: [
+              {
+                source: "string",
+                target: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "layer-diagram",
+          displayName: "层级图",
+          description:
+            "用于解释具有层级或堆栈关系的概念，如软件架构、OSI模型。",
+          contentSchema: {
+            title: "string",
+            layers: [
+              {
+                name: "string",
+                description: "string (optional)",
+              },
+            ],
+          },
+        },
+        {
+          type: "pyramid-diagram",
+          displayName: "金字塔图",
+          description: "用于展示具有基础和顶层关系的层级结构，顺序从下到上。",
+          contentSchema: {
+            levels: [
+              {
+                label: "string",
+              },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      category: "logic-structure",
+      displayName: "逻辑、结构与原理 (Logic & Structure)",
+      components: [
+        {
+          type: "schematic-draw",
+          displayName: "结构/原理蓝图 (Enhanced)",
+          description:
+            "基于 **SVG 矢量路径** 的精确绘制，以工程蓝图或手绘风格分层展示内部构造与原理。",
+          contentSchema: {
+            subject: "string",
+            style: "blueprint | whiteprint | sketch",
+            parts: ["string"],
+            tech_implementation_hint: "string (Required:  [L.G.M.A] )",
+          },
+        },
+        {
+          type: "model-3d",
+          displayName: "3D模型",
+          description: "展示产品三维形态、拆解/爆炸图。",
+          contentSchema: {
+            model_source: "string",
+            animation_type: "rotate | explode | assemble",
+            labels: "array",
+          },
+        },
+        {
+          type: "mindmap-growth",
+          displayName: "生长型思维导图",
+          description: "像植物生长般展开概念分支（SVG 贝塞尔曲线连接）。",
+          contentSchema: {
+            root_node: "string",
+            branches: [
+              {
+                label: "string",
+                children: ["string"],
+              },
+            ],
+          },
+        },
+        {
+          type: "algo-visualizer",
+          displayName: "算法逻辑可视化",
+          description: "动态演示排序、寻路等算法步骤。",
+          contentSchema: {
+            algorithm_name: "string",
+            data_set: "array",
+            steps: "array (optional)",
+          },
+        },
+        {
+          type: "math-function-visualizer",
+          displayName: "数学函数可视化",
+          description: "实时绘制波形、轨迹等动态函数。",
+          contentSchema: {
+            function_expression: "string (e.g., sin(x) * cos(y))",
+            animation_type: "wave | trajectory | surface",
+          },
+        },
+      ],
+    },
+    {
+      category: "simulation-action",
+      displayName: "仿真模拟与操作 (Simulation & Action)",
+      components: [
+        {
+          type: "physics-lab-3d",
+          displayName: "3D物理仿真",
+          description: "重力、碰撞、平衡等物理引擎模拟。",
+          contentSchema: {
+            scenario: "collision | balance | gravity | pendulum",
+            objects: "array",
+          },
+        },
+        {
+          type: "terminal-simulator",
+          displayName: "终端模拟器",
+          description: "黑客/极客风格的命令行界面模拟。",
+          contentSchema: {
+            shell_type: "bash | powershell | python",
+            commands: [
+              {
+                input: "string",
+                output: "string",
+              },
+            ],
+          },
+        },
+        {
+          type: "ui-action-sequence",
+          displayName: "UI交互序列",
+          description: "模拟软件界面上的点击操作流。",
+          contentSchema: {
+            screen_description: "string",
+            steps: [
+              {
+                action: "click | type | scroll",
+                target: "string",
+              },
+            ],
+          },
+        },
+      ],
+    },
+    {
+      category: "visual-metaphor",
+      displayName: "视觉隐喻与生成艺术 (Visual Metaphor)",
+      components: [
+        {
+          type: "procedural-canvas",
+          displayName: "程序化画布 (AI Playground)",
+          description:
+            "无限动态画布。所有需要动画展示原理、模拟物理效果、或生成非静态图像的炫酷视觉场景，均必须使用此组件。它是实现“视频感”的核心。",
+          contentSchema: {
+            visual_description: "string",
+            tech_implementation_hint: "string (Required:  [L.G.M.A] )",
+            behavior: "string",
+          },
+        },
+        {
+          type: "svg-morphing-shape",
+          displayName: "SVG 形态变换 (New)",
+          description:
+            "利用 **SVG 路径插值 (morphing)** 技术，实现形状A到形状B的无缝矢量变形，隐喻概念的质变或转化。",
+          contentSchema: {
+            from_shape: "string (Initial SVG concept/shape)",
+            to_shape: "string (Target SVG concept/shape)",
+            morph_logic: "string (Description of the transition flow)",
+          },
+        },
+        {
+          type: "particle-system",
+          displayName: "粒子系统",
+          description: "粒子的汇聚、消散、流动效果。",
+          contentSchema: {
+            behavior: "converge | disperse | flow",
+            target: "string (text/shape)",
+          },
+        },
+        {
+          type: "data-stream-flow",
+          displayName: "高速数据流",
+          description: "表现数据传输、光纤、赛博朋克流与感。",
+          contentSchema: {
+            path_type: "fiber | circuit | neuron",
+            flow_speed: "fast | pulse",
+            color_theme: "string",
+          },
+        },
+      ],
+    },
+  ],
+}

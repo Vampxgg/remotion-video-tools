@@ -1,0 +1,303 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Nano Banana 2",
+    "description": "文生图 / 图生图：POST /api/generate_image。Dify 友好：整数/布尔常被当成字符串传入，服务端会自动转换；reference_images 可传 JSON 数组字符串；单张参考图可只填 reference_image_url（https）。成功时图片在 data.images[].public_url。",
+    "version": "v1.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://35.232.154.66:2906"
+    }
+  ],
+  "paths": {
+    "/api/generate_image": {
+      "post": {
+        "summary": "文生图 / 图生图 (Vertex Gemini)",
+        "operationId": "generate_image",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateImagePayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "业务成功或失败均可能为 200，请结合 code 与 message；图片在 data.images",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "FastAPI / Pydantic 校验错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ImageSize": {
+        "type": "string",
+        "title": "ImageSize",
+        "description": "仅部分模型支持。3.1：512|1K|2K|4K；3 Pro：1K|2K|4K；2.5 勿传。",
+        "enum": ["512", "1K", "2K", "4K"]
+      },
+      "ReferenceImageInput": {
+        "type": "object",
+        "title": "ReferenceImageInput",
+        "description": "参考图一项：image_base64、image_url、gs_uri 三选一必填其一。",
+        "properties": {
+          "image_base64": {
+            "type": "string",
+            "nullable": true,
+            "description": "图片 Base64，可带 data:image/png;base64, 前缀"
+          },
+          "mime_type": {
+            "type": "string",
+            "nullable": true,
+            "description": "image/png 或 image/jpeg，建议填写"
+          },
+          "image_url": {
+            "type": "string",
+            "nullable": true,
+            "description": "https 可公网访问的图片 URL"
+          },
+          "gs_uri": {
+            "type": "string",
+            "nullable": true,
+            "description": "gs://bucket/object，须当前 GCP 项目可读"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ThinkingLevel": {
+        "type": "string",
+        "enum": ["HIGH", "MINIMAL", "LOW"],
+        "title": "ThinkingLevel",
+        "description": "仅 gemini-3-pro-image-preview / gemini-3.1-flash-image-preview"
+      },
+      "ProminentPeople": {
+        "type": "string",
+        "enum": ["BLOCK_PROMINENT_PEOPLE"],
+        "title": "ProminentPeople",
+        "description": "仅 gemini-3.1-flash-image-preview"
+      },
+      "GenerateImagePayload": {
+        "type": "object",
+        "title": "GenerateImagePayload",
+        "required": ["prompt"],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "description": "文生图：画面描述。图生图：如何修改或如何融合参考图。"
+          },
+          "model_id": {
+            "default": "gemini-3.1-flash-image-preview",
+            "allOf": [{ "$ref": "#/components/schemas/ImageModelID" }]
+          },
+          "system_instruction": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 32000,
+            "description": "系统指令，映射 Vertex systemInstruction"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "default": "1:1",
+            "description": "宽高比。2.5/3 Pro：1:1,3:2,2:3,3:4,4:3,4:5,5:4,9:16,16:9,21:9。3.1 另支持 1:4,4:1,1:8,8:1",
+            "enum": [
+              "1:1",
+              "3:2",
+              "2:3",
+              "3:4",
+              "4:3",
+              "4:5",
+              "5:4",
+              "9:16",
+              "16:9",
+              "21:9",
+              "1:4",
+              "4:1",
+              "1:8",
+              "8:1"
+            ]
+          },
+          "image_size": {
+            "nullable": true,
+            "description": "输出分辨率档位，按模型选填",
+            "allOf": [{ "$ref": "#/components/schemas/ImageSize" }]
+          },
+          "response_mime_type": {
+            "nullable": true,
+            "description": "可选。期望输出 image/png 或 image/jpeg，映射 imageOutputOptions.mimeType；省略则由模型决定。若 Vertex 报未知字段请省略。",
+            "allOf": [{ "$ref": "#/components/schemas/ResponseMimeType" }]
+          },
+          "response_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8,
+            "default": 1,
+            "description": "生成张数（Dify 传字符串数字如 \"2\" 亦可）；底层 candidateCount=1，服务端并行多次（多倍计费）"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "nullable": true,
+            "description": "负向提示，拼入用户文本"
+          },
+          "person_generation": {
+            "default": "allow_adult",
+            "allOf": [{ "$ref": "#/components/schemas/PersonGeneration" }]
+          },
+          "reference_image_url": {
+            "type": "string",
+            "nullable": true,
+            "description": "单张参考图 https URL，与 reference_images 二选一（适合 Dify 仅支持字符串参数时）。勿与 reference_images 同传。"
+          },
+          "reference_images": {
+            "type": "array",
+            "nullable": true,
+            "items": { "$ref": "#/components/schemas/ReferenceImageInput" },
+            "description": "多参考图/图生图。Dify 若只能传字符串，可传整段 JSON 数组文本，例如 [{\"image_url\":\"https://...\"}]。2.5 最多10张，3 Pro 最多6张，3.1 最多14张"
+          },
+          "include_response_text": {
+            "type": "boolean",
+            "default": false,
+            "description": "true 时响应含 TEXT；Dify 可传字符串 true/false、1/0"
+          },
+          "include_thoughts": {
+            "type": "boolean",
+            "default": false,
+            "description": "true 时请求思考过程，仅 3.x；Dify 可传字符串 true/false、1/0"
+          },
+          "thinking_level": {
+            "nullable": true,
+            "allOf": [{ "$ref": "#/components/schemas/ThinkingLevel" }]
+          },
+          "prominent_people": {
+            "nullable": true,
+            "allOf": [{ "$ref": "#/components/schemas/ProminentPeople" }]
+          },
+          "location_override": {
+            "type": "string",
+            "nullable": true,
+            "description": "如 global，仅请求该 Vertex location"
+          },
+          "safety_filter_level": {
+            "default": "OFF",
+            "allOf": [{ "$ref": "#/components/schemas/SafetyThreshold" }]
+          }
+        }
+      },
+      "GenerateImageResponse": {
+        "type": "object",
+        "title": "GenerateImageResponse",
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ImageResult" },
+            "default": []
+          },
+          "text_parts": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [],
+            "description": "include_response_text 为 true 时可能有配文"
+          }
+        }
+      },
+      "StandardResponse": {
+        "type": "object",
+        "title": "StandardResponse",
+        "required": ["code", "message", "timestamp"],
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "HTTP 风格业务码，200 表成功，502/500 等见 message"
+          },
+          "message": { "type": "string" },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "description": "成功时含 images/text_parts；失败时可能为 null 或空对象",
+            "additionalProperties": true
+          },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ImageModelID": {
+        "type": "string",
+        "enum": [
+          "gemini-3-pro-image-preview",
+          "gemini-2.5-flash-image",
+          "gemini-3.1-flash-image-preview"
+        ],
+        "title": "ImageModelID"
+      },
+      "ImageResult": {
+        "type": "object",
+        "required": ["public_url", "mime_type"],
+        "properties": {
+          "public_url": { "type": "string" },
+          "local_path": { "type": "string", "nullable": true },
+          "mime_type": { "type": "string" }
+        }
+      },
+      "PersonGeneration": {
+        "type": "string",
+        "enum": ["allow_adult", "allow_all", "disallow"]
+      },
+      "ResponseMimeType": {
+        "type": "string",
+        "enum": ["image/png", "image/jpeg"]
+      },
+      "SafetyThreshold": {
+        "type": "string",
+        "enum": [
+          "OFF",
+          "BLOCK_NONE",
+          "BLOCK_LOW_AND_ABOVE",
+          "BLOCK_MEDIUM_AND_ABOVE",
+          "BLOCK_ONLY_HIGH"
+        ]
+      },
+      "HTTPValidationError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ValidationError" }
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "properties": {
+          "loc": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "msg": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      }
+    }
+  }
+}

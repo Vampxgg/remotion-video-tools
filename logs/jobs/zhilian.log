@@ -1,0 +1,52 @@
+2025-11-17 00:17:32,090 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据'], provinces=['深圳'], page_size=1
+2025-11-17 00:17:32,090 - INFO     - [api.job_search] [asyncio_0] - 准备启动 1 个并发爬虫任务，最大并发数: 10...
+2025-11-17 00:17:38,577 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 开始处理组合: '大数据' - '深圳'
+2025-11-17 00:17:40,672 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
+2025-11-17 00:17:42,763 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2025-11-17 00:17:42,778 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2025-11-17 00:17:42,778 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40783841305
+2025-11-17 00:17:42,960 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40783841305 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:43,178 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC424188180J40847869312
+2025-11-17 00:17:43,355 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC424188180J40847869312 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:43,673 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40772249516
+2025-11-17 00:17:43,947 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40772249516 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:44,192 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1445845820J40769916605
+2025-11-17 00:17:44,394 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1445845820J40769916605 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:44,650 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40818479205
+2025-11-17 00:17:44,999 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40818479205 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:45,335 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40771496416
+2025-11-17 00:17:45,525 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40771496416 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:45,759 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC179014620J40733178106
+2025-11-17 00:17:45,944 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC179014620J40733178106 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:46,351 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40826050405
+2025-11-17 00:17:46,666 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40826050405 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:47,009 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40674612416
+2025-11-17 00:17:47,205 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40674612416 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:47,656 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC453635220J40853170803
+2025-11-17 00:17:47,930 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC453635220J40853170803 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:48,242 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40826136405
+2025-11-17 00:17:48,411 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40826136405 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:48,844 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40696118816
+2025-11-17 00:17:49,036 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40696118816 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:49,390 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC254955810J40785036211
+2025-11-17 00:17:49,647 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC254955810J40785036211 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:49,893 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40822807005
+2025-11-17 00:17:50,169 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40822807005 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:50,420 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40710191116
+2025-11-17 00:17:50,603 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40710191116 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:50,857 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC453635220J40851024503
+2025-11-17 00:17:51,049 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC453635220J40851024503 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:51,251 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC218795280J40790657511
+2025-11-17 00:17:51,554 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC218795280J40790657511 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:51,834 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40755860616
+2025-11-17 00:17:52,689 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40755860616 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:53,152 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC453635220J40850756203
+2025-11-17 00:17:53,318 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC453635220J40850756203 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:53,641 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC133233090J40771241101
+2025-11-17 00:17:53,889 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC133233090J40771241101 期间发生异常: 'bool' object has no attribute 'status_code'
+2025-11-17 00:17:54,269 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 已达到设定的爬取页数限制 (1)，停止采集当前组合。
+2025-11-17 00:17:54,269 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2025-11-17 00:17:54,291 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2025-11-17 00:17:54,291 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 20 条数据。
+2025-11-17 00:17:54,291 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 20 条数据。
+2025-11-17 00:17:54,291 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 20 个岗位。

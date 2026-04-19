@@ -1,0 +1,495 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 职教平台图片生成
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables:
+  - description: ''
+    id: fe21f85e-da57-4870-bdf5-bab66f97df51
+    name: negative_prompt
+    selector:
+    - conversation
+    - negative_prompt
+    value: nudity, sexual content, gambling, drugs, gore, weapons, traditional Chinese
+      characters, English text, watermark, Taiwan flag, political symbols, minors
+      in inappropriate context, blurry, low resolution, deformed hands, extra fingers,
+      distorted face, artifacts, noise, cropped, out of frame, English UI, English
+      captions, Latin typography, Western infographic titles
+    value_type: string
+  - description: ''
+    id: ffefb3b3-0e0d-4ce9-b9b9-9366c8943b1c
+    name: system_instruction
+    selector:
+    - conversation
+    - system_instruction
+    value: '【合规约束】
+
+      1. 画面中如有文字，必须为简体中文且字形正确；严禁出现繁体字、英文字母、日文假名。
+
+      2. 严禁包含裸露、色情、性暗示、赌博、毒品、暴力血腥元素。
+
+      3. 严禁出现台湾旗帜、台湾地图、领土争议或任何政治敏感符号。
+
+      4. 严禁出现未成年人的不当或敏感场景。
+
+      5. 所有涉及知识性内容（如地理、历史、科学常识）必须准确符合事实，不可出现常识性谬误。
+
+
+
+      【画师准则】
+
+      1. 当用户描述模糊或过于简短时，请你发挥想象力，自行补充合理的场景、构图、光影、色彩细节。
+
+      2. 画面必须具有层次感：要有明确的前景主体、中景衬托和背景氛围。
+
+      3. 避免单调的元素堆砌，注重画面的故事性和视觉吸引力。
+
+      4. 若用户需求涉及精确的物理结构、建筑比例或特定地理特征，必须确保视觉呈现的知识准确性。'
+    value_type: string
+  - description: ''
+    id: 82fd6827-a238-4239-a564-7d027f485a7f
+    name: model_id
+    selector:
+    - conversation
+    - model_id
+    value: gemini-3.1-flash-image-preview
+    value_type: string
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 15
+        file_size_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 50
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 1024
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: answer
+      id: 1774518063040-source-answer-target
+      selected: false
+      source: '1774518063040'
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: code
+      id: 1774505608780-source-1774518639409-target
+      source: '1774505608780'
+      sourceHandle: source
+      target: '1774518639409'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: 1774518639409-source-1774518063040-target
+      source: '1774518639409'
+      sourceHandle: source
+      target: '1774518063040'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 用户输入
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: prompt
+          max_length: null
+          options: []
+          placeholder: ''
+          required: true
+          type: paragraph
+          variable: prompt
+        - default: image/png
+          hint: ''
+          label: response_mime_type
+          max_length: 48
+          options:
+          - image/png
+          - image/jpeg
+          placeholder: ''
+          required: false
+          type: select
+          variable: response_mime_type
+        - default: '1:1'
+          hint: ''
+          label: aspect_ratio
+          max_length: 48
+          options:
+          - '1:1'
+          - '16:9'
+          - '9:16'
+          - '4:3'
+          - '3:4'
+          placeholder: ''
+          required: false
+          type: select
+          variable: aspect_ratio
+        - default: ''
+          hint: ''
+          label: reference_images
+          max_length: null
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: reference_images
+        - default: 1K
+          hint: ''
+          label: image_size
+          max_length: 48
+          options:
+          - '512'
+          - 1K
+          - 2K
+          - 4K
+          placeholder: ''
+          required: false
+          type: select
+          variable: image_size
+      height: 213
+      id: '1774505608780'
+      position:
+        x: -233.5500798278639
+        y: 282
+      positionAbsolute:
+        x: -233.5500798278639
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1774518063040.result_str#}}'
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 103
+      id: answer
+      position:
+        x: 661.0888379858992
+        y: 303
+      positionAbsolute:
+        x: 661.0888379858992
+        y: 303
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: |
+          import json
+          import time
+          import httpx
+
+          # ===== 按实际部署地址修改 =====
+          _API_ENDPOINT = "http://your-server:8000/api/v1/generate_image"
+          # ==============================
+
+          _MODEL_ID = "gemini-3.1-flash-image-preview"
+          _INCLUDE_THOUGHTS = True
+          _INCLUDE_RESPONSE_TEXT = False
+          _PERSON_GENERATION = "allow_adult"
+          _SAFETY_FILTER_LEVEL = "OFF"
+          _RESPONSE_COUNT = 1
+          _THINKING_LEVEL = "HIGH"
+
+          _SYSTEM_INSTRUCTION = (
+              "【合规约束】\n"
+              "1. 画面中如有文字，必须为简体中文且字形正确；严禁出现繁体字、英文字母、日文假名。\n"
+              "2. 严禁包含裸露、色情、性暗示、赌博、毒品、暴力血腥元素。\n"
+              "3. 严禁出现台湾旗帜、台湾地图、领土争议或任何政治敏感符号。\n"
+              "4. 严禁出现未成年人的不当或敏感场景。\n"
+              "5. 所有涉及知识性内容（如地理、历史、科学常识）必须准确符合事实，不可出现常识性谬误。\n"
+              "\n"
+              "【画师准则】\n"
+              "1. 当用户描述模糊或过于简短时，请你发挥想象力，自行补充合理的场景、构图、光影、色彩细节。\n"
+              "2. 画面必须具有层次感：要有明确的前景主体、中景衬托和背景氛围。\n"
+              "3. 避免单调的元素堆砌，注重画面的故事性和视觉吸引力。\n"
+              "4. 若用户需求涉及精确的物理结构、建筑比例或特定地理特征，必须确保视觉呈现的知识准确性。"
+          )
+
+          _NEGATIVE_PROMPT = (
+              "nudity, sexual content, gambling, drugs, gore, weapons, traditional Chinese characters, "
+              "English text, watermark, Taiwan flag, political symbols, minors in inappropriate context, "
+              "blurry, low resolution, deformed hands, extra fingers, distorted face, artifacts, noise, "
+              "cropped, out of frame, English UI, English captions, Latin typography, Western infographic titles"
+          )
+
+          _RETRIES = 3
+          _DELAYS = [2, 4, 8]
+
+
+          def main(
+              prompt: str,
+              aspect_ratio: str = "1:1",
+              image_size: str = "",
+              response_mime_type: str = "",
+              reference_images: list = None,
+          ) -> dict:
+              body = {
+                  "prompt": prompt,
+                  "model_id": _MODEL_ID,
+                  "system_instruction": _SYSTEM_INSTRUCTION,
+                  "aspect_ratio": str(aspect_ratio).strip() if aspect_ratio and str(aspect_ratio).strip() else "1:1",
+                  "negative_prompt": _NEGATIVE_PROMPT,
+                  "person_generation": _PERSON_GENERATION,
+                  "include_response_text": _INCLUDE_RESPONSE_TEXT,
+                  "include_thoughts": _INCLUDE_THOUGHTS,
+                  "thinking_level": _THINKING_LEVEL,
+                  "safety_filter_level": _SAFETY_FILTER_LEVEL,
+                  "response_count": _RESPONSE_COUNT,
+              }
+              if image_size and str(image_size).strip():
+                  body["image_size"] = str(image_size).strip()
+              if response_mime_type and str(response_mime_type).strip():
+                  body["response_mime_type"] = str(response_mime_type).strip()
+              if reference_images and isinstance(reference_images, list) and len(reference_images) > 0:
+                  body["reference_images"] = reference_images
+
+              last_err = "未知错误"
+              with httpx.Client(timeout=httpx.Timeout(360.0, connect=15.0, write=60.0), proxies={}) as client:
+                  for i in range(_RETRIES):
+                      try:
+                          resp = client.post(_API_ENDPOINT, json=body)
+                          status = resp.status_code
+                          if status != 200:
+                              err_text = resp.text[:400]
+                              if status != 429 and 400 <= status < 500:
+                                  raise ValueError(f"请求参数错误 HTTP {status}: {err_text}")
+                              last_err = f"HTTP {status}: {err_text}"
+                              if i < _RETRIES - 1:
+                                  time.sleep(_DELAYS[i])
+                              continue
+                          resp_data = resp.json()
+                          api_code = resp_data.get("code", 200)
+                          if api_code != 200:
+                              raise ValueError(
+                                  f"API 返回错误 {api_code}: {resp_data.get('message', '')}"
+                              )
+                          data = resp_data.get("data") or {}
+                          images = data.get("images") or []
+                          text_parts = data.get("text_parts") or []
+                          urls = [img["public_url"] for img in images if img.get("public_url")]
+                          result_str = "\n".join(f"![]({u})" for u in urls)
+                          if text_parts:
+                              result_str += "\n\n" + "\n".join(text_parts)
+                          return {
+                              "result": data,
+                              "result_str": result_str,
+                              "images_str": "\n".join(urls),
+                          }
+                      except ValueError:
+                          raise
+                      except (httpx.ConnectError, httpx.TimeoutException, httpx.RequestError) as e:
+                          last_err = f"网络请求失败: {e}"
+                          if i < _RETRIES - 1:
+                              time.sleep(_DELAYS[i])
+                      except Exception as e:
+                          last_err = str(e)
+                          if i < _RETRIES - 1:
+                              time.sleep(_DELAYS[i])
+              raise ValueError(f"图片生成失败（重试 {_RETRIES} 次后）: {last_err}")
+        code_language: python3
+        outputs:
+          images_str:
+            children: null
+            type: string
+          result:
+            children: null
+            type: object
+          result_str:
+            children: null
+            type: string
+        selected: false
+        title: 生成图片
+        type: code
+        variables:
+        - value_selector:
+          - '1774505608780'
+          - prompt
+          value_type: string
+          variable: prompt
+        - value_selector:
+          - '1774505608780'
+          - aspect_ratio
+          value_type: string
+          variable: aspect_ratio
+        - value_selector:
+          - '1774505608780'
+          - image_size
+          value_type: string
+          variable: image_size
+        - value_selector:
+          - '1774505608780'
+          - response_mime_type
+          value_type: string
+          variable: response_mime_type
+        - value_selector:
+          - '1774518639409'
+          - reference_images
+          value_type: array[object]
+          variable: reference_images
+      height: 52
+      id: '1774518063040'
+      position:
+        x: 350.58467877072013
+        y: 303
+      positionAbsolute:
+        x: 350.58467877072013
+        y: 303
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "# -*- coding: utf-8 -*-\n\"\"\"\nDify 工作流 · 代码执行节点（Python）用：把 reference_images\
+          \ 字符串转成 Array[Object]。\n\n在 Dify 中配置：\n1. 输入变量：名称 reference_images_raw，类型\
+          \ String，绑定上游（如 LLM/变量聚合）的整段文本。\n2. 输出变量：名称 reference_images，类型 Array[Object]（若界面无\
+          \ Object 子类型，选 Array 并保证元素为对象）。\n3. 将「Dify 粘贴区」从 import json 起粘贴到 main 函数结束（勿粘贴文件末尾\
+          \ if __name__ 自测段）。\n\n下游 HTTP 请求体里引用：{{#节点名.reference_images#}} 或工作流变量映射到\
+          \ generate_image 的 reference_images。\n\n输入/输出全集（表格，含全部成功分支与全部错误文案）：见同目录\
+          \ `dify_code_reference_images_cases.md`。\n\"\"\"\n\n# ========== Dify 粘贴区开始\
+          \ ==========\n\nimport json\nfrom typing import Any, Dict, List\n\n\ndef\
+          \ _normalize_item(raw: Any, index: int) -> Dict[str, Any]:\n    if isinstance(raw,\
+          \ str):\n        s = raw.strip()\n        if s.startswith(\"http://\") or\
+          \ s.startswith(\"https://\"):\n            return {\"image_url\": s}\n \
+          \       try:\n            raw = json.loads(s)\n        except json.JSONDecodeError\
+          \ as e:\n            raise ValueError(f\"第 {index} 项不是合法 URL 或 JSON 对象字符串:\
+          \ {e}\") from e\n    if not isinstance(raw, dict):\n        raise ValueError(f\"\
+          第 {index} 项须为对象，实际: {type(raw).__name__}\")\n    row: Dict[str, Any] = {}\n\
+          \    for k in (\"image_base64\", \"image_url\", \"gs_uri\"):\n        if\
+          \ k not in raw or raw[k] is None:\n            continue\n        v = raw[k]\n\
+          \        if isinstance(v, str) and not v.strip():\n            continue\n\
+          \        row[k] = v\n    n = sum(1 for k in (\"image_base64\", \"image_url\"\
+          , \"gs_uri\") if row.get(k))\n    if n != 1:\n        raise ValueError(\n\
+          \            f\"第 {index} 项须且仅能指定 image_base64、image_url、gs_uri 之一，\"\n\
+          \            f\"当前键: {list(row.keys())}\"\n        )\n    return row\n\n\
+          \ndef main(reference_images_raw: Any) -> dict:\n    \"\"\"\n    :param reference_images_raw:\
+          \ 字符串（JSON 数组 / 单 URL / 空）或已是 list\n    :return: {\"reference_images\":\
+          \ [ {...}, ... ]}\n    \"\"\"\n    if reference_images_raw is None:\n  \
+          \      return {\"reference_images\": []}\n\n    if isinstance(reference_images_raw,\
+          \ list):\n        items = reference_images_raw\n    elif isinstance(reference_images_raw,\
+          \ str):\n        s = reference_images_raw.strip()\n        if not s:\n \
+          \           return {\"reference_images\": []}\n        if s.startswith(\"\
+          [\"):\n            try:\n                parsed = json.loads(s)\n      \
+          \      except json.JSONDecodeError as e:\n                raise ValueError(f\"\
+          reference_images JSON 数组无效: {e}\") from e\n        elif s.startswith(\"\
+          {\") and s.endswith(\"}\"):\n            try:\n                parsed =\
+          \ json.loads(s)\n            except json.JSONDecodeError as e:\n       \
+          \         raise ValueError(f\"reference_images JSON 无效: {e}\") from e\n\
+          \        elif s.lower().startswith(\"http://\") or s.lower().startswith(\"\
+          https://\"):\n            return {\"reference_images\": [{\"image_url\"\
+          : s}]}\n        else:\n            try:\n                parsed = json.loads(s)\n\
+          \            except json.JSONDecodeError as e:\n                raise ValueError(\n\
+          \                    \"reference_images 须为 JSON 数组/对象、或单条 https URL 字符串\"\
+          \n                ) from e\n        items = parsed\n    else:\n        raise\
+          \ ValueError(\n            f\"reference_images_raw 须为 str 或 list，实际: {type(reference_images_raw).__name__}\"\
+          \n        )\n\n    if isinstance(items, dict):\n        items = [items]\n\
+          \    if not isinstance(items, list):\n        raise ValueError(\"解析结果须为\
+          \ JSON 数组或单个对象\")\n\n    out: List[Dict[str, Any]] = []\n    for i, it in\
+          \ enumerate(items):\n        out.append(_normalize_item(it, i))\n    return\
+          \ {\"reference_images\": out}\n\n\n# # ========== Dify 粘贴区结束 ==========\n\
+          \n\n# # ========== 本地自测（勿粘贴进 Dify） ==========\n# if __name__ == \"__main__\"\
+          :\n#     assert main(\"\") == {\"reference_images\": []}\n#     assert main(\"\
+          https://a.com/x.png\") == {\n#         \"reference_images\": [{\"image_url\"\
+          : \"https://a.com/x.png\"}]\n#     }\n#     assert main('[{\"image_url\"\
+          :\"https://b.com/1.jpg\"}]') == {\n#         \"reference_images\": [{\"\
+          image_url\": \"https://b.com/1.jpg\"}]\n#     }\n#     assert main('{\"\
+          image_url\":\"https://c.com/z.png\"}') == {\n#         \"reference_images\"\
+          : [{\"image_url\": \"https://c.com/z.png\"}]\n#     }\n#     print(\"local\
+          \ ok\")\n"
+        code_language: python3
+        outputs:
+          reference_images:
+            children: null
+            type: array[object]
+        selected: false
+        title: 代码执行
+        type: code
+        variables:
+        - value_selector:
+          - '1774505608780'
+          - reference_images
+          value_type: string
+          variable: reference_images_raw
+      height: 52
+      id: '1774518639409'
+      position:
+        x: 61.2426746791682
+        y: 303
+      positionAbsolute:
+        x: 61.2426746791682
+        y: 303
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -912.1776759717984
+      y: -260.5
+      zoom: 2
+  rag_pipeline_variables: []

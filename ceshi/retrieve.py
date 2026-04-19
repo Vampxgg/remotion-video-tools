@@ -3,6 +3,8 @@ import asyncio
 import httpx
 import os
 import pprint
+import re
+from datetime import datetime
 from typing import Dict, Any, List, Optional, Set, Tuple
 from collections import defaultdict
 
@@ -16,7 +18,7 @@ class Config:
     SILICONFLOW_RERANK_URL = "https://api.siliconflow.cn/v1/rerank"
     RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
     IS_DEBUG = True
-    TIMEOUT = 45
+    TIMEOUT = 90
 
 
 # --- 调试辅助 ---
@@ -64,22 +66,39 @@ class DifyApiClient:
 
         while True:
             params = {'limit': 100, 'page': page}  # Dify 最大 limit 通常是 100
-            try:
-                resp = await self.client.get(url, params=params)
-                resp.raise_for_status()
-                data = resp.json()
+            success = False
+            for attempt in range(3):
+                try:
+                    resp = await self.client.get(url, params=params)
+                    resp.raise_for_status()
+                    data = resp.json()
 
-                segments = data.get("data", [])
-                if not segments: break
+                    segments = data.get("data", [])
+                    if not segments:
+                        success = True
+                        break
 
-                all_segments.extend(segments)
+                    all_segments.extend(segments)
 
-                if not data.get("has_more", False):
+                    if not data.get("has_more", False):
+                        success = True
+                        break
+
+                    success = True
                     break
-                page += 1
-            except Exception as e:
-                print(f"⚠️ [Fetch Segments Error] DB:{database_id} Doc:{document_id} Page:{page} - {e}")
+                except Exception as e:
+                    if attempt < 2:
+                        await asyncio.sleep(1)
+                        continue
+                    print(
+                        f"⚠️ [Fetch Segments Error] DB:{database_id} Doc:{document_id} Page:{page} - {type(e).__name__}: {e}")
+
+            if not success:
                 break
+
+            if not data.get("has_more", False):
+                break
+            page += 1
 
         return all_segments
 
@@ -797,16 +816,502 @@ class ContentFormatter:
             return cls._format_text_document(chunks, meta, final_source_type=final_type)
 
 
+# --- 模块五：Tuoyu 专用处理器 ---
+class TuoyuContentParser:
+    @staticmethod
+    def parse_key_value_lines(content: str) -> Dict[str, str]:
+        data = {}
+        # 预处理：替换可能导致分割错误的字符
+        # content = content.replace("：", ":")
+        # 不替换，分别处理更安全
+
+        lines = content.split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line: continue
+
+            # Remove leading '- ' if present (List items)
+            clean_line = line
+            if clean_line.startswith('- '):
+                clean_line = clean_line[2:]
+
+            # Remove '### ' (Headers)
+            if clean_line.startswith('###'):
+                continue
+
+            # Handle | separators (Survey header)
+            parts = [clean_line]
+            if '|' in clean_line:
+                parts = clean_line.split('|')
+
+            for part in parts:
+                part = part.strip()
+                # 优先匹配中文冒号
+                if '：' in part:
+                    k, v = part.split('：', 1)
+                    data[k.strip()] = v.strip()
+                elif ':' in part:
+                    # 忽略 content: 开头的行（避免解析自身）
+                    if part.startswith("content:"): continue
+                    # 忽略时间格式 15:42:13
+                    # 通常 key 不包含空格，value 可能有
+                    # 简单启发式：如果 : 后面前面看起来像 key
+                    k, v = part.split(':', 1)
+                    data[k.strip()] = v.strip()
+        return data
+
+
+class TuoyuProcessor:
+    def __init__(self, api_client: DifyApiClient):
+        self.api = api_client
+
+    def parse_time_filter(self, time_filter: str) -> Tuple[Optional[datetime], Optional[datetime]]:
+        if not time_filter:
+            return None, None
+
+        now = datetime.now()
+
+        if '近三年' in time_filter:
+            # 近三年通常指当前年份往前推3年，或者365*3天
+            # 这里取当前年份-3的1月1日开始
+            start_date = now.replace(year=now.year - 3, month=1, day=1, hour=0, minute=0, second=0)
+            return start_date, now
+
+        # Try range "YYYY-MM-DD - YYYY-MM-DD"
+        # 兼容各种分隔符
+        range_match = re.match(r'(\d{4}-\d{2}-\d{2})\s*[-~to至]\s*(\d{4}-\d{2}-\d{2})', time_filter)
+        if range_match:
+            try:
+                start = datetime.strptime(range_match.group(1), '%Y-%m-%d')
+                end = datetime.strptime(range_match.group(2), '%Y-%m-%d')
+                # End date implies end of that day?
+                end = end.replace(hour=23, minute=59, second=59)
+                return start, end
+            except:
+                pass
+
+        # Try single date "YYYY-MM-DD" (Start Date)
+        single_date_match = re.match(r'^(\d{4}-\d{2}-\d{2})$', time_filter.strip())
+        if single_date_match:
+            try:
+                start = datetime.strptime(single_date_match.group(1), '%Y-%m-%d')
+                return start, now
+            except:
+                pass
+
+        # Try single year "2014"
+        year_match = re.match(r'^\d{4}$', time_filter.strip())
+        if year_match:
+            try:
+                year = int(year_match.group(0))
+                start = datetime(year, 1, 1)
+                end = datetime(year, 12, 31, 23, 59, 59)
+                return start, end
+            except:
+                pass
+
+        return None, None
+
+    def extract_date_from_content(self, data: Dict[str, str]) -> Optional[datetime]:
+        # 1. 备案及完成时间: 2019-12-31 15:42:13
+        if '备案及完成时间' in data:
+            try:
+                # 可能包含时间，也可能只有日期
+                val = data['备案及完成时间']
+                if len(val) > 10:
+                    return datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
+                else:
+                    return datetime.strptime(val, '%Y-%m-%d')
+            except:
+                pass
+
+        # 2. 年份: 2014
+        if '年份' in data:
+            try:
+                return datetime(int(data['年份']), 1, 1)
+            except:
+                pass
+
+        # 3. 尝试从 content 字段本身找（如果 parser 没提取出来）
+        # 暂时依赖 parser
+        return None
+
+    EDUCATION_MAP = {
+        "高职（专科）": "高等职业教育（专科）",
+        "高职专科": "高等职业教育（专科）",
+        "专科": "高等职业教育（专科）",
+        "高职": "高等职业教育（专科）",
+        "高等职业教育（专科）": "高等职业教育（专科）",
+        "大专": "高等职业教育（专科）",
+        "vocational_college": "高等职业教育（专科）",
+
+        "本科": "普通本科",
+        "普通本科": "普通本科",
+        "本科及以上": "普通本科",
+        "undergraduate": "普通本科",
+
+        "中职": "中等职业教育",
+        "中专": "中等职业教育",
+        "高中/中职": "中等职业教育",
+        "senior_high_school": "中等职业教育",
+
+        "硕士": "硕士研究生",
+        "研究生": "硕士研究生",
+        "硕士研究生": "硕士研究生",
+        "master_degree": "硕士研究生",
+    }
+
+    def normalize_education(self, text: str) -> str:
+        if not text: return ""
+        text = text.strip()
+        # 1. 直接查表
+        if text in self.EDUCATION_MAP:
+            return self.EDUCATION_MAP[text]
+        # 2. 包含匹配 (简单的反向查找，优先匹配长词)
+        # Sort keys by length desc to match "高职（专科）" before "高职"
+        sorted_keys = sorted(self.EDUCATION_MAP.keys(), key=len, reverse=True)
+        for k in sorted_keys:
+            if k in text:
+                return self.EDUCATION_MAP[k]
+        return text
+
+    def check_rules(self, data: Dict[str, str], regional_rules: Dict, time_range: Tuple) -> bool:
+        # 1. Regional Rules Check
+        if regional_rules:
+            # --- 问卷星数据过滤逻辑 (Questionnaire) ---
+            # 识别特征：包含 "岗位" 或 "job_role"
+            is_questionnaire = '岗位' in data or 'job_role' in data
+
+            if is_questionnaire:
+                # 过滤条件：major（专业）、scope（区域）、level（学历等级）
+                # 【重要】问卷数据不需要时间过滤
+
+                # (1) Major Check
+                req_major = regional_rules.get('major')
+                if req_major:
+                    major = data.get('专业') or data.get('major')
+                    # 模糊匹配
+                    if not major or req_major not in major:
+                        return False
+
+                # (2) Scope Check (City/Province)
+                req_scope = regional_rules.get('scope')
+                if req_scope:
+                    loc = data.get('城市') or data.get('省份') or data.get('city') or data.get('province') or ""
+                    if req_scope not in loc:
+                        return False
+
+                # (3) Level Check (Education)
+                req_level = regional_rules.get('level')
+                if req_level:
+                    edu = data.get('学历') or data.get('education')
+
+                    # 使用归一化逻辑
+                    norm_req = self.normalize_education(req_level)
+                    norm_edu = self.normalize_education(edu)
+
+                    # 宽松匹配：归一化后相等，或者互相包含
+                    match = False
+                    if not edu:
+                        match = False
+                    elif norm_req == norm_edu:
+                        match = True
+                    elif norm_req in norm_edu or norm_edu in norm_req:
+                        match = True
+
+                    if not match:
+                        return False
+
+                # 问卷数据直接返回 True，跳过后续的时间检查
+                return True
+
+            else:
+                # --- 非问卷数据 (机构备案 & MOE) ---
+
+                # (3) MOE Special Logic
+                # 识别特征：包含 "学校标识码" 或 "开设专业"
+                is_moe = '学校标识码' in data or ('开设专业' in data and '岗位' not in data)
+
+                if is_moe:
+                    # MOE 数据额外检查 major 和 level
+                    req_major = regional_rules.get('major')
+                    if req_major:
+                        major = data.get('开设专业') or data.get('专业') or data.get('major')
+                        if not major or req_major not in major:
+                            return False
+
+                    # Level Check: 只有 regional_rules 里的 level 是 ‘高职’/'高等职业教育（专科）'/'专科' 时才使用 MOE 数据
+                    req_level = regional_rules.get('level')
+                    # 这里的 valid_moe_levels 也可以用 normalize 判断，但为了保险先保留 list
+                    valid_moe_levels = ['高职', '高等职业教育（专科）', '专科', '高职（专科）', '高职专科']
+
+                    # 检查 req_level 是否属于高职类
+                    is_vocational = False
+                    norm_req = self.normalize_education(req_level)
+                    if norm_req == "高等职业教育（专科）":
+                        is_vocational = True
+                    else:
+                        for v in valid_moe_levels:
+                            if v in req_level:
+                                is_vocational = True
+                                break
+
+                    if not is_vocational:
+                        return False
+
+                    # MOE 数据也需要检查 School
+                    req_school = regional_rules.get('school')
+                    if req_school:
+                        name = data.get('机构名称') or data.get('institution_name') or data.get('别名') or data.get(
+                            'institution')
+                        if not name or req_school not in name:
+                            return False
+
+                    # MOE 数据也需要检查 Scope
+                    req_scope = regional_rules.get('scope')
+                    if req_scope:
+                        loc = data.get('城市') or data.get('省份') or data.get('city') or data.get('province') or ""
+                        if req_scope not in loc:
+                            return False
+
+                else:
+                    # --- 托育机构备案数据 (Tuoyu_institution) ---
+                    # 过滤条件：scope（区域）和 time_filter（时间范围）
+                    # 【重要】School 不是通用的！机构备案数据不检查 School！
+
+                    # (2) Scope Check (通用)
+                    req_scope = regional_rules.get('scope')
+                    if req_scope:
+                        # 字段：城市, 省份, 区域编号(需要映射?), city, province
+                        # 机构备案数据通常有 "详细地址" 或 "区域编号"
+                        loc = data.get('城市') or data.get('省份') or data.get('city') or data.get(
+                            'province') or data.get('详细地址') or ""
+                        # 区域编号处理比较复杂，暂时只匹配文本
+                        if req_scope not in loc:
+                            return False
+
+        # 2. Time Filter Check
+        # 需求：对于托育机构备案数据使用scope（区域）和time_filter（时间范围）作为条件
+        # MOE 数据和问卷数据是否需要时间过滤？
+        # 用户明确指出：问卷数据不需要时间过滤。
+        # MOE 数据需要时间过滤吗？之前的需求里提到了 MOE 使用 time_filter。
+        # 机构备案数据明确需要时间过滤。
+
+        # 因此，只有非问卷数据才进行时间检查
+        # is_questionnaire 已经在上面处理并返回了，能走到这里的都是非问卷数据
+
+        if time_range and time_range[0]:
+            date_obj = self.extract_date_from_content(data)
+            if date_obj:
+                start, end = time_range
+                # 注意：end 可能是 None (如果输入只是开始时间)
+                # 但 parse_time_filter 对于单一日期返回的是 (start, now)
+                # 所以这里可以直接比较范围
+                if not (start <= date_obj <= end):
+                    return False
+            else:
+                # 如果有时间筛选要求，但数据里没有时间：
+                # 严格模式下过滤掉。
+                return False
+
+        return True
+
+    async def process(self, tasks: List[Dict], query_groups: List[Dict], regional_rules: Dict, time_filter: str) -> \
+            Dict[str, Any]:
+        print(f"🚀 [Tuoyu Mode] Rules: {regional_rules}, Time: {time_filter}")
+
+        # 1. 构造查询 Query List
+        # 为了避免 Rules 中的特定字段（如 school）污染其他类型数据的召回（如机构备案数据），
+        # 我们构造两组 Rule String：
+        # A. Full Rules: 包含所有字段 (针对 MOE 等强匹配)
+        # B. General Rules: 排除 school 字段 (针对 机构备案/问卷 等通用匹配)
+
+        rule_parts_full = []
+        rule_parts_general = []
+
+        if regional_rules:
+            for k, v in regional_rules.items():
+                if not v: continue
+                v_str = str(v)
+
+                # Full 包含所有
+                rule_parts_full.append(v_str)
+
+                # General 排除 school
+                if k != 'school':
+                    rule_parts_general.append(v_str)
+
+        rule_str_full = " ".join(rule_parts_full)
+        rule_str_general = " ".join(rule_parts_general)
+
+        queries_to_run = set()
+
+        # 基础策略：如果没有 query_groups，直接使用 Rule Strings
+        if not query_groups:
+            if rule_str_full: queries_to_run.add(rule_str_full)
+            if rule_str_general: queries_to_run.add(rule_str_general)
+            if not queries_to_run: queries_to_run.add("全部")
+        else:
+            # 组合策略：Local Query + Rule String
+            for group in query_groups:
+                for q in group.get('local_queries', []):
+                    # 组合 Full
+                    if rule_str_full:
+                        queries_to_run.add(f"{q} {rule_str_full}".strip())
+                    # 组合 General (如果与 Full 不同)
+                    if rule_str_general and rule_str_general != rule_str_full:
+                        queries_to_run.add(f"{q} {rule_str_general}".strip())
+                    # 如果没有 Rules，就只用 q
+                    if not rule_str_full and not rule_str_general:
+                        queries_to_run.add(q)
+
+        queries_to_run = list(queries_to_run)
+        print(f"📋 Generated {len(queries_to_run)} queries: {queries_to_run}")
+
+        time_range = self.parse_time_filter(time_filter)
+
+        # Store results as (db_id, doc_info)
+        final_results_list = []
+
+        for task in tasks:
+            db_id = task.get('database_id')
+            if not db_id: continue
+
+            print(f"🔍 [Tuoyu] Searching DB: {db_id}")
+
+            # Step 1: 并发召回所有 Query 的结果 (Retrieve Chunks)
+            # 这里的 payload 可以复用
+            payload = {
+                "database_id_for_url": db_id,
+                # "top_k": 100
+            }
+
+            # Create retrieve tasks
+            retrieve_coros = [self.api.retrieve(q, payload.copy()) for q in queries_to_run]
+            results_list = await asyncio.gather(*retrieve_coros)
+
+            # Flatten chunks
+            all_chunks = []
+            seen_chunk_ids = set()
+            for res in results_list:
+                for chunk in res:
+                    # 简单去重，避免重复处理
+                    cid = chunk.get('id')
+                    if cid not in seen_chunk_ids:
+                        all_chunks.append(chunk)
+                        seen_chunk_ids.add(cid)
+
+            print(f"   -> Retrieved {len(all_chunks)} unique chunks from raw search")
+
+            # Step 2: 筛选相关文档 ID (去重 + 规则过滤)
+            relevant_doc_ids = set()
+            for chunk in all_chunks:
+                # 解析内容
+                content_data = TuoyuContentParser.parse_key_value_lines(chunk['content'])
+                # 规则检查
+                if self.check_rules(content_data, regional_rules, time_range):
+                    relevant_doc_ids.add(chunk['document_id'])
+
+            print(f"   -> Found {len(relevant_doc_ids)} relevant unique documents")
+
+            # Step 3: 获取完整文档并再次过滤 (Fetch Full Doc & Filter Segments)
+            async def process_doc(d_id):
+                # 获取详情
+                d_detail = await self.api.fetch_document_detail(db_id, d_id)
+                if not d_detail: return None
+
+                # 获取分段
+                segs = await self.api.fetch_all_segments(db_id, d_id)
+
+                # 过滤分段
+                valid_segs = []
+                for seg in segs:
+                    s_content = seg.get('content', '')
+                    s_data = TuoyuContentParser.parse_key_value_lines(s_content)
+                    if self.check_rules(s_data, regional_rules, time_range):
+                        valid_segs.append(seg)
+
+                if not valid_segs: return None
+
+                # 构造结果
+                pseudo_chunks = []
+                for s in valid_segs:
+                    pseudo_chunks.append({
+                        "content": s.get("content"),
+                        "position": s.get("position"),
+                        "score": 1.0,
+                        "document_id": d_id,
+                        "database_id": db_id,
+                        "document_name": d_detail.get('name')
+                    })
+
+                fmt_doc = ContentFormatter.format_document(pseudo_chunks, d_detail, context='full_doc')
+
+                # 设置 Source Type
+                sample_content = valid_segs[0].get('content', '')
+                sample_data = TuoyuContentParser.parse_key_value_lines(sample_content)
+
+                if '岗位' in sample_data or 'job_role' in sample_data:
+                    fmt_doc['source_type'] = 'Tuoyu_Questionnaire'
+                else:
+                    fmt_doc['source_type'] = 'Tuoyu_institution'
+
+                return fmt_doc
+
+            # Execute doc processing
+            doc_tasks = [process_doc(did) for did in relevant_doc_ids]
+            doc_results = await asyncio.gather(*doc_tasks, return_exceptions=True)
+
+            for res in doc_results:
+                if isinstance(res, Exception):
+                    print(f"⚠️ [Doc Process Error] {repr(res)}")
+                    continue
+                if res:
+                    final_results_list.append((db_id, res))
+
+        return {"result": [{"retrieve_data": self._package_results(final_results_list)}]}
+
+    def _package_results(self, results_list: List[Tuple[str, Dict]]) -> List[Dict]:
+        grouped = defaultdict(list)
+        for db_id, doc in results_list:
+            grouped[db_id].append(doc)
+
+        output = []
+        for db_id, docs in grouped.items():
+            output.append({
+                "database_id": db_id,
+                "document_infos": docs
+            })
+        return output
+
+
 # --- 主程序入口 ---
-async def async_main(tasks: List[Dict], query_groups: List[Dict] = None) -> Dict[str, Any]:
+async def async_main(tasks: List[Dict], query_groups: List[Dict] = None,
+                     regional_rules: Any = None, time_filter: Any = None, run_mode: str = "X-Pilot") -> Dict[str, Any]:
     if not tasks: return {"result": []}
-    # 容错：如果没有 query_groups，至少创建一个空的以确保流程跑通 (视业务而定)
-    if not query_groups: query_groups = [{"slide_id": "default", "local_queries": []}]
 
     client = DifyApiClient()
-    orchestrator = RetrievalOrchestrator(client)
 
     try:
+        # --- Tuoyu Mode Branch ---
+        if run_mode == "Tuoyu":
+            processor = TuoyuProcessor(client)
+            # Re-implement packaging logic inside process or here
+            # Let's verify process implementation
+
+            # We need to pass DB ID out.
+            # Let's modify TuoyuProcessor.process slightly to return structured data directly
+            # Or handle it here.
+
+            # Better to fix TuoyuProcessor.process to return the correct structure.
+            return await processor.process(tasks, query_groups, regional_rules, time_filter)
+
+        # --- Standard X-Pilot Mode ---
+        if not query_groups: query_groups = [{"slide_id": "default", "local_queries": []}]
+
+        orchestrator = RetrievalOrchestrator(client)
+        # ... existing logic ...
+
         # --- Stage 0: 任务归类 ---
         rag_tasks = [t for t in tasks if t.get("retrieval_mode") != "full_document_retrieval"]
         full_doc_tasks = [t for t in tasks if t.get("retrieval_mode") == "full_document_retrieval"]
@@ -882,10 +1387,11 @@ async def async_main(tasks: List[Dict], query_groups: List[Dict] = None) -> Dict
         await client.close()
 
 
-def main(tasks: List[Dict], query_groups: List[Dict] = None) -> Dict[str, Any]:
+def main(tasks: List[Dict], query_groups: List[Dict] = None,
+         regional_rules: Any = None, time_filter: Any = None, run_mode: str = "X-Pilot") -> Dict[str, Any]:
     """Dify 节点的主入口点"""
     try:
-        return debug_print(asyncio.run(async_main(tasks, query_groups)))
+        return debug_print(asyncio.run(async_main(tasks, query_groups, regional_rules, time_filter, run_mode)))
     except Exception as e:
         import traceback
         return {
@@ -897,24 +1403,51 @@ def main(tasks: List[Dict], query_groups: List[Dict] = None) -> Dict[str, Any]:
             ]
         }
 
+
+# main([
+#     {
+#         "database_id": "5bf50c7a-3ba4-46c7-bbdc-71d68f641e0a",
+#         "document_id": "6cc5b1e2-3bf3-47a8-b370-0eb0c4516c08",
+#         "retrieval_mode": "segment_retrieval"
+#     },
+#     # {
+#     #     "database_id": "5bf50c7a-3ba4-46c7-bbdc-71d68f641e0a",
+#     #     "retrieval_mode": "full_database_retrieval"
+#     # }
+# ],
+#     [
+#         {
+#             "local_queries": [
+#                 "视频",
+#                 "电动汽车 视频",
+#                 "比亚迪汉EV视频"
+#             ],
+#             "slide_id": "chapter_1_slide_1"
+#         }
+#     ])
+
+
 main([
+    # {
+    #     "database_id": "5bf50c7a-3ba4-46c7-bbdc-71d68f641e0a",
+    #     "document_id": "6cc5b1e2-3bf3-47a8-b370-0eb0c4516c08",
+    #     "retrieval_mode": "segment_retrieval"
+    # },
     {
-        "database_id": "5bf50c7a-3ba4-46c7-bbdc-71d68f641e0a",
-        "document_id": "6cc5b1e2-3bf3-47a8-b370-0eb0c4516c08",
-        "retrieval_mode": "segment_retrieval"
-    },
-    {
-        "database_id": "5bf50c7a-3ba4-46c7-bbdc-71d68f641e0a",
+        "database_id": "e22029c2-dcbe-448e-89bc-fcca8ef70f5f",
         "retrieval_mode": "full_database_retrieval"
     }
 ],
     [
         {
             "local_queries": [
-                "视频",
-                "电动汽车 视频",
-                "比亚迪汉EV视频"
+                "四川 公办 幼儿园托班"
             ],
             "slide_id": "chapter_1_slide_1"
         }
-    ])
+    ],
+    regional_rules={
+        "school": "泸州职业技术学院",
+        "major": "早期教育",
+        "scope": "四川省",
+        "level": "高等职业教育（专科）"}, run_mode="Tuoyu", time_filter="2020")

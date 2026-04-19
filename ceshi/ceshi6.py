@@ -1,761 +1,546 @@
 # -*- coding: utf-8 -*-
-# @File：main_app_refactored.py
-# @Time：2025/08/06 10:00
-# @Author：_不咬闰土的猹丶 (Refactored by Senior Software Engineer)
+# @File：ceshi6.py
+# @Time：2025/9/29 17:40
+# @Author：_不咬闰土的猹丶
 # @email：hx1561958968@gmail.com
-import io
-# --- 导入模块 ---
-import re
-import os
-import shutil
-import logging
-import concurrent.futures
+import requests
 import time
-import queue
-import sys
-import asyncio
-from asyncio import Semaphore
+import json
+import random
+import uuid
 import threading
-from typing import Dict, List, Any, Optional, Generator
-from datetime import datetime
-import unicodedata
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import numpy as np  # 用于计算百分位数，可选
 
-# FastAPI 相关导入
-from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+# ============================ 配置区域 START ============================
 
-# Fish Audio SDK 导入
-from fish_audio_sdk import Session, TTSRequest
+# API 服务配置
+API_HOST = "http://35.232.154.66:5125"
+API_BASE_URL = f"{API_HOST}/v1"
+API_KEY = "app-xABhiZILiP5ie76QWyqdLDR3"
+ENDPOINT = "/chat-messages"
 
-# pydub 导入，用于音频处理
-import numpy as np
-import pyrubberband
-from pydub import AudioSegment
+# 并发测试配置
+TOTAL_REQUESTS = 50  # 总共要发送的请求数量
+MAX_WORKERS = 50  # 最大并发线程数 (模拟的并发用户数)
 
-# ======================================================================================
-# --- [V12] 工业级日志配置 (保持不变) ---
-# ======================================================================================
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-            print(f"CRITICAL: Using fallback console logger for {logger_name}.")
-        return logger
-logger = setup_module_logger(__name__, "logs/audio/fish_json.log")
-# ======================================================================================
+# 请求内容配置
+RESPONSE_MODE = "streaming"  # "blocking" 或 "streaming"
+QUERIES = [  # 将从这个列表中随机选择问题 (query)
+    "你好，请做个自我介绍。",
+    "今天天气怎么样？",
+    "给我讲一个关于太空旅行的简短故事。",
+    "What is the capital of France?",
+    "Explain the theory of relativity in simple terms.",
+    "写一首关于秋天的诗。",
+    "如何制作一杯美味的卡布чино？",
+    "推荐三部科幻电影。",
+]
 
-router = APIRouter()
+# --- 新增配置：为 'inputs' 字段提供动态数据 ---
+# 根据您提供的图片，为 inputs 中的变量准备一些随机数据
+TOPICS = [
+    "Onboarding: A Guide to Our Company's Remote Work Tools",
+    "Cybersecurity Awareness: How to Spot Phishing Emails",
+    "Emotional Intelligence (EQ) in the Workplace",
+    "Giving Effective Feedback: The STAR Method",
+    "Time Management: Mastering the Pomodoro Technique",
+    "Diversity, Equity, and Inclusion (DEI) Fundamentals",
+    "Conflict Resolution Strategies for Teams",
+    "Introduction to Sustainable Business Practices (ESG)",
+    "Public Speaking: How to Craft a Compelling Presentation",
+    "Financial Literacy for Employees: Understanding Your 401(k)",
+    "Health and Safety Protocols in a Lab Environment",
+    "A Guide to Agile Methodologies Beyond Scrum",
+    "Customer Support Training: De-escalation Techniques",
+    "Mastering Business Writing: From Emails to Reports",
+    "Introduction to Design Thinking for Non-Designers",
+    "Media Training for Executives: Handling Press Interviews",
+    "The Art of Negotiation: Key Principles for Success",
+    "Mental Health and Well-being in the Workplace",
+    "A Guide to Using Our New Internal CRM Software",
+    "Leadership Training: From Manager to Coach",
+    "How mRNA Vaccines Work: A Cellular Story",
+    "The James Webb Space Telescope: Peering into the Dawn of Time",
+    "Gravitational Waves: How We Listen to the Universe's Echoes",
+    "The Human Genome Project: Mapping the Blueprint of Life",
+    "The Science of Sleep: What Happens in Your Brain When You Dream?",
+    "Carbon Capture Technology: Can We Bury Climate Change?",
+    "GPS & Relativity: Why Your Phone Needs Einstein to Work",
+    "The Mycorrhizal Network: The 'Wood Wide Web' of Forests",
+    "How Large Language Models (LLMs) Actually Learn",
+    "The Water Cycle on Mars: A Story of a Lost Ocean",
+    "The Structure of a Virus: How They Hijack Our Cells",
+    "Sonar and Echolocation: The 'Vision' of Bats and Submarines",
+    "The Maillard Reaction: The Chemistry of Delicious Food",
+    "The Aerodynamics of a Formula 1 Car",
+    "How Solar Panels Convert Sunlight into Electricity (The Photovoltaic Effect)",
+    "A Brief History of the Internet: From ARPANET to the World Wide Web",
+    "The Lifecycle of a Star: From Stellar Nebula to Supernova",
+    "Geothermal Energy: Tapping into the Earth's Core",
+    "How Neural Networks Create Art (StyleGAN explained)",
+    "Comparing Biological and Artificial Neural Networks",
+    "The Water Cycle: A Journey from Ocean to Cloud",
+    "Photosynthesis: How Plants Make Their Own Food",
+    "A Tour of Our Solar System's Planets",
+    "Plate Tectonics and Why Earthquakes Happen",
+    "Key Battles of the American Revolutionary War",
+    "The Rise and Fall of the Roman Empire",
+    "Shakespeare's 'Romeo and Juliet': A Plot Summary",
+    "How a Bill Becomes a Law in the United States",
+    "Introduction to Coding with Scratch",
+    "The Food Chain: Predators and Prey in an Ecosystem",
+    "Why Do We Have Seasons? Understanding Earth's Tilt",
+    "The Three States of Matter: Solid, Liquid, Gas",
+    "A Journey Through the Human Digestive System",
+    "The Evolution of Writing: From Hieroglyphs to the Alphabet",
+    "Adding and Subtracting Fractions: A Visual Guide",
+    "An Introduction to the Periodic Table of Elements",
+    "The Three Branches of U.S. Government",
+    "The Great Artists of the Renaissance",
+    "The Spark of World War I: A Chain of Events",
+    "Understanding Basic Electrical Circuits",
+    "How to Use Your New Smartwatch to Track Health Metrics",
+    "Mastering Your DSLR Camera: Aperture, Shutter Speed, and ISO",
+    "A Guide to Your Smart Home System: Controlling Lights with One App",
+    "Getting Started with Your New Instant Pot Multi-Cooker",
+    "Key Features of an Electric Vehicle: One-Pedal Driving and Autopark",
+    "How to Play the New 'Catan: Starfarers' Board Game",
+    "Your Robot Vacuum's Mapping and Auto-Charging Features",
+    "Step-by-Step Assembly of the LEGO Millennium Falcon set",
+    "A Tour of Our Banking App's New Smart Budgeting Feature",
+    "How Your Smart Thermostat Learns Your Habits to Save Energy",
+    "Unique Features of a Smart Suitcase: GPS Tracking and Self-Weighing",
+    "The Cushioning Technology Behind the New Nike Air Max",
+    "Your First Print with a Home 3D Printer",
+    "How a Memory Foam Mattress Adapts to Your Body",
+    "A Guide to Using the Rowing Machine at the Gym",
+    "How to Set Up and Pack Your New 4-Person Camping Tent",
+    "The Process of Our Online Legal Consultation Service",
+    "How to Use a Portable Projector for a Movie Night",
+    "The Modular Design of Our New Sofa: Endless Combinations",
+    "Your Smart Fridge's Food Management and Recipe Features",
+    "The Global Semiconductor Supply Chain: A Fragile Lifeline",
+    "Central Bank Digital Currencies (CBDCs): The Future of Money?",
+    "The Business Models of Streaming: Netflix vs. Spotify",
+    "Universal Basic Income (UBI): A Thought Experiment",
+    "The Psychology of Social Media Algorithms",
+    "How Misinformation Spreads Online: A Network Analysis",
+    "The 'Metaverse': What Is It, Really?",
+    "The Principles of a Circular Economy",
+    "The Gig Economy: Pros and Cons for Workers and Companies",
+    "The History and Future of Remote Work",
+    "The Technological and Ethical Challenges of Colonizing Mars",
+    "An Introduction to Stoic Philosophy: Controlling What You Can",
+    "The Impact of Globalization on Local Cultures",
+    "The Rise of ESG Investing: Can Business Save the Planet?",
+    "How Gene Editing Will Change Humanity",
+    "The Business of 'Big Pharma': A Look Inside the Industry",
+    "The Art and Science of Political Polling: Why It's So Often Wrong",
+    "Understanding International Trade Agreements: From WTO to CPTPP",
+    "The Future of Cities: Smart Cities and the 15-Minute Neighborhood",
+    "The Global Energy Crisis: Causes and Solutions",
+    "Decoding 'Attention Is All You Need': The Transformer Architecture",
+    "AlphaFold Explained: How AI Solved Protein Folding",
+    "Daniel Kahneman's Prospect Theory: Understanding Our Biases",
+    "The GAN Paper Explained: How Generative Adversarial Networks Work",
+    "The Coase Theorem and the Problem of Externalities",
+    "Breaking Down the Latest Nature Paper on [Specific Topic]",
+    "A Look at the Original 'Deep Learning' Paper by Hinton et al.",
+    "The Milgram Experiment: An Analysis of Obedience to Authority",
+    "Satoshi Nakamoto's Bitcoin Whitepaper: A Line-by-Line Breakdown",
+    "The Discovery of Penicillin: Fleming's Serendipitous Finding",
+    "The Theory of Plate Tectonics: How It Was Proven",
+    "John Nash's Game Theory and the Nash Equilibrium",
+    "Breaking Down the Latest Breakthrough in Battery Technology",
+    "The Loftus and Palmer Study on False Memories",
+    "How DeepMind's AI Mastered Atari Games (The DQN Paper)",
+    "The Latest Research on the Human Gut Microbiome",
+    "The Discovery of CRISPR-Cas9: A Scientific Revolution",
+    "The Key Scientific Breakthroughs Behind mRNA Vaccines",
+    "The 'Endowment Effect': A Classic of Behavioral Economics",
+    "How to Turn Your PhD Thesis into a Video Abstract",
+    "A Visual Proof of the Pythagorean Theorem",
+    "An Intuitive Introduction to Logarithms",
+    "Solving Quadratic Equations: Factoring, Completing the Square, and the Formula",
+    "An Introduction to Imaginary Numbers and the Complex Plane",
+    "The Concept of Infinity and Its Paradoxes",
+    "Visualizing Matrix Transformations: Rotation, Scaling, and Shearing",
+    "Solving Systems of Linear Equations with Gaussian Elimination",
+    "The Fibonacci Sequence and the Golden Ratio in Nature",
+    "An Intuitive Explanation of Standard Deviation",
+    "Introduction to Probability with Cards and Dice",
+    "The Fundamental Theorem of Calculus Explained",
+    "The Art of Adding Auxiliary Lines in Geometry Problems",
+    "The Logic of Mathematical Induction",
+    "The Seven Bridges of Königsberg: An Introduction to Graph Theory",
+    "How to Solve a Rubik's Cube with Algorithms",
+    "The Monty Hall Problem: A Probability Puzzle Explained",
+    "Introduction to Cryptography: RSA Encryption and Prime Numbers",
+    "How to Read and Interpret a Box Plot",
+    "Euler's Polyhedron Formula Explained (V-E+F=2)",
+    "A Challenging Math Olympiad Problem, Solved Step-by-Step",
+    "An Introduction to 3D Modeling in Blender",
+    "Building Your First Website with Webflow (No Code)",
+    "Mastering Layers and Masks in Adobe Photoshop",
+    "Setting Up Your First E-commerce Store with Shopify",
+    "How to Use Anki for Effective Spaced Repetition Learning",
+    "A Tour of Salesforce: Managing Your Sales Funnel",
+    "Getting Started with QuickBooks for Small Business Accounting",
+    "Making Your First Beat in Ableton Live",
+    "Collaboration Tricks in Google Docs: Comments, Suggestions, and Version History",
+    "How to Run a Remote Brainstorming Session with Miro",
+    "Introduction to Data Analysis with Python and Pandas",
+    "How Grammarly Improves Your English Writing",
+    "Building Your First Web App Without Code Using Bubble",
+    "Version Control for Beginners: Git and GitHub",
+    "Introduction to 2D Drafting in AutoCAD",
+    "How to Set Up a Livestream with OBS Studio",
+    "Managing Your Passwords with 1Password/LastPass",
+    "How to Design Effective Questions in SurveyMonkey",
+    "Creating Your First Motion Graphic in Adobe After Effects",
+    "Managing Projects with Jira: Sprints and Kanban Boards",
+    "新人销售入职第一周：产品知识与销售话术",
+    "《数字营销实战》：SEO入门与关键词策略",
+    "团队协作培训：如何高效使用飞书/Slack进行项目沟通",
+    "谈判技巧：双赢谈判的五个核心原则",
+    "时间管理：用“四象限法则”规划你的一天",
+    "企业网络安全意识培训：如何识别钓鱼邮件",
+    "门店服务礼仪：从迎客到送客的全流程规范",
+    "设计思维工作坊：从用户共情到原型测试",
+    "财务知识普及：给非财务人员的预算管理课",
+    "远程工作最佳实践：如何保持高效与专注",
+    "情绪智力（EQ）在职场中的应用",
+    "公开演讲技巧：如何克服紧张情绪并吸引听众",
+    "内容营销策略：如何为你的品牌讲故事",
+    "多元化与包容性（D&I）企业文化建设",
+    "用户访谈技巧：如何提出不带偏见的好问题",
+    "危机管理与媒体应对预案",
+    "员工心理健康：压力识别与应对策略",
+    "办公室急救知识（CPR）入门",
+    "商业写作指南：如何撰写清晰有力的商务邮件",
+    "新晋管理者培训：从技术专家到团队领导的转型",
+    "詹姆斯·韦伯太空望远镜如何 peering into the early universe",
+    "mRNA疫苗的工作原理：给你的细胞发送指令",
+    "引力波：聆听宇宙的“声音”",
+    "人类基因组计划：我们是如何绘制生命蓝图的？",
+    "量子计算机的核心：叠加态与纠缠的直观解释",
+    "碳捕捉技术：我们能把二氧化碳“塞”回地下吗？",
+    "GPS全球定位系统：它为何离不开爱因斯坦的相对论？",
+    "睡眠科学：为什么我们需要REM睡眠周期？",
+    "菌根网络：森林里的“地下互联网”",
+    "LLM大语言模型是如何学习和“思考”的？",
+    "火星上的水循环：红色星球的过去与未来",
+    "病毒的结构：它们是如何入侵我们细胞的？",
+    "声纳与回声定位：蝙蝠和潜艇的“视觉”",
+    "烹饪中的化学：美拉德反应的秘密",
+    "F1赛车的空气动力学：看不见的下压力",
+    "太阳能电池板：光伏效应的微观世界",
+    "互联网简史：从ARPANET到万维网",
+    "恒星的生命周期：从诞生到死亡",
+    "地热能：来自地球核心的清洁能源",
+    "人脑的神经网络：生物智能与人工智能的对比",
+    "自然课：水循环的奇妙旅程",
+    "生物课：光合作用，植物的“秘密厨房”",
+    "天文课：太阳系的家庭成员",
+    "地理课：板块构造与地震的成因",
+    "美国历史：独立战争的关键战役",
+    "世界历史：古罗马帝国的崛起与衰落",
+    "文学课：莎士比亚《罗密欧与朱丽叶》剧情解析",
+    "公民课：民主的诞生与三权分立",
+    "编程入门：用Scratch制作你的第一个动画",
+    "生物课：食物链与生态系统的平衡",
+    "地理课：四季的成因——地球的倾斜之旅",
+    "物理课：物质的三种状态（固、液、气）",
+    "生物课：人体的消化系统之旅",
+    "历史课：文字的演变——从象形文字到字母",
+    "数学课：分数的加减法可视化教学",
+    "化学课：元素周期表入门",
+    "政治课：一项法案是如何成为法律的？",
+    "艺术史：文艺复兴时期的三大巨匠",
+    "世界历史：第一次世界大战的导火索",
+    "物理课：电路的基本原理",
+    "新品发布：智能手表如何监测你的健康数据",
+    "专业相机使用指南：光圈、快门与ISO的平衡",
+    "智能家居系统演示：用一个App控制全屋灯光",
+    "多功能料理锅（Instant Pot）的使用与食谱",
+    "电动汽车核心功能讲解：单踏板模式与自动泊车",
+    "新桌游规则讲解与开箱",
+    "机器人吸尘器的路径规划与自动回充功能",
+    "乐高复杂套装（如千年隼）的拼装步骤演示",
+    "银行App新功能：智能理财与账单分析",
+    "智能恒温器如何学习你的习惯并节省能源",
+    "高科技旅行箱的独特功能：GPS追踪与自称重",
+    "一款新发布的运动鞋的缓震技术解析",
+    "如何使用家用3D打印机开始你的第一个创作",
+    "记忆棉床垫如何适应你的睡姿",
+    "健身房新器械：划船机的使用指南",
+    "高端帐篷的搭建与打包教学",
+    "服务介绍：我们的线上法律咨询流程",
+    "如何使用便携式投影仪打造家庭影院",
+    "新品发布：模块化沙发的多种组合方式",
+    "智能冰箱的食材管理与食谱推荐功能",
+    "全球半导体供应链：脆弱的科技命脉",
+    "央行数字货币 (CBDC) 的崛起与未来",
+    "流媒体商业模式解析：Netflix vs. Spotify",
+    "全民基本收入 (UBI) 的思想实验与社会影响",
+    "社交媒体算法的心理学：我们是如何被“塑造”的",
+    "虚假信息是如何在线上传播的？",
+    "“元宇宙”的真正含义与技术挑战",
+    "循环经济的基本原则与商业案例",
+    "零工经济（Gig Economy）的利与弊",
+    "远程工作的历史与未来趋势",
+    "太空殖民的技术与伦理挑战",
+    "斯多葛主义哲学入门：控制你能控制的",
+    "全球化对本土文化的影响",
+    "ESG投资的兴起与争议",
+    "基因编辑将如何改变人类的未来？",
+    "“大型制药公司”的商业模式解析",
+    "政治民调的艺术与科学：为何它总是不准？",
+    "理解国际贸易协定：从WTO到CPTPP",
+    "未来的城市：智慧城市与15分钟生活圈",
+    "全球能源危机的成因与解决方案",
+    "解读Geoffrey Hinton的胶囊网络（Capsule Networks）",
+    "香农《通信的数学理论》核心思想",
+    "沃森与克里克：DNA双螺旋结构的发现之旅",
+    "LIGO首次探测到引力波的论文解读",
+    "丹尼尔·卡尼曼《思考，快与慢》的核心概念",
+    "《科学》期刊最新气候变化论文摘要",
+    "“深度学习”概念的首次提出与意义",
+    "米尔格拉姆的“服从权威”实验解读",
+    "中本聪的比特币白皮书核心解读",
+    "青霉素的发现：一个意外的科学奇迹",
+    "板块构造理论的建立与证据",
+    "约翰·纳什的博弈论与纳什均衡",
+    "最新电池技术突破论文解读",
+    "“商场迷路”实验与虚假记忆研究",
+    "强化学习论文：DeepMind如何用AI玩转雅达利游戏",
+    "人类肠道菌群的最新研究发现",
+    "CRISPR-Cas9基因编辑技术的发现论文",
+    "mRNA疫苗背后的关键科学突破",
+    "行为经济学经典：解读“禀赋效应”",
+    "考古学最新发现：[具体发现]论文解读",
+    "视觉化讲解勾股定理 (毕达哥拉斯定理)",
+    "对数（Logarithms）的直观理解",
+    "二次方程求解：配方法与公式法",
+    "虚数i与复平面入门",
+    "无穷大（Infinity）的概念与悖论",
+    "矩阵变换的可视化：旋转、缩放与剪切",
+    "高斯消元法解线性方程组",
+    "斐波那契数列与自然界中的黄金分割",
+    "标准差的直观解释：数据有多“分散”？",
+    "概率计算入门：扑克牌与骰子",
+    "导数与积分的“微积分基本定理”",
+    "几何难题：如何巧妙添加辅助线",
+    "数学归纳法的逻辑与应用",
+    "图论入门：七桥问题与欧拉回路",
+    "如何用算法思维解决魔方",
+    "“三门问题”（Monty Hall Problem）的概率解析",
+    "密码学入门：RSA加密与素数",
+    "箱形图（Box Plot）的解读与绘制",
+    "3D几何：欧拉多面体定理 (V-E+F=2)",
+    "奥数经典题：[具体题目]的解题思路",
+    "3D建模入门：Blender的核心界面与操作",
+    "如何用Wix/Squarespace搭建你的个人网站",
+    "Adobe Photoshop：图层蒙版的强大功能",
+    "Shopify开店指南：从零到一发布你的第一个商品",
+    "Anki入门：如何用间隔重复法高效学习",
+    "Salesforce核心功能：销售漏斗与客户管理",
+    "QuickBooks入门：自动化你的小企业记账",
+    "Ableton Live音乐制作：从鼓点到旋律",
+    "Google Docs协作技巧：评论、建议与版本历史",
+    "Miro远程协作白板：团队头脑风暴的最佳实践",
+    "Python数据分析：Pandas库入门",
+    "Grammarly语法检查：提升你的英文写作水平",
+    "Bubble无代码开发：构建你的第一个Web App",
+    "Git与GitHub：程序员的版本控制入门",
+    "AutoCAD建筑绘图：二维平面图绘制基础",
+    "OBS Studio直播串流设置指南",
+    "1Password/LastPass密码管理器：告别忘记密码",
+    "SurveyMonkey问卷设计：如何提出有效的问题",
+    "Adobe After Effects：制作你的第一个动态图标",
+    "Jira项目管理：看板（Kanban）与冲刺（Sprint）"
+]
+PROMPTS = ["生成英文版本", "生成中文版本"]
+LARGE_TEXT_SAMPLES = [
+    ""
+]
+# --- 新增配置结束 ---
 
-# --- 全局资源 ---
-tts_thread_pool: Optional[concurrent.futures.ThreadPoolExecutor] = None
-api_semaphore: Optional[asyncio.Semaphore] = None
-global_session_pool: Optional[queue.Queue] = None
-pool_init_lock = threading.Lock()
-dir_creation_lock = threading.Lock()
 
-# --- 代理与配置区 (保持不变) ---
-PROXY_URL = ""
-ENGINE_MODEL = "speech-1.6"
-AUDIO_FORMAT = "mp3"
-# 【建议】将 HOST 和端口配置化，便于部署
-API_BASE_URL = "https://server.x-pilot.ai"
-PUBLIC_URL_TEMPLATE = f"{API_BASE_URL}/static/meta-doc/video/{{workflow_id}}/audio/{{filename}}"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-# 临时工作目录
-TEMP_WORK_DIR_TEMPLATE = os.path.join(STATIC_DIR, "file", "{workflow_id}")
-# 最终产物目录
-FINAL_DEST_DIR = "/data/www/wwwroot/x-pilot-oss/uploads/meta-doc/video"
-MAX_WORKERS = 15
-SESSION_POOL_SIZE = MAX_WORKERS
-MAX_RETRIES = 3
-RETRY_DELAY = 2
-TEXT_SPLIT_THRESHOLD = 120
-FISH_API_KEY = "dae51de32a0743f6b4f2f7b6366747bf"  # 【安全建议】应从环境变量或配置文件读取
-SENTENCE_SPLIT_PATTERN = r"([。！？，、；…])"
-ENABLE_DYNAMIC_SPEED_ADJUSTMENT = True
-SPEED_ADJUST_THRESHOLD_RATIO = 1.05
-MAX_SPEECH_SPEED = 1.3
-ENABLE_DYNAMIC_DECELERATION = True
-MIN_SPEECH_SPEED = 0.95
-START_PADDING_BUFFER_MS = 150
+# ============================ 配置区域 END ============================
 
 
-# ======================================================================================
-# --- 生命周期事件 (Startup / Shutdown) ---
-# ======================================================================================
+# 存储统计结果的列表
+results = {
+    "success": [],
+    "failure": [],
+    "ttfb": []  # Time to First Byte, 仅用于流式模式
+}
 
-@router.on_event("startup")
-def startup_event():
-    """在应用启动时初始化全局资源。"""
-    global tts_thread_pool, api_semaphore, global_session_pool
-
-    if PROXY_URL:
-        os.environ['HTTP_PROXY'] = PROXY_URL
-        os.environ['HTTPS_PROXY'] = PROXY_URL
-        logger.info(f"已配置全局 HTTP/HTTPS 代理: {PROXY_URL}")
-    else:
-        logger.info("未配置代理，将直接进行网络连接。")
-
-    tts_thread_pool = concurrent.futures.ThreadPoolExecutor(
-        max_workers=MAX_WORKERS,
-        thread_name_prefix="Global_TTS_Worker"
-    )
-    api_semaphore = Semaphore(50)
-
-    # 预先初始化 Session Pool
-    with pool_init_lock:
-        if global_session_pool is None:
-            try:
-                logger.info(f"正在初始化全局 Session 池，大小为 {SESSION_POOL_SIZE}...")
-                new_pool = queue.Queue(maxsize=SESSION_POOL_SIZE)
-                # 【优化】可以在一个线程里完成这个初始化，避免阻塞主事件循环启动
-                for i in range(SESSION_POOL_SIZE):
-                    new_pool.put(Session(FISH_API_KEY))
-                global_session_pool = new_pool
-                logger.info("全局 Session 池成功创建并已缓存。")
-            except Exception as e:
-                logger.critical(f"应用启动时创建 TTS Session 池失败: {e}", exc_info=True)
-                # 如果 Session 池创建失败，应用可能无法正常工作，可以选择退出
-                # sys.exit(1)
-
-    logger.info(f"全局共享TTS线程池已创建，最大工作线程数: {MAX_WORKERS}")
-    logger.info(f"全局信号量已创建，许可数: {50}")
+# 线程锁，用于安全地更新共享的 results 字典
+lock = threading.Lock()
 
 
-@router.on_event("shutdown")
-def shutdown_event():
-    """在应用关闭时优雅地释放资源。"""
-    global tts_thread_pool, global_session_pool
-    if tts_thread_pool:
-        logger.info("正在关闭全局共享TTS线程池...")
-        tts_thread_pool.shutdown(wait=True)
-        logger.info("全局共享TTS线程池已成功关闭。")
-
-    if global_session_pool:
-        logger.info(f"正在关闭全局 Session 池中的 ({global_session_pool.qsize()}) 个 Session...")
-        while not global_session_pool.empty():
-            try:
-                session = global_session_pool.get_nowait()
-                if hasattr(session, 'close'):
-                    session.close()  # 假设 Session 对象有 close 方法
-            except queue.Empty:
-                break
-            except Exception as e:
-                logger.error(f"关闭一个 Session 时出错: {e}")
-        logger.info("全局 Session 池已被清理。")
-
-
-# ======================================================================================
-# --- API 响应模型与工具函数 ---
-# ======================================================================================
-
-class StandardResponse(BaseModel):
-    """标准的API响应模型，提供一致的返回结构。"""
-    code: int = Field(200, description="业务状态码，通常与HTTP状态码一致")
-    message: str = Field("Success", description="响应的文本消息")
-    data: Optional[Any] = Field(None, description="实际的响应数据负载")
-    timestamp: str = Field(..., description="服务器响应时的ISO 8601格式时间戳")
-
-
-def create_standard_response(
-        data: Optional[Any] = None,
-        code: int = 200,
-        message: str = "Success"
-) -> JSONResponse:
-    """创建一个标准格式的 FastAPI 响应，便于客户端统一处理。"""
-    content = StandardResponse(
-        code=code,
-        message=message,
-        data=data,
-        timestamp=datetime.now().isoformat()
-    ).model_dump()
-    return JSONResponse(status_code=code, content=content)
-
-
-def extract_subtitles_from_json(data: Any) -> Generator[Dict[str, Any], None, None]:
+def send_request(request_id):
     """
-    【核心重构】一个健壮的生成器函数，用于深度遍历任何JSON结构并提取字幕对象。
-    这使得API不再依赖于固定的JSON schema。
+    发送单个 API 请求并记录结果。
     """
-    if isinstance(data, dict):
-        # 检查当前字典是否是一个 "字幕对象"
-        if all(k in data for k in ['text', 'start_time_seconds', 'end_time_seconds']):
-            yield data
-            return  # 找到后不再深入此分支，避免重复提取
-        # 如果不是字幕对象，则递归遍历它的值
-        for value in data.values():
-            yield from extract_subtitles_from_json(value)
-    elif isinstance(data, list):
-        # 如果是列表，递归遍历它的所有元素
-        for item in data:
-            yield from extract_subtitles_from_json(item)
+    api_url = f"{API_BASE_URL}{ENDPOINT}"
 
+    headers = {
+        'Authorization': f'Bearer {API_KEY}',
+        'Content-Type': 'application/json'
+    }
 
-# ======================================================================================
-# --- 核心业务逻辑函数 (解耦且可重用) ---
-# ======================================================================================
-# 以下函数: _process_and_finalize_audio, _split_text_into_chunks,
-# _move_workflow_directory 保持了原有的优秀设计，无需大改。
+    # --- 修改部分：构建包含 'inputs' 变量的请求体 ---
+    payload = {
+        "inputs": {
+            "topic": random.choice(TOPICS),
+            "prompt": random.choice(PROMPTS),
+            "smart_search": True,  # 根据图片，“必填”，假设为布尔值
+            "file_parsing": False,  # 根据图片，“必填”，假设为布尔值
+            "large_text": random.choice(LARGE_TEXT_SAMPLES)
+        },
+        "query": random.choice(QUERIES),
+        "response_mode": RESPONSE_MODE,
+        "user": f"test-user-{uuid.uuid4()}",  # 为每个请求生成唯一用户
+    }
+    # --- 修改结束 ---
 
-def _process_and_finalize_audio(audio: AudioSegment, task_info: Dict[str, Any]) -> AudioSegment:
-    """音频动态加速和精确静音填充 (保持不变)"""
-    # ... (此处代码与你提供的版本完全相同，为简洁省略)
-    task_id = task_info['id']
-    target_duration_sec = task_info["end_sec"] - task_info["start_sec"]
+    start_time = time.monotonic()
+    response = None
+    first_byte_time = None
 
-    if target_duration_sec <= 0:
-        logger.warning(f"[Task {task_id}] 目标时长无效 ({target_duration_sec}s)，返回原始TTS音频。")
-        return audio
-
-    processed_audio = audio
-    target_duration_ms = int(target_duration_sec * 1000)
-    actual_duration_ms = len(processed_audio)
-
-    if ENABLE_DYNAMIC_SPEED_ADJUSTMENT and actual_duration_ms > target_duration_ms * SPEED_ADJUST_THRESHOLD_RATIO:
-        ratio = actual_duration_ms / target_duration_ms
-        logger.warning(
-            f"[Task {task_id}] 音频过长({actual_duration_ms}ms > 目标 {target_duration_ms}ms)，"
-            f"将使用 pyrubberband 进行高质量加速，速度: {ratio:.2f}x。"
-        )
-        samples = np.array(processed_audio.get_array_of_samples())
-        stretched_samples = pyrubberband.time_stretch(samples, processed_audio.frame_rate, ratio)
-        processed_audio = AudioSegment(
-            stretched_samples.tobytes(),
-            frame_rate=processed_audio.frame_rate,
-            sample_width=processed_audio.sample_width,
-            channels=processed_audio.channels
-        )
-    elif ENABLE_DYNAMIC_DECELERATION and actual_duration_ms < target_duration_ms:
-        calculated_ratio = actual_duration_ms / target_duration_ms
-        if calculated_ratio >= MIN_SPEECH_SPEED:
-            logger.info(
-                f"[Task {task_id}] 音频偏短({actual_duration_ms}ms < 目标 {target_duration_ms}ms)，"
-                f"将进行高质量减速以自然填充时长。比率:{calculated_ratio:.2f}x (在 {MIN_SPEECH_SPEED} 的限制内)"
+    try:
+        if RESPONSE_MODE == "streaming":
+            response = requests.post(
+                api_url,
+                headers=headers,
+                json=payload,
+                timeout=120,
+                stream=True
             )
-            samples = np.array(processed_audio.get_array_of_samples())
-            stretched_samples = pyrubberband.time_stretch(samples, processed_audio.frame_rate, calculated_ratio)
-            processed_audio = AudioSegment(
-                stretched_samples.tobytes(),
-                frame_rate=processed_audio.frame_rate,
-                sample_width=processed_audio.sample_width,
-                channels=processed_audio.channels
+            response.raise_for_status()
+
+            for chunk in response.iter_content(chunk_size=8192):
+                if first_byte_time is None:
+                    first_byte_time = time.monotonic()
+                pass
+
+        else:  # blocking 模式
+            response = requests.post(
+                api_url,
+                headers=headers,
+                json=payload,
+                timeout=120
             )
+            response.raise_for_status()
+            _ = response.json()
 
-    final_duration_ms = len(processed_audio)
-    duration_diff_ms = target_duration_ms - final_duration_ms
+        end_time = time.monotonic()
+        latency = end_time - start_time
 
-    if duration_diff_ms > 0:
-        start_padding_ms = min(duration_diff_ms, START_PADDING_BUFFER_MS)
-        end_padding_ms = duration_diff_ms - start_padding_ms
-        start_silence = AudioSegment.silent(duration=start_padding_ms)
-        end_silence = AudioSegment.silent(duration=end_padding_ms)
-        final_audio = start_silence + processed_audio + end_silence
-        return final_audio
-    elif duration_diff_ms < 0:
-        logger.warning(
-            f"[Task {task_id}] 内容溢出: 最终音频({final_duration_ms}ms) > 目标({target_duration_ms}ms)。"
-            f"将从尾部裁剪 {abs(duration_diff_ms)}ms。"
-        )
-        return processed_audio[:target_duration_ms]
-    else:
-        return processed_audio
+        with lock:
+            results["success"].append(latency)
+            if first_byte_time:
+                ttfb = first_byte_time - start_time
+                results["ttfb"].append(ttfb)
+
+        return (request_id, "Success", response.status_code, latency)
+
+    except requests.exceptions.RequestException as e:
+        end_time = time.monotonic()
+        latency = end_time - start_time
+        error_message = f"Error: {e}"
+        if response is not None:
+            error_message += f", Response Body: {response.text[:200]}"
+
+        with lock:
+            results["failure"].append(latency)
+
+        return (request_id, "Failure", response.status_code if response else "N/A", latency, error_message)
 
 
-# ======================================================================================
-# --- 文本清洗工具函数 (专门修复 TTS 爆破音/杂音问题) ---
-# ======================================================================================
-def _clean_text_for_tts(text: str) -> str:
+def print_statistics():
     """
-    清洗 LLM 生成的文本，移除会导致 TTS 模型产生噪声/爆破音的特殊符号。
-    处理内容：
-    1. Unicode 标准化 (NFKC)。
-    2. 移除 Markdown 符号 (*, #, `, ~)。
-    3. 移除特殊货币/数学符号 (如 ₹)。
-    4. 移除 Emoji 表情。
-    5. 移除不可见控制字符。
+    打印详细的性能统计报告
     """
-    if not text:
-        return ""
+    success_count = len(results["success"])
+    failure_count = len(results["failure"])
+    total_run = success_count + failure_count
 
-    # 1. Unicode NFKC 标准化 (将全角字符、兼容字符转换为标准字符)
-    # 这能解决很多编码引起的杂音问题
-    text = unicodedata.normalize('NFKC', text)
-
-    # 2. 移除 Markdown 常用格式符 (TTS 读到这些往往会卡顿或产生杂音)
-    # 比如 LLM 喜欢输出 **重点** 或 # 标题
-    text = re.sub(r'[\*\#\`\>\~]', '', text)
-
-    # 3. 移除特定的“有毒”符号
-    # 用户提到的 ₹ (卢比符号) 以及其他常见的数学/特殊符号
-    # 如果业务需要保留某些符号，请在此处调整
-    text = re.sub(r'[₹|©®™@$%=+\^\\]', '', text)
-
-    # 4. 移除 Emoji 表情 (Unicode 范围)
-    # 大部分 TTS 模型读 Emoji 都会出问题
-    try:
-        # 匹配非基本多语言平面的字符 (通常是 Emoji)
-        text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
-    except re.error:
-        pass  # 如果环境不支持这种正则写法，跳过
-
-    # 5. 移除类似 [笑声] (鼓掌) 这种 LLM 可能输出的动作描述 (可选，建议开启)
-    # 很多 TTS 会把括弧也读出来，或者因为括号内的词无法通过 G2P 转换而产生噪声
-    # 这里移除中文括号或英文括号内的非句式内容（简单的过滤）
-    # text = re.sub(r'（.*?）', '', text)
-    # text = re.sub(r'\(.*?\)', '', text)
-
-    # 6. 将多个连续空格/换行合并为一个空格，并去除首尾空白
-    text = re.sub(r'\s+', ' ', text).strip()
-
-    return text
-
-
-def _split_text_into_chunks(text: str, max_len: int) -> List[str]:
-    """文本切分 (保持不变)"""
-    # ... (此处代码与你提供的版本完全相同，为简洁省略)
-    if len(text) <= max_len:
-        return [text]
-    parts = re.split(SENTENCE_SPLIT_PATTERN, text)
-    sentences = []
-    for i in range(0, len(parts) - 1, 2):
-        sentence = parts[i] + (parts[i + 1] if i + 1 < len(parts) and parts[i + 1] else '')
-        sentences.append(sentence)
-    if len(parts) % 2 == 1 and parts[-1]:
-        sentences.append(parts[-1])
-    chunks, current_chunk = [], ""
-    for sentence in sentences:
-        if not sentence.strip(): continue
-        if len(current_chunk) + len(sentence) <= max_len:
-            current_chunk += sentence
-        else:
-            if current_chunk: chunks.append(current_chunk)
-            current_chunk = sentence if len(sentence) <= max_len else ""
-            if len(sentence) > max_len: chunks.append(sentence)
-    if current_chunk: chunks.append(current_chunk)
-    return chunks if chunks else [text]
-
-
-def _move_workflow_directory(workflow_id: str):
-    """将临时工作目录的内容移动到最终位置。"""
-    source_dir = TEMP_WORK_DIR_TEMPLATE.format(workflow_id=workflow_id)
-    dest_path = os.path.join(FINAL_DEST_DIR, workflow_id)
-    if not os.path.isdir(source_dir):
-        # 如果源目录不存在，可能意味着没有任何音频成功生成，这不是一个致命错误。
-        logger.warning(f"源目录 '{source_dir}' 不存在，跳过移动操作。")
-        return
-    try:
-        os.makedirs(FINAL_DEST_DIR, exist_ok=True)
-        if os.path.exists(dest_path):
-            shutil.rmtree(dest_path)
-        shutil.move(source_dir, FINAL_DEST_DIR)
-        logger.info(f"成功移动文件夹从 '{source_dir}' 到 '{dest_path}'")
-    except Exception as e:
-        logger.error(f"移动文件夹时发生严重错误: {e}", exc_info=True)
-        raise IOError(f"移动文件夹时发生错误: {str(e)}")
-
-
-def generate_audio_single_task(session_pool: queue.Queue, task_info: Dict[str, Any], model_id: str) -> None:
-    """
-    【核心重构】核心音频生成工作函数。
-    - 不再返回任何内容 (None)。
-    - 直接修改 task_info['original_subtitle_obj'] 来注入结果 ('audio_path' 或 'error')。
-    """
-    task_id = task_info["id"]
-    subtitle_obj = task_info["original_subtitle_obj"]
-
-    raw_text = subtitle_obj["text"]
-    subtitle_text = _clean_text_for_tts(str(raw_text))
-    if raw_text != subtitle_text:
-        # 如果文本发生了变化（说明含有脏字符），打印日志方便排查
-        logger.info(
-            f"[Task {task_id}] 检测到特殊符号，已自动清洗文本: '{raw_text[:20]}...' -> '{subtitle_text[:20]}...'")
-
-    full_audio_path = task_info["local_path"]
-    public_url = task_info["public_url"]
-
-    audio_save_path = os.path.dirname(full_audio_path)
-    try:
-        with dir_creation_lock:
-            os.makedirs(audio_save_path, exist_ok=True)
-    except Exception as e:
-        error_msg = f"创建目录失败: {e}"
-        logger.error(f"[Task {task_id}] {error_msg}")
-        subtitle_obj["error"] = error_msg
-        subtitle_obj["audio_path"] = None
+    if total_run == 0:
+        print("没有发送任何请求。")
         return
 
-    # 静音快速通道
-    if not str(subtitle_text).strip():
-        try:
-            target_duration_sec = task_info["end_sec"] - task_info["start_sec"]
-            if target_duration_sec <= 0:
-                open(full_audio_path, 'a').close()
-            else:
-                AudioSegment.silent(duration=int(target_duration_sec * 1000)).export(full_audio_path,
-                                                                                     format=AUDIO_FORMAT)
-            subtitle_obj["audio_path"] = public_url
-            logger.info(f"[Task {task_id}] 静音音频生成成功。")
-            return
-        except Exception as e:
-            error_msg = f"生成静音文件时失败: {e}"
-            logger.error(f"[Task {task_id}] {error_msg}", exc_info=True)
-            subtitle_obj["error"] = error_msg
-            subtitle_obj["audio_path"] = None
-            return
+    print("\n--- 并发测试结果统计 ---")
+    print(f"总请求数: {total_run}")
+    print(f"成功请求: {success_count} ({(success_count / total_run) * 100:.2f}%)")
+    print(f"失败请求: {failure_count} ({(failure_count / total_run) * 100:.2f}%)")
 
-    session = None
-    try:
-        session = session_pool.get(timeout=60)
-        # TTS 生成逻辑（包含重试）
-        for attempt in range(MAX_RETRIES):
+    if success_count > 0:
+        total_time = sum(results["success"])
+        latencies = results["success"]
+
+        print("\n--- 成功请求响应时间 (Latency) ---")
+        print(f"平均响应时间 (Avg): {np.mean(latencies):.4f} 秒")
+        print(f"最快响应时间 (Min): {min(latencies):.4f} 秒")
+        print(f"最慢响应时间 (Max): {max(latencies):.4f} 秒")
+
+        print(f"P50 (Median):        {np.percentile(latencies, 50):.4f} 秒")
+        print(f"P90:                 {np.percentile(latencies, 90):.4f} 秒")
+        print(f"P95:                 {np.percentile(latencies, 95):.4f} 秒")
+        print(f"P99:                 {np.percentile(latencies, 99):.4f} 秒")
+
+    if RESPONSE_MODE == 'streaming' and len(results["ttfb"]) > 0:
+        ttfb_times = results["ttfb"]
+        print("\n--- [流式] 首字节到达时间 (TTFB) ---")
+        print(f"平均TTFB (Avg): {np.mean(ttfb_times):.4f} 秒")
+        print(f"最快TTFB (Min): {min(ttfb_times):.4f} 秒")
+        print(f"最慢TTFB (Max): {max(ttfb_times):.4f} 秒")
+
+    print("-" * 25)
+
+
+def main():
+    """
+    主执行函数
+    """
+    print(f"开始并发测试...")
+    print(f"总请求数: {TOTAL_REQUESTS}, 最大并发数: {MAX_WORKERS}, 模式: {RESPONSE_MODE}")
+    print("-" * 40)
+
+    overall_start_time = time.monotonic()
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_req_id = {executor.submit(send_request, i): i for i in range(TOTAL_REQUESTS)}
+
+        for i, future in enumerate(as_completed(future_to_req_id)):
             try:
-                text_chunks = _split_text_into_chunks(subtitle_text, TEXT_SPLIT_THRESHOLD)
-                audio_segments = []
-                for i, chunk_text in enumerate(text_chunks):
-                    req = TTSRequest(text=chunk_text, reference_id=model_id, model=ENGINE_MODEL, format=AUDIO_FORMAT)
-                    # 使用 io.BytesIO 避免写临时文件，更高效
-                    with io.BytesIO() as buffer:
-                        for chunk in session.tts(req):
-                            buffer.write(chunk)
-                        buffer.seek(0)
-                        if buffer.getbuffer().nbytes == 0:
-                            raise ValueError(f"生成的音频分片 {i} 为空。")
-                        audio_segments.append(AudioSegment.from_file(buffer, format=AUDIO_FORMAT))
-
-                combined_audio = sum(audio_segments, AudioSegment.empty())
-                final_audio = _process_and_finalize_audio(combined_audio, task_info)
-                final_audio.export(full_audio_path, format=AUDIO_FORMAT)
-
-                subtitle_obj["audio_path"] = public_url
-                logger.info(f"[Task {task_id}] TTS音频生成成功。")
-                return  # 成功后直接返回
-
-            except Exception as e:
-                if attempt < MAX_RETRIES - 1:
-                    wait_time = RETRY_DELAY * (2 ** attempt)
-                    logger.warning(
-                        f"[Task {task_id}] TTS主流程第 {attempt + 1}/{MAX_RETRIES} 次尝试失败: {e}. {wait_time}s 后重试...")
-                    time.sleep(wait_time)
+                result = future.result()
+                if result[1] == "Success":
+                    print(
+                        f"请求 {result[0] + 1}/{TOTAL_REQUESTS}: {result[1]} (状态码: {result[2]}, 耗时: {result[3]:.4f}s)")
                 else:
-                    logger.error(f"[Task {task_id}] 所有重试均失败，最终错误: {e}", exc_info=True)
-                    error_msg = f"TTS generation failed after {MAX_RETRIES} retries: {str(e)}"
-                    subtitle_obj["error"] = error_msg
-                    subtitle_obj["audio_path"] = None
-                    return
-    except queue.Empty:
-        error_msg = "从 Session 池获取连接超时。"
-        logger.error(f"[Task {task_id}] {error_msg}")
-        subtitle_obj["error"] = error_msg
-        subtitle_obj["audio_path"] = None
-    except Exception as e:
-        error_msg = f"任务执行期间发生未处理的异常: {e}"
-        logger.error(f"[Task {task_id}] {error_msg}", exc_info=True)
-        subtitle_obj["error"] = error_msg
-        subtitle_obj["audio_path"] = None
-    finally:
-        if session:
-            session_pool.put(session)
+                    print(
+                        f"请求 {result[0] + 1}/{TOTAL_REQUESTS}: {result[1]} (状态码: {result[2]}, 耗时: {result[3]:.4f}s) - {result[4]}")
+
+            except Exception as exc:
+                print(f"请求生成异常: {exc}")
+
+    overall_end_time = time.monotonic()
+    total_duration = overall_end_time - overall_start_time
+
+    print("-" * 40)
+    print(f"所有请求完成。总耗时: {total_duration:.4f} 秒")
+
+    if total_duration > 0:
+        qps = TOTAL_REQUESTS / total_duration
+        print(f"吞吐率 (QPS): {qps:.2f} 请求/秒")
+
+    print_statistics()
 
 
-# --- [核心重构] 提取出的可重用工作流处理逻辑 ---
-async def _process_workflow(
-        workflow_id: str,
-        raw_script: Any,
-        model_id: str
-) -> (Any, Optional[str]):
-    """
-    处理整个工作流的核心逻辑函数，被所有相关API端点复用。
-    返回修改后的原始脚本和可能的移动操作错误信息。
-    """
-    if global_session_pool is None:
-        logger.critical(f"[{workflow_id}] 全局 Session 池未初始化，无法处理请求。")
-        raise HTTPException(status_code=503, detail="服务暂时不可用：TTS Session 池未初始化。")
-
-    audio_save_path = os.path.join(TEMP_WORK_DIR_TEMPLATE.format(workflow_id=workflow_id), "audio")
-
-    try:
-        # 使用新的智能提取器
-        subtitle_objects = list(extract_subtitles_from_json(raw_script))
-        if not subtitle_objects:
-            raise ValueError("在提供的JSON结构中未能找到任何有效的字幕对象。")
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-    tasks_to_process = []
-    for subtitle_obj in subtitle_objects:
-        try:
-            # 必须为每个字幕对象生成一个唯一的、确定的ID
-            subtitle_id = subtitle_obj.get('id')
-            if not subtitle_id:
-                # 如果原始数据没有ID，我们可以基于内容和时间生成一个，但这有风险。
-                # 更好的做法是要求输入数据必须有唯一ID。
-                raise KeyError("字幕对象缺少 'id' 字段。")
-
-            start_sec = float(subtitle_obj["start_time_seconds"])
-            end_sec = float(subtitle_obj["end_time_seconds"])
-
-            if end_sec <= start_sec:
-                logger.warning(f"跳过ID {subtitle_id}的任务：无效时间范围 start={start_sec}, end={end_sec}")
-                subtitle_obj['error'] = 'Invalid time range (end <= start)'
-                subtitle_obj['audio_path'] = None
-                continue
-        except (KeyError, TypeError, ValueError) as e:
-            error_msg = f'解析字幕对象时出错: {e}'
-            logger.error(f"{error_msg} | 对象内容: {str(subtitle_obj)[:100]}...")
-            subtitle_obj['error'] = error_msg
-            subtitle_obj['audio_path'] = None
-            continue
-
-        safe_subtitle_id = re.sub(r'[\\/*?:"<>|]', "_", str(subtitle_id))
-        audio_filename = f"audio_{safe_subtitle_id}.{AUDIO_FORMAT}"
-        tasks_to_process.append({
-            "id": subtitle_id,
-            "start_sec": start_sec,
-            "end_sec": end_sec,
-            "original_subtitle_obj": subtitle_obj,  # 引用原始对象
-            "local_path": os.path.join(audio_save_path, audio_filename),
-            "public_url": PUBLIC_URL_TEMPLATE.format(workflow_id=workflow_id, filename=audio_filename)
-        })
-
-    logger.info(f"[{workflow_id}] JSON解析完成，共 {len(tasks_to_process)} 个有效任务待处理。提交到线程池。")
-
-    try:
-        loop = asyncio.get_running_loop()
-        async_tasks = [
-            loop.run_in_executor(
-                tts_thread_pool,
-                generate_audio_single_task,
-                global_session_pool,
-                task,
-                model_id
-            ) for task in tasks_to_process
-        ]
-        await asyncio.gather(*async_tasks)
-    except Exception as e:
-        logger.error(f"[{workflow_id}] 并行处理任务时发生主错误: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"并行处理任务时发生主错误: {e}")
-
-    # 文件移动和结果返回
-    move_error = None
-    if any("audio_path" in s and s["audio_path"] is not None for s in subtitle_objects):
-        try:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, _move_workflow_directory, workflow_id)
-        except (FileNotFoundError, IOError) as e:
-            move_error = str(e)
-            logger.error(f"[{workflow_id}] 文件移动操作失败: {e}")
-    else:
-        logger.warning(f"[{workflow_id}] 没有任何音频生成成功，跳过文件移动操作。")
-
-    return raw_script, move_error
-
-
-# ======================================================================================
-# --- API 端点 (RESTful 风格) ---
-# ======================================================================================
-
-# --- Pydantic 输入模型 ---
-class TTSRequestPayload(BaseModel):
-    raw_script: Any = Field(..., description="包含字幕信息的原始JSON结构，可以是任意合法的JSON对象(dict或list)。")
-    language: str = Field("zh", description="脚本语言, 例如 'zh', 'en'。")  # 提供默认值
-    model_id: str = Field(..., description="使用的 TTS 模型ID。")
-    workflow_id: str = Field(..., description="本次任务的唯一工作流ID。")
-
-
-class RegenerateSinglePayload(BaseModel):
-    subtitle_data: Dict[str, Any] = Field(..., description="要更新的单个字幕对象的完整数据。")
-    model_id: str = Field(..., description="要使用的 TTS 模型ID。")
-
-
-# --- API 路由实现 ---
-@router.post("/generate_audio_json", summary="通过脚本JSON创建并生成全套音频")
-async def create_and_generate_workflow(payload: TTSRequestPayload):
-    """
-    首次创建工作流并生成所有音频。
-    此接口会先在临时目录生成文件，成功后再移动到最终位置。
-    """
-    async with api_semaphore:
-        logger.info(f"获得并发许可, 开始处理 workflow_id: '{payload.workflow_id}' 的创建请求。")
-
-        updated_script, move_error = await _process_workflow(
-            workflow_id=payload.workflow_id,
-            raw_script=payload.raw_script,
-            model_id=payload.model_id
-        )
-
-        # --- 新增的多状态检查逻辑 ---
-        all_subtitles = list(extract_subtitles_from_json(updated_script))
-
-        # 统计成功和失败的数量
-        total_tasks = len(all_subtitles)
-        failed_tasks = sum(1 for sub in all_subtitles if "error" in sub and sub["error"])
-
-        # 场景1: 全部成功
-        if failed_tasks == 0 and not move_error:
-            return create_standard_response(
-                data=updated_script,
-                code=status.HTTP_200_OK,
-                message="All audio generated successfully."
-            )
-
-        # 场景2: 全部失败或有致命的移动错误
-        elif failed_tasks == total_tasks or move_error:
-            message = f"Workflow processing failed. Move error: {move_error}." if move_error else "All audio generation tasks failed."
-            return create_standard_response(
-                data=updated_script,
-                code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=message
-            )
-
-        # 场景3: 部分成功，部分失败 (核心场景)
-        else:  # 0 < failed_tasks < total_tasks
-            return create_standard_response(
-                data=updated_script,
-                # 使用 207 Multi-Status
-                code=status.HTTP_207_MULTI_STATUS,
-                message=f"Workflow processing completed with partial success. {total_tasks - failed_tasks}/{total_tasks} tasks succeeded."
-            )
-
-
-@router.put("/audio/{workflow_id}", summary="重新生成整个工作流的所有音频文件")
-async def regenerate_workflow_audio(workflow_id: str, payload: TTSRequestPayload):
-    """
-    通过提供新的 `raw_script` 和 `model_id`，重新生成指定 `workflow_id` 的所有音频文件。
-    此操作会覆盖该工作流下的所有旧音频。
-    """
-    async with api_semaphore:
-        logger.info(f"收到工作流 '{workflow_id}' 的批量重新生成请求。")
-
-        # 【注意】确保传入的 workflow_id 一致
-        if workflow_id != payload.workflow_id:
-            return create_standard_response(
-                code=status.HTTP_400_BAD_REQUEST,
-                message=f"URL中的workflow_id '{workflow_id}' 与请求体中的 '{payload.workflow_id}' 不匹配。"
-            )
-
-        updated_script, move_error = await _process_workflow(
-            workflow_id=workflow_id,
-            raw_script=payload.raw_script,
-            model_id=payload.model_id
-        )
-
-        # --- 新增的多状态检查逻辑 ---
-        all_subtitles = list(extract_subtitles_from_json(updated_script))
-
-        # 统计成功和失败的数量
-        total_tasks = len(all_subtitles)
-        failed_tasks = sum(1 for sub in all_subtitles if "error" in sub and sub["error"])
-
-        # 场景1: 全部成功
-        if failed_tasks == 0 and not move_error:
-            return create_standard_response(
-                data=updated_script,
-                code=status.HTTP_200_OK,
-                message="All audio generated successfully."
-            )
-
-        # 场景2: 全部失败或有致命的移动错误
-        elif failed_tasks == total_tasks or move_error:
-            message = f"Workflow processing failed. Move error: {move_error}." if move_error else "All audio generation tasks failed."
-            return create_standard_response(
-                data=updated_script,
-                code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=message
-            )
-
-        # 场景3: 部分成功，部分失败 (核心场景)
-        else:  # 0 < failed_tasks < total_tasks
-            return create_standard_response(
-                data=updated_script,
-                # 使用 207 Multi-Status
-                code=status.HTTP_207_MULTI_STATUS,
-                message=f"Workflow processing completed with partial success. {total_tasks - failed_tasks}/{total_tasks} tasks succeeded."
-            )
-
-
-@router.put("/audio/{workflow_id}/{subtitle_id}", summary="重新生成并替换单个音频文件")
-async def regenerate_single_audio(workflow_id: str, subtitle_id: str, payload: RegenerateSinglePayload):
-    """
-    根据提供的字幕数据，重新生成单个音频文件，并直接在最终目标位置替换掉旧文件。
-    """
-    async with api_semaphore:
-        logger.info(f"收到为 workflow '{workflow_id}' 下的字幕ID '{subtitle_id}' 的单个重新生成请求。")
-
-        if global_session_pool is None:
-            return create_standard_response(
-                code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                message="服务暂时不可用：TTS Session 池未初始化。"
-            )
-
-        subtitle_obj = payload.subtitle_data
-        model_id = payload.model_id
-
-        # 检查ID是否匹配
-        if str(subtitle_obj.get('id')) != subtitle_id:
-            return create_standard_response(
-                code=status.HTTP_400_BAD_REQUEST,
-                message=f"URL中的subtitle_id '{subtitle_id}' 与请求体中的 '{subtitle_obj.get('id')}' 不匹配。"
-            )
-
-        safe_subtitle_id = re.sub(r'[\\/*?:"<>|]', "_", str(subtitle_id))
-        audio_filename = f"audio_{safe_subtitle_id}.{AUDIO_FORMAT}"
-
-        # 【关键区别】单个文件更新直接操作最终目录，而不是临时目录
-        dest_dir = os.path.join(FINAL_DEST_DIR, workflow_id, "audio")
-        final_audio_path = os.path.join(dest_dir, audio_filename)
-
-        try:
-            os.makedirs(dest_dir, exist_ok=True)
-        except Exception as e:
-            return create_standard_response(
-                code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=f"为 '{workflow_id}/{subtitle_id}' 创建目标目录 '{dest_dir}' 失败: {e}"
-            )
-
-        task_info = {
-            "id": subtitle_id,
-            "start_sec": subtitle_obj["start_time_seconds"],
-            "end_sec": subtitle_obj["end_time_seconds"],
-            "original_subtitle_obj": subtitle_obj,  # 引用
-            "local_path": final_audio_path,  # 直接指向最终路径
-            "public_url": PUBLIC_URL_TEMPLATE.format(workflow_id=workflow_id, filename=audio_filename)
-        }
-
-        try:
-            loop = asyncio.get_running_loop()
-            # 这里也使用线程池执行，保持一致性
-            await loop.run_in_executor(
-                tts_thread_pool,
-                generate_audio_single_task,
-                global_session_pool,
-                task_info,
-                model_id
-            )
-        except Exception as e:
-            return create_standard_response(
-                code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=f"为 '{workflow_id}/{subtitle_id}' 执行单个生成任务时发生未知错误: {e}"
-            )
-
-        # 检查任务执行结果并返回
-        if subtitle_obj.get("error"):
-            error_message = subtitle_obj["error"]
-            return create_standard_response(
-                data=subtitle_obj,
-                code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=f"Audio generation failed for subtitle '{subtitle_id}': {error_message}"
-            )
-
-        return create_standard_response(
-            data=subtitle_obj,
-            message=f"Audio for subtitle '{subtitle_id}' in workflow '{workflow_id}' regenerated successfully."
-        )
+if __name__ == "__main__":
+    main()
