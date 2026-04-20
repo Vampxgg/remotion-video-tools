@@ -30,27 +30,16 @@ from pydantic import (
     model_validator,
 )
 
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-        return logger
-
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
 
 logger = setup_module_logger(__name__, "logs/image/gemini_image.log")
 
 router = APIRouter()
 
-GOOGLE_PROJECT_ID = "x-pilot-469902"
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
+GOOGLE_PROJECT_ID = _settings.GCP_PROJECT_ID
 
 # Vertex：Gemini 图片模型在官方 Notebook 中常用 global；其后为区域轮询兜底
 GOOGLE_LOCATIONS = [
@@ -70,9 +59,9 @@ GOOGLE_LOCATIONS = [
     "asia-southeast1",
 ]
 
-GCS_BUCKET_NAME = "x-pilot-storage"
-GCS_OUTPUT_DIR = "gemini_images"
-GCS_PUBLIC_URL_PREFIX = "https://storage.googleapis.com/x-pilot-storage"
+GCS_BUCKET_NAME = _settings.GCS_BUCKET_NAME
+GCS_OUTPUT_DIR = _settings.CRE_IMAGE_OUTPUT_DIR
+GCS_PUBLIC_URL_PREFIX = _settings.GCS_PUBLIC_URL_PREFIX
 
 VERTEX_API_ENDPOINT_TEMPLATE = (
     f"https://aiplatform.googleapis.com/v1beta1/projects/{GOOGLE_PROJECT_ID}"
@@ -85,7 +74,7 @@ GCS_UPLOAD_ENDPOINT = (
 )
 
 # 与 Vertex 文档中单张 inline 图片上限一致的量级
-MAX_REFERENCE_IMAGE_BYTES = 7 * 1024 * 1024
+MAX_REFERENCE_IMAGE_BYTES = _settings.CRE_IMAGE_MAX_REFERENCE_BYTES
 
 http_client: Optional[httpx.AsyncClient] = None
 
@@ -152,7 +141,7 @@ MIME_TO_EXT = {
 
 def _optional_url_host_whitelist() -> Optional[frozenset]:
     """若设置 CRE_IMAGE_ALLOWED_URL_HOSTS，则仅允许这些主机；未设置则任意 https 图片 URL 均可。"""
-    raw = os.environ.get("CRE_IMAGE_ALLOWED_URL_HOSTS", "")
+    raw = _settings.CRE_IMAGE_ALLOWED_URL_HOSTS or ""
     if not raw.strip():
         return None
     return frozenset(h.strip().lower() for h in raw.split(",") if h.strip())
@@ -163,27 +152,46 @@ def _gcs_object_ext(content_type: str) -> str:
     return MIME_TO_EXT.get(base, "bin")
 
 
-@router.on_event("startup")
-async def startup_event():
+# ─── 生命周期资源管理（lifespan_resources）───────────────────────────
+# 旧版 @router.on_event 已 deprecated，改由 main.py 在 FastAPI lifespan
+# 中通过 AsyncExitStack 进入；行为/资源乘数完全一致。
+import contextlib  # noqa: E402
+
+
+async def _startup_resources() -> None:
     global http_client
-    timeout = httpx.Timeout(connect=15.0, read=360.0, write=60.0, pool=30.0)
+    timeout = httpx.Timeout(
+        connect=_settings.CRE_IMAGE_HTTPX_CONNECT_TIMEOUT,
+        read=_settings.CRE_IMAGE_HTTPX_READ_TIMEOUT,
+        write=_settings.CRE_IMAGE_HTTPX_WRITE_TIMEOUT,
+        pool=_settings.CRE_IMAGE_HTTPX_POOL_TIMEOUT,
+    )
     http_client = httpx.AsyncClient(timeout=timeout)
-    logger.info("全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360s 供单次请求覆盖使用。")
+    logger.info(
+        f"全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 {_settings.CRE_IMAGE_HTTPX_READ_TIMEOUT}s 供单次请求覆盖使用。"
+    )
 
 
-@router.on_event("shutdown")
-async def shutdown_event():
+async def _shutdown_resources() -> None:
     global http_client
     if http_client:
         await http_client.aclose()
         logger.info("httpx.AsyncClient 已关闭 (cre_image)。")
 
 
-class StandardResponse(BaseModel):
-    code: int = Field(200, description="HTTP状态码")
-    message: str = Field("Success", description="响应消息")
-    data: Optional[Any] = Field(None, description="响应数据")
-    timestamp: str = Field(..., description="ISO 8601 格式的时间戳")
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    await _startup_resources()
+    try:
+        yield
+    finally:
+        await _shutdown_resources()
+
+
+# 统一从 utils.responses 引入；本 router 历史行为是 model_dump(exclude_none=True)，
+# 因此用一层薄包装显式打开 exclude_none，对外接口字段集合保持完全不变
+from utils.responses import StandardResponse  # noqa: F401
+from utils.responses import create_standard_response as _shared_create_standard_response
 
 
 def create_standard_response(
@@ -191,13 +199,9 @@ def create_standard_response(
     code: int = 200,
     message: str = "Success",
 ) -> JSONResponse:
-    content = StandardResponse(
-        code=code,
-        message=message,
-        data=data,
-        timestamp=datetime.now().isoformat(),
-    ).model_dump(exclude_none=True)
-    return JSONResponse(status_code=code, content=content)
+    return _shared_create_standard_response(
+        data=data, code=code, message=message, exclude_none=True
+    )
 
 
 async def get_gcloud_auth_token() -> str:

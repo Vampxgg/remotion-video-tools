@@ -4,15 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-from db import crud, database
+from db import crud
+from db.database import get_db
 from schemas import voice_model as schemas
 
 router = APIRouter()
-
-
-async def get_db() -> AsyncSession:
-    async with database.AsyncSessionLocal() as session:
-        yield session
 
 
 # --- CREATE ---

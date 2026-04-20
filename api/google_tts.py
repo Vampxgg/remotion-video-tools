@@ -42,19 +42,9 @@ from pydub import AudioSegment
 # ======================================================================================
 # --- 日志配置 ---
 # ======================================================================================
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-            print(f"CRITICAL: Using fallback console logger for {logger_name}.")
-        return logger
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
+
 logger = setup_module_logger(__name__, "logs/audio/google_tts_json.log")
 # ======================================================================================
 
@@ -67,30 +57,31 @@ google_tts_client: Optional[texttospeech.TextToSpeechClient] = None
 client_init_lock = threading.Lock()
 dir_creation_lock = threading.Lock()
 
-# --- 配置区 ---
-PROXY_URL = ""
-AUDIO_FORMAT = "mp3"
-API_BASE_URL = "https://server.x-pilot.ai"
-PUBLIC_URL_TEMPLATE = f"{API_BASE_URL}/static/meta-doc/video/{{workflow_id}}/audio/{{filename}}"
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
+# --- 配置区（默认值与历史硬编码一致；可通过 .env 中 GOOGLE_TTS_* 覆盖）---
+PROXY_URL = _settings.GOOGLE_TTS_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
+AUDIO_FORMAT = _settings.GOOGLE_TTS_AUDIO_FORMAT
+API_BASE_URL = _settings.GOOGLE_TTS_API_BASE_URL
+PUBLIC_URL_TEMPLATE = _settings.GOOGLE_TTS_PUBLIC_URL_TEMPLATE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEMP_WORK_DIR_TEMPLATE = os.path.join(STATIC_DIR, "file", "{workflow_id}")
-FINAL_DEST_DIR = "/data/www/wwwroot/x-pilot-oss/uploads/meta-doc/video"
-MAX_WORKERS = 4
-MAX_RETRIES = 3
-RETRY_DELAY = 2
-TEXT_SPLIT_THRESHOLD = 4500
+FINAL_DEST_DIR = _settings.GOOGLE_TTS_FINAL_DEST_DIR
+MAX_WORKERS = _settings.GOOGLE_TTS_MAX_WORKERS
+MAX_RETRIES = _settings.GOOGLE_TTS_MAX_RETRIES
+RETRY_DELAY = _settings.GOOGLE_TTS_RETRY_DELAY
+TEXT_SPLIT_THRESHOLD = _settings.GOOGLE_TTS_TEXT_SPLIT_THRESHOLD
 SENTENCE_SPLIT_PATTERN = r"([。！？，、；…])"
-ENABLE_DYNAMIC_SPEED_ADJUSTMENT = True
-SPEED_ADJUST_THRESHOLD_RATIO = 1.05
-MAX_SPEECH_SPEED = 1.3
-ENABLE_DYNAMIC_DECELERATION = True
-MIN_SPEECH_SPEED = 0.95
-START_PADDING_BUFFER_MS = 150
+ENABLE_DYNAMIC_SPEED_ADJUSTMENT = _settings.GOOGLE_TTS_ENABLE_DYNAMIC_SPEED_ADJUSTMENT
+SPEED_ADJUST_THRESHOLD_RATIO = _settings.GOOGLE_TTS_SPEED_ADJUST_THRESHOLD_RATIO
+MAX_SPEECH_SPEED = _settings.GOOGLE_TTS_MAX_SPEECH_SPEED
+ENABLE_DYNAMIC_DECELERATION = _settings.GOOGLE_TTS_ENABLE_DYNAMIC_DECELERATION
+MIN_SPEECH_SPEED = _settings.GOOGLE_TTS_MIN_SPEECH_SPEED
+START_PADDING_BUFFER_MS = _settings.GOOGLE_TTS_START_PADDING_BUFFER_MS
 
-# --- [变更 1] ---
-# 新增一个模型ID模板，用于拼接
-MODEL_ID_TEMPLATE = "{language}-Chirp3-HD-{character}"
+# 模型 ID 模板，用于按 language/character 拼接出最终模型名
+MODEL_ID_TEMPLATE = _settings.GOOGLE_TTS_MODEL_ID_TEMPLATE
 LANGUAGE_CODE_MAPPING = {
     # 亚洲
     'zh': 'cmn-CN',  # 中文普通话 (中国大陆)
@@ -130,7 +121,7 @@ LANGUAGE_CODE_MAPPING = {
     'sw': 'sw-KE',  # 斯瓦希里语 (肯尼亚)
 }
 REVERSE_LANGUAGE_CODE_MAPPING = {v: k for k, v in LANGUAGE_CODE_MAPPING.items()}
-REQUIRED_MODEL_SUBSTRING = "Chirp3-HD"  # 定义我们需要的模型子串，方便未来修改
+REQUIRED_MODEL_SUBSTRING = _settings.GOOGLE_TTS_REQUIRED_MODEL_SUBSTRING  # 定义我们需要的模型子串
 
 # Google TTS 音频编码映射
 GOOGLE_AUDIO_ENCODING = {
@@ -143,16 +134,20 @@ if AUDIO_FORMAT not in GOOGLE_AUDIO_ENCODING:
 
 
 # ======================================================================================
-# --- 生命周期事件 (无变化) ---
+# --- 生命周期事件 (lifespan_resources) ---
+# 旧版 @router.on_event 已 deprecated，改由 main.py 在 FastAPI lifespan
+# 中通过 AsyncExitStack 进入；行为/资源乘数完全一致。
 # ======================================================================================
-@router.on_event("startup")
-def startup_event():
+import contextlib  # noqa: E402
+
+
+def _startup_resources() -> None:
     global tts_thread_pool, api_semaphore, google_tts_client
     if PROXY_URL:
         logger.warning(f"检测到代理配置: {PROXY_URL}. 请确保 gRPC 流量已正确路由。")
     tts_thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS,
                                                             thread_name_prefix="Global_GoogleTTS_Worker")
-    api_semaphore = Semaphore(50)
+    api_semaphore = Semaphore(_settings.GOOGLE_TTS_API_SEMAPHORE)
     with client_init_lock:
         if google_tts_client is None:
             try:
@@ -164,11 +159,10 @@ def startup_event():
                 logger.critical(f"应用启动时创建 Google TTS 客户端失败: {e}", exc_info=True)
                 sys.exit(1)
     logger.info(f"全局共享TTS线程池已创建，最大工作线程数: {MAX_WORKERS}")
-    logger.info(f"全局信号量已创建，许可数: {50}")
+    logger.info(f"全局信号量已创建，许可数: {_settings.GOOGLE_TTS_API_SEMAPHORE}")
 
 
-@router.on_event("shutdown")
-def shutdown_event():
+def _shutdown_resources() -> None:
     global tts_thread_pool, google_tts_client
     if tts_thread_pool:
         logger.info("正在关闭全局共享TTS线程池...")
@@ -183,19 +177,20 @@ def shutdown_event():
             logger.error(f"关闭 Google TTS 客户端时出错: {e}")
 
 
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    _startup_resources()
+    try:
+        yield
+    finally:
+        _shutdown_resources()
+
+
 # ======================================================================================
 # --- API 响应模型与工具函数 (无变化) ---
 # ======================================================================================
-class StandardResponse(BaseModel):
-    code: int = Field(200, description="业务状态码")
-    message: str = Field("Success", description="响应消息")
-    data: Optional[Any] = Field(None, description="响应数据")
-    timestamp: str = Field(..., description="ISO 8601格式时间戳")
-
-
-def create_standard_response(data: Optional[Any] = None, code: int = 200, message: str = "Success") -> JSONResponse:
-    content = StandardResponse(code=code, message=message, data=data, timestamp=datetime.now().isoformat()).model_dump()
-    return JSONResponse(status_code=code, content=content)
+# 统一从 utils.responses 引入，避免 10 处重复定义；行为完全一致
+from utils.responses import StandardResponse, create_standard_response  # noqa: F401
 
 
 def extract_subtitles_from_json(data: Any) -> Generator[Dict[str, Any], None, None]:

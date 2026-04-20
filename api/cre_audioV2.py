@@ -62,9 +62,13 @@ router = APIRouter()
 tts_thread_pool: concurrent.futures.ThreadPoolExecutor = None
 
 
-@router.on_event("startup")
-def startup_event():
-    """在应用启动时执行的函数"""
+# ─── 生命周期资源管理（lifespan_resources）───────────────────────────
+# 旧版 @router.on_event 已 deprecated，改由 main.py 在 FastAPI lifespan
+# 中通过 AsyncExitStack 进入；行为/资源乘数完全一致。
+import contextlib  # noqa: E402
+
+
+def _startup_resources() -> None:
     global tts_thread_pool
     # 注意: MAX_WORKERS 在下方的配置区定义
     tts_thread_pool = concurrent.futures.ThreadPoolExecutor(
@@ -74,9 +78,7 @@ def startup_event():
     logger.info(f"全局共享TTS线程池已创建，最大工作线程数: {MAX_WORKERS}")
 
 
-@router.on_event("shutdown")
-def shutdown_event():
-    """在应用关闭时执行的函数"""
+def _shutdown_resources() -> None:
     global tts_thread_pool
     if tts_thread_pool:
         logger.info("正在关闭全局共享TTS线程池...")
@@ -84,8 +86,19 @@ def shutdown_event():
         logger.info("全局共享TTS线程池已成功关闭。")
 
 
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    _startup_resources()
+    try:
+        yield
+    finally:
+        _shutdown_resources()
+
+
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
 # --- Clash 代理设置区 ---
-PROXY_URL = "http://127.0.0.1:7890"
+PROXY_URL = _settings.CRE_AUDIO_V2_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
 if PROXY_URL:
     os.environ['HTTP_PROXY'] = PROXY_URL
     os.environ['HTTPS_PROXY'] = PROXY_URL
@@ -95,19 +108,19 @@ if PROXY_URL:
 else:
     logger.info("未配置代理，将直接进行网络连接。")
 
-# --- 配置区 ---
-ENGINE_MODEL = "speech-1.6"
-AUDIO_FORMAT = "mp3"
-PUBLIC_URL_TEMPLATE = "http://119.45.167.133:17752/meta-doc/video/{workflow_id}/audio/{filename}"
+# --- 配置区（默认值与历史硬编码一致；可通过 .env 中 CRE_AUDIO_V2_* 覆盖）---
+ENGINE_MODEL = _settings.CRE_AUDIO_V2_ENGINE_MODEL
+AUDIO_FORMAT = _settings.CRE_AUDIO_V2_AUDIO_FORMAT
+PUBLIC_URL_TEMPLATE = _settings.CRE_AUDIO_V2_PUBLIC_URL_TEMPLATE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 SOURCE_DIR_TEMPLATE = os.path.join(STATIC_DIR, "file", "{workflow_id}")
 AUDIO_SAVE_PATH_TEMPLATE = os.path.join(SOURCE_DIR_TEMPLATE, "audio")
-DEST_BASE_DIR = "E:\\Server\\x-pilot-oss\\uploads\\meta-doc\\video"
-MAX_WORKERS = 5
-MAX_RETRIES = 3
-RETRY_DELAY = 2
-TEXT_SPLIT_THRESHOLD = 60
+DEST_BASE_DIR = _settings.CRE_AUDIO_V2_DEST_BASE_DIR
+MAX_WORKERS = _settings.CRE_AUDIO_V2_MAX_WORKERS
+MAX_RETRIES = _settings.CRE_AUDIO_V2_MAX_RETRIES
+RETRY_DELAY = _settings.CRE_AUDIO_V2_RETRY_DELAY
+TEXT_SPLIT_THRESHOLD = _settings.CRE_AUDIO_V2_TEXT_SPLIT_THRESHOLD
 SENTENCE_SPLIT_PATTERN = r"([。！？，、；…])"
 
 
@@ -182,11 +195,11 @@ class IntelligentParser:
 # --- [V14 新增] 智能语速计算核心工具函数 ---
 # ======================================================================================
 
-# 基于您大量测试得出的黄金标准
-TARGET_CN_CHARS_PER_SECOND = 5.0
-TARGET_EN_WORDS_PER_SECOND = 2.0
-MIN_SPEECH_SPEED = 0.5  # 限制最低语速，防止过慢
-MAX_SPEECH_SPEED = 2.0  # 限制最高语速，防止过快听不清
+# 基于大量实测得出的"黄金标准"，可由 .env 中 CRE_AUDIO_V2_* 覆盖
+TARGET_CN_CHARS_PER_SECOND = _settings.CRE_AUDIO_V2_TARGET_CN_CHARS_PER_SECOND
+TARGET_EN_WORDS_PER_SECOND = _settings.CRE_AUDIO_V2_TARGET_EN_WORDS_PER_SECOND
+MIN_SPEECH_SPEED = _settings.CRE_AUDIO_V2_MIN_SPEECH_SPEED  # 限制最低语速，防止过慢
+MAX_SPEECH_SPEED = _settings.CRE_AUDIO_V2_MAX_SPEECH_SPEED  # 限制最高语速，防止过快听不清
 
 
 def _count_speech_units(text: str) -> Tuple[int, int]:

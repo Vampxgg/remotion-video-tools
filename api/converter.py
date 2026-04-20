@@ -10,10 +10,12 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Tuple
 
-# --- 基础目录配置 ---
-STATIC_DIR_NAME = "static"
-GENERATED_FILES_SUBDIR = "generated_files"
-TEMP_IMAGES_SUBDIR = "temp_images"  # 这是所有临时图片目录的根目录
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
+# --- 基础目录配置（默认值与历史硬编码一致；可通过 .env 中 STATIC_DIR / CONVERTER_* 覆盖）---
+STATIC_DIR_NAME = _settings.STATIC_DIR
+GENERATED_FILES_SUBDIR = _settings.CONVERTER_GENERATED_FILES_SUBDIR
+TEMP_IMAGES_SUBDIR = _settings.CONVERTER_TEMP_IMAGES_SUBDIR  # 这是所有临时图片目录的根目录
 
 # 确保基础目录存在
 STATIC_FILES_PATH = Path(STATIC_DIR_NAME) / GENERATED_FILES_SUBDIR
@@ -191,4 +193,4 @@ async def convert_md_to_dify_format(
         # [并发安全关键点 4]: 清理任务只针对本次请求创建的专属路径
         # 例如，它会删除 A 请求的 './.../2d3b2a5a.../' 目录和 A 的 Word 文件。
         # 这个操作完全不会触碰到 B 请求的 './.../another-uuid/.../' 目录或 B 的文件。
-        background_tasks.add_task(cleanup_resources, resources_to_cleanup, delay=120)
+        background_tasks.add_task(cleanup_resources, resources_to_cleanup, delay=_settings.CONVERTER_CLEANUP_DELAY_SEC)

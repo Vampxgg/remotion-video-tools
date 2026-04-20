@@ -5,23 +5,19 @@
 # @email：hx1561958968@gmail.com
 # db/database.py
 
-import os
-from dotenv import load_dotenv
+from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 
-# 加载 .env 文件
-load_dotenv()
+from utils.settings import settings
 
-# 数据库连接URL。注意 'postgresql+asyncpg' 这个方言
-# host='db' 是给未来Python应用也容器化时使用的
-# host='localhost' 是给当前在宿主机直接运行Python应用时使用的
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DATABASE_URL = (f"postgresql+asyncpg://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
-                f"@{DB_HOST}:{os.getenv('DB_PORT')}/{os.getenv('DB_NAME')}")
+# 数据库连接 URL：单点来自 settings（pydantic-settings 已在 utils/settings.py 内加载 .env）
+# host='db' 是给容器化部署使用的；host='localhost' 是给宿主机直接运行使用的
+DATABASE_URL = settings.url_async
 
-# 创建异步数据库引擎
-engine = create_async_engine(DATABASE_URL, echo=True)  # echo=True 会打印SQL语句，便于调试
+# 创建异步数据库引擎；echo 打印 SQL 仅在显式 DB_ECHO=true 时启用
+engine = create_async_engine(DATABASE_URL, echo=settings.DB_ECHO)
 
 # 创建异步会话工厂
 AsyncSessionLocal = async_sessionmaker(
@@ -35,7 +31,7 @@ Base = declarative_base()
 
 
 # FastAPI 依赖项，用于在请求中获取数据库会话
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session

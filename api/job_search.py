@@ -32,19 +32,8 @@ except ImportError:
 # ======================================================================================
 # --- 工业级日志配置 ---
 # ======================================================================================
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-            print(f"CRITICAL: Using fallback console logger for {logger_name}.")
-        return logger
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
 
 logger = setup_module_logger(__name__, "logs/jobs/zhilian.log")
 # ======================================================================================
@@ -52,36 +41,20 @@ logger = setup_module_logger(__name__, "logs/jobs/zhilian.log")
 router = APIRouter()
 
 # --- 全局配置 ---
-BROWSER_HOST_PORT = '127.0.0.1:9527'
-MAX_CONCURRENT_TASKS = 10  # 【优化】合理的并发任务数，避免对目标网站造成过大压力
-# 【新增】智联招聘登录凭证 (请替换为您的真实信息)
-ZHILIAN_USERNAME = "17581758724"  # 你的智联账号
-ZHILIAN_PASSWORD = "HXDSG1561958968"  # 你的智联密码
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+BROWSER_HOST_PORT = _settings.JOB_SEARCH_BROWSER_HOST_PORT
+MAX_CONCURRENT_TASKS = _settings.JOB_SEARCH_MAX_CONCURRENT  # 合理的并发任务数，避免对目标网站造成过大压力
+# 智联招聘登录凭证：必须由 .env 提供（ZHILIAN_USERNAME / ZHILIAN_PASSWORD），不再保留代码内默认值
+ZHILIAN_USERNAME = _settings.ZHILIAN_USERNAME or ""
+ZHILIAN_PASSWORD = _settings.ZHILIAN_PASSWORD or ""
 
 
 # ======================================================================================
 # --- API 响应模型与工具函数 ---
 # ======================================================================================
 
-class StandardResponse(BaseModel):
-    code: int = Field(200, description="业务状态码，通常与HTTP状态码一致")
-    message: str = Field("Success", description="响应的文本消息")
-    data: Optional[Any] = Field(None, description="实际的响应数据负载")
-    timestamp: str = Field(..., description="服务器响应时的ISO 8601格式时间戳")
-
-
-def create_standard_response(
-        data: Optional[Any] = None,
-        code: int = 200,
-        message: str = "Success"
-) -> JSONResponse:
-    content = StandardResponse(
-        code=code,
-        message=message,
-        data=data,
-        timestamp=datetime.now().isoformat()
-    ).model_dump()
-    return JSONResponse(status_code=code, content=content)
+# 统一从 utils.responses 引入，避免 10 处重复定义；行为完全一致
+from utils.responses import StandardResponse, create_standard_response  # noqa: F401
 
 
 # ======================================================================================
@@ -132,7 +105,7 @@ async def scrape_job_details_async(
     if not position_number:
         logger.warning("传入的 position_number 为空，跳过 API 请求。")
         return None
-    api_url = f"https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number={position_number}"
+    api_url = _settings.ZHAOPIN_DETAIL_API_TEMPLATE.format(number=position_number)
     # 日志移到外面统一管理，避免刷屏
     try:
         async with session.get(api_url, timeout=10) as response:
@@ -271,7 +244,7 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
         page = ChromiumPage(BROWSER_HOST_PORT).new_tab()
         api_url = '/c/i/search/positions?'
         page.listen.start(api_url)
-        initial_url = 'https://www.zhaopin.com/sou/jl779/kwB4JMAS33DO/p1'
+        initial_url = _settings.ZHAOPIN_LIST_URL
         goto_html(page, initial_url)
         time.sleep(1)
 

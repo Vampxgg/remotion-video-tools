@@ -6,13 +6,15 @@ from DrissionPage.common import By
 from DrissionPage.common import Keys
 import csv
 
+from utils.settings import settings as _settings
+
 
 class Zhilian():
     def __init__(self):
 
-        self.url = 'https://www.zhaopin.com/sou/jl779/kwB4JMAS33DO/p1'  # 访问页面
+        self.url = _settings.ZHAOPIN_LIST_URL  # 访问页面
 
-        self.page = ChromiumPage('127.0.0.1:9527')
+        self.page = ChromiumPage(_settings.DRISSION_BROWSER_HOST_PORT)
         self.api_url = '/c/i/search/positions?'  ##接口监听接口
 
         '''drissionpage 监听接口'''

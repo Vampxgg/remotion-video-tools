@@ -6,16 +6,16 @@
 # 加载.env文件的环境变量
 import logging
 import os
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-# from fastapi.openapi.utils import get_openapi
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
-    job_search, fish_asr, fenbi_getway
+    job_search, fish_asr, fenbi_gateway
 from fastapi.staticfiles import StaticFiles
 from db.database import engine, Base, get_db
+from utils.settings import settings
 
 # from lifespan import lifespan
 # import auth
@@ -58,9 +58,32 @@ logger.info("第三方库日志级别已设置为 WARNING，以减少噪音。")
 logger.info("正在加载路由模块...")
 
 
+# ─────────────── 各 router 的 lifespan_resources 接入清单 ───────────────
+# 设计原则：
+#   - 每个 router 文件都暴露一个 ``lifespan_resources(app)`` 异步上下文管理器，
+#     等价替代旧的 ``@router.on_event("startup"/"shutdown")``。
+#   - 这里 _LIFESPAN_MODULES 仅纳入「当前实际通过 app.include_router(...) 挂载」
+#     的 router；未挂载的（如 cre_audio_json / cre_audio_refactored / cre_audioV2 /
+#     google_tts）已经在自身文件内同步改造完毕，未来需要启用时只需：
+#         1) 在上方 from api import ... 列表加入对应模块
+#         2) 在下方 _LIFESPAN_MODULES 列表加入该模块
+#         3) app.include_router(xxx.router, ...) 注册
+#     即可一键生效，无需再回头改 router 文件本身。
+#   - 资源乘数说明：每个 worker 进程（uvicorn --workers N）都会独立执行一遍
+#     lifespan，即每个 router 的资源（线程池/AsyncClient/Session 池等）都会被
+#     ×N 倍创建。这一行为与历史的 @router.on_event 完全一致，没有变化。
+_LIFESPAN_MODULES = [
+    tts,
+    cre_audio,
+    cre_video,
+    cre_image,
+    fish_asr,
+]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 应用启动时执行
+    """统一 lifespan：先做主应用层启动检查，再用 AsyncExitStack 接入各 router 资源。"""
     logger.info("应用启动...")
     try:
         async with engine.connect() as conn:
@@ -69,8 +92,17 @@ async def lifespan(app: FastAPI):
         logger.error(f"数据库连接失败: {e}")
         # 在生产环境中，这里可能需要更复杂的处理，比如退出应用
 
-        # ... (其他启动代码) ...
-    yield
+    async with AsyncExitStack() as stack:
+        for mod in _LIFESPAN_MODULES:
+            try:
+                await stack.enter_async_context(mod.lifespan_resources(app))
+                logger.info(f"router 资源就绪: {mod.__name__}")
+            except Exception as e:
+                logger.error(f"router 资源初始化失败 [{mod.__name__}]: {e}", exc_info=True)
+                raise
+        yield
+        logger.info("应用关闭：开始释放各 router 资源...")
+    logger.info("应用关闭完成。")
 
 
 description = """Search"""
@@ -85,18 +117,8 @@ app = FastAPI(
     title="X-Pilot Api",
     description=description,
     version="V1.0.1",
-    terms_of_service="https://www.msn.cn/zh-cn/news/other/%E5%85%A8%E7%BA%A2%E5%A9%B5%E7%8E%B0%E8%BA%AB%E4%B8%8A%E6"
-                     "%B5%B7%E6%B4%BB%E5%8A%A8-%E7%83%AB%E4%BA%86%E5%A4%B4%E5%8F%91%E5%8C%96%E4%BA%86%E5%85%A8%E5%A6"
-                     "%86%E7%9A%84%E5%85%A8%E5%A6%B9%E5%A5%BD%E6%BC%82%E4%BA%AE-%E5%90%8C%E6%AC%BE%E7%BE%BD%E7%BB%92"
-                     "%E6%9C%8D%E5%BD%93%E6%99%9A%E5%8D%96%E6%96%AD%E8%B4%A7/ar-AA1uLwML?ocid=msedgntp&pc=U531&cvid"
-                     "=67458ce9b63440b3b7e34cbe4a0a266f&ei=19",
     contact={
         "name": "X-Pliot Teams",
-        "url": "https://www.msn.cn/zh-cn/news/other/%E5%85%A8%E7%BA%A2%E5%A9%B5%E7%8E%B0%E8%BA%AB%E4%B8%8A%E6%B5%B7"
-               "%E6%B4%BB%E5%8A%A8-%E7%83%AB%E4%BA%86%E5%A4%B4%E5%8F%91%E5%8C%96%E4%BA%86%E5%85%A8%E5%A6%86%E7%9A%84"
-               "%E5%85%A8%E5%A6%B9%E5%A5%BD%E6%BC%82%E4%BA%AE-%E5%90%8C%E6%AC%BE%E7%BE%BD%E7%BB%92%E6%9C%8D%E5%BD%93"
-               "%E6%99%9A%E5%8D%96%E6%96%AD%E8%B4%A7/ar-AA1uLwML?ocid=msedgntp&pc=U531&cvid"
-               "=67458ce9b63440b3b7e34cbe4a0a266f&ei=19",
         "email": "hx1561958968@gmail.com",
     },
     license_info={
@@ -104,19 +126,18 @@ app = FastAPI(
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
     lifespan=lifespan
-    # openapi_tags=tags_metadata
 )
-# 确保静态目录存在
-static_dir = "static"
+# 静态目录统一走项目根 + settings.STATIC_DIR，避免 api/static 与 ./static 不一致
+static_dir = settings.static_dir_abs
 os.makedirs(static_dir, exist_ok=True)
-app.mount(f"/{static_dir}", StaticFiles(directory=static_dir), name="static")
+app.mount(f"/{settings.STATIC_DIR}", StaticFiles(directory=static_dir), name="static")
 # 配置 CORS 中间件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允许所有的源
-    allow_credentials=True,
-    allow_methods=["*"],  # 允许所有的 HTTP 方法
-    allow_headers=["*"],  # 允许所有的请求头
+    allow_origins=settings.CORS_ALLOW_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
 # app.include_router(process_uploads.router)
@@ -131,7 +152,7 @@ app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"]
 app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
 app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
-app.include_router(fenbi_getway.router, prefix="/api", tags=["fenbi_requestes"])
+app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
 
 
 # app.include_router(auth.router)
@@ -143,4 +164,9 @@ async def root():
 
 
 if __name__ == '__main__':
-    uvicorn.run('main:app', host="0.0.0.0", port=2906, workers=4)
+    uvicorn.run(
+        'main:app',
+        host=settings.APP_HOST,
+        port=settings.APP_PORT,
+        workers=settings.APP_WORKERS,
+    )

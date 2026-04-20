@@ -36,23 +36,9 @@ from pydub.exceptions import PydubException
 # ======================================================================================
 # --- [V12] 工业级日志配置 (替换原有的 basicConfig) ---
 # ======================================================================================
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    # 备用方案，仅在 utils 模块找不到时触发
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        # ... (这里的备用方案可以保留，也可以简化或删除)
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-            print(
-                f"CRITICAL: Failed to import setup_module_logger from utils. Using fallback console logger for {logger_name}.")
-        return logger
-# # 1. 获取根 logger
+# 工业级日志：utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
+
 logger = setup_module_logger(__name__, "logs/audio/fish.log")
 # logger.setLevel(logging.INFO)  # 设置全局最低日志级别
 #
@@ -89,23 +75,29 @@ pool_init_lock = threading.Lock()
 dir_creation_lock = threading.Lock()
 
 
-@router.on_event("startup")
-def startup_event():
-    """在应用启动时执行的函数"""
+# ─── 生命周期资源管理 ────────────────────────────────────────────────
+# 旧版使用 @router.on_event("startup"/"shutdown")，FastAPI 已将其标记为 deprecated。
+# 现在改为暴露 ``lifespan_resources(app)`` 异步上下文管理器，由 main.py 用
+# AsyncExitStack 统一在 lifespan 内进入：每个 worker 进程仍会跑一遍，资源
+# 乘数（×workers）保持与历史完全一致。
+import contextlib  # noqa: E402
+
+
+def _startup_resources() -> None:
+    """与历史 startup_event() 行为完全等价。"""
     global tts_thread_pool
     global api_semaphore
     tts_thread_pool = concurrent.futures.ThreadPoolExecutor(
         max_workers=MAX_WORKERS,
         thread_name_prefix="Global_TTS_Worker"
     )
-    api_semaphore = Semaphore(50)
+    api_semaphore = Semaphore(_settings.CRE_AUDIO_API_SEMAPHORE)
     logger.info(f"全局共享TTS线程池已创建，最大工作线程数: {MAX_WORKERS}")
-    logger.info(f"全局信号量已创建，许可数: {50}")
+    logger.info(f"全局信号量已创建，许可数: {_settings.CRE_AUDIO_API_SEMAPHORE}")
 
 
-@router.on_event("shutdown")
-def shutdown_event():
-    """在应用关闭时执行的函数"""
+def _shutdown_resources() -> None:
+    """与历史 shutdown_event() 行为完全等价。"""
     global tts_thread_pool
     if tts_thread_pool:
         logger.info("正在关闭全局共享TTS线程池...")
@@ -126,9 +118,21 @@ def shutdown_event():
         logger.info("全局 Session 池已被清理。")
 
 
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    """供 main.py 在 FastAPI lifespan 中通过 AsyncExitStack 进入的统一入口。"""
+    _startup_resources()
+    try:
+        yield
+    finally:
+        _shutdown_resources()
+
+
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
 # --- Clash 代理设置区 ---
-# (代码保持不变)
-PROXY_URL = ""
+# 优先 router 自身的 CRE_AUDIO_PROXY_URL；未设置则回落到全局 OUTBOUND_PROXY_URL
+PROXY_URL = _settings.CRE_AUDIO_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
 if PROXY_URL:
     os.environ['HTTP_PROXY'] = PROXY_URL
     os.environ['HTTPS_PROXY'] = PROXY_URL
@@ -139,27 +143,27 @@ else:
     logger.info("未配置代理，将直接进行网络连接。")
 
 # --- 配置区 (V9 更新) ---
-# (代码保持不变)
-ENGINE_MODEL = "speech-1.6"
-AUDIO_FORMAT = "mp3"
-PUBLIC_URL_TEMPLATE = "https://server.x-pilot.ai/static/meta-doc/video/{workflow_id}/audio/{filename}"
+# 默认值与历史硬编码完全一致；通过 .env 中 CRE_AUDIO_* 变量按需覆盖
+ENGINE_MODEL = _settings.CRE_AUDIO_ENGINE_MODEL
+AUDIO_FORMAT = _settings.CRE_AUDIO_AUDIO_FORMAT
+PUBLIC_URL_TEMPLATE = _settings.CRE_AUDIO_PUBLIC_URL_TEMPLATE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 SOURCE_DIR_TEMPLATE = os.path.join(STATIC_DIR, "file", "{workflow_id}")
 AUDIO_SAVE_PATH_TEMPLATE = os.path.join(SOURCE_DIR_TEMPLATE, "audio")
-DEST_BASE_DIR = "/data/www/wwwroot/x-pilot-oss/uploads/meta-doc/video"
-MAX_WORKERS = 15
+DEST_BASE_DIR = _settings.CRE_AUDIO_DEST_BASE_DIR
+MAX_WORKERS = _settings.CRE_AUDIO_MAX_WORKERS
 SESSION_POOL_SIZE = MAX_WORKERS
-MAX_RETRIES = 3
-RETRY_DELAY = 2
-TEXT_SPLIT_THRESHOLD = 120
+MAX_RETRIES = _settings.CRE_AUDIO_MAX_RETRIES
+RETRY_DELAY = _settings.CRE_AUDIO_RETRY_DELAY
+TEXT_SPLIT_THRESHOLD = _settings.CRE_AUDIO_TEXT_SPLIT_THRESHOLD
 SENTENCE_SPLIT_PATTERN = r"([。！？，、；…])"
-ENABLE_DYNAMIC_SPEED_ADJUSTMENT = True
-SPEED_ADJUST_THRESHOLD_RATIO = 1.05
-MAX_SPEECH_SPEED = 1.3
-ENABLE_DYNAMIC_DECELERATION = True
-MIN_SPEECH_SPEED = 0.95  # (最慢不低于0.95倍速)
-START_PADDING_BUFFER_MS = 150
+ENABLE_DYNAMIC_SPEED_ADJUSTMENT = _settings.CRE_AUDIO_ENABLE_DYNAMIC_SPEED_ADJUSTMENT
+SPEED_ADJUST_THRESHOLD_RATIO = _settings.CRE_AUDIO_SPEED_ADJUST_THRESHOLD_RATIO
+MAX_SPEECH_SPEED = _settings.CRE_AUDIO_MAX_SPEECH_SPEED
+ENABLE_DYNAMIC_DECELERATION = _settings.CRE_AUDIO_ENABLE_DYNAMIC_DECELERATION
+MIN_SPEECH_SPEED = _settings.CRE_AUDIO_MIN_SPEECH_SPEED  # (最慢不低于0.95倍速)
+START_PADDING_BUFFER_MS = _settings.CRE_AUDIO_START_PADDING_BUFFER_MS
 # 时间单位定义
 TIME_KEYWORDS = {
     # 注意: 连接符中的横杠、波浪线等建议使用半角符号以保持一致性

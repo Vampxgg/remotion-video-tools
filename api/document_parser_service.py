@@ -73,13 +73,19 @@ __all__ = [
 # ============== 嵌入图片上传服务 (EmbeddedImageUploader) ==============
 # ==============================================================================
 
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
+
 class EmbeddedImageUploader:
     """
     将文档内嵌图片上传到服务器，返回可访问的 URL。
     上传接口: POST /file/uploads (multipart/form-data, 字段名 files)
     响应格式: {"status": true, "data": [{"originalname": "x.png", "url": "https://..."}]}
+
+    上传地址必须由 .env 的 DOC_PARSER_IMAGE_UPLOAD_URL 显式提供，
+    避免历史上的 192.168.x 内网地址硬编码默认。
     """
-    UPLOAD_URL = os.environ.get("IMAGE_UPLOAD_URL", "http://192.168.1.76/file/uploads")
+    UPLOAD_URL = _settings.DOC_PARSER_IMAGE_UPLOAD_URL or ""
     MAX_BATCH = 10
     SUPPORTED_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff', '.tif'}
     MIME_MAP = {

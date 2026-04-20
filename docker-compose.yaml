@@ -12,12 +12,17 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
-      # 将宿主机的 5432 端口映射到容器的 5432 端口
-      # 格式: <HOST_PORT>:<CONTAINER_PORT>
-      - "5432:5432"
+      # 仅绑定到本机回环，避免数据库直接暴露到外网
+      # 格式: <HOST_IP>:<HOST_PORT>:<CONTAINER_PORT>
+      - "127.0.0.1:5432:5432"
     volumes:
       # 数据持久化配置，将数据存储在宿主机的 ./volumes 目录下
       - ./volumes/db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     # 使用带有管理插件的官方镜像，方便调试和监控
@@ -30,10 +35,10 @@ services:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
     ports:
-      # 5672: AMQP 协议端口，供应用程序连接
-      - "5672:5672"
-      # 15672: Web 管理界面的端口
-      - "15672:15672"
+      # 5672: AMQP 协议端口，供应用程序连接（仅本机）
+      - "127.0.0.1:5672:5672"
+      # 15672: Web 管理界面的端口（仅本机）
+      - "127.0.0.1:15672:15672"
     volumes:
       # 将 RabbitMQ 的元数据（如队列、交换机定义）持久化
       - ./volumes/rabbitmq_data:/var/lib/rabbitmq

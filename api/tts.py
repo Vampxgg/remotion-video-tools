@@ -62,9 +62,13 @@ router = APIRouter()
 tts_thread_pool: concurrent.futures.ThreadPoolExecutor = None
 
 
-@router.on_event("startup")
-def startup_event():
-    """在应用启动时执行的函数"""
+# ─── 生命周期资源管理（lifespan_resources）───────────────────────────
+# 旧版 @router.on_event 已 deprecated，改由 main.py 在 FastAPI lifespan
+# 中通过 AsyncExitStack 进入；行为/资源乘数完全一致。
+import contextlib  # noqa: E402
+
+
+def _startup_resources() -> None:
     global tts_thread_pool
     tts_thread_pool = concurrent.futures.ThreadPoolExecutor(
         max_workers=MAX_WORKERS,
@@ -73,9 +77,7 @@ def startup_event():
     logger.info(f"全局共享TTS线程池已创建，最大工作线程数: {MAX_WORKERS}")
 
 
-@router.on_event("shutdown")
-def shutdown_event():
-    """在应用关闭时执行的函数"""
+def _shutdown_resources() -> None:
     global tts_thread_pool
     if tts_thread_pool:
         logger.info("正在关闭全局共享TTS线程池...")
@@ -83,9 +85,19 @@ def shutdown_event():
         logger.info("全局共享TTS线程池已成功关闭。")
 
 
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    _startup_resources()
+    try:
+        yield
+    finally:
+        _shutdown_resources()
+
+
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
 # --- Clash 代理设置区 ---
-# (代码保持不变)
-PROXY_URL = "http://127.0.0.1:7890"
+PROXY_URL = _settings.TTS_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
 if PROXY_URL:
     os.environ['HTTP_PROXY'] = PROXY_URL
     os.environ['HTTPS_PROXY'] = PROXY_URL
@@ -95,34 +107,34 @@ if PROXY_URL:
 else:
     logger.info("未配置代理，将直接进行网络连接。")
 
-# --- 配置区 (V9 更新) ---
-# (代码保持不变)
-ENGINE_MODEL = "speech-1.6"
-AUDIO_FORMAT = "mp3"
-PUBLIC_URL_TEMPLATE = "http://119.45.167.133:17752/meta-doc/video/{workflow_id}/audio/{filename}"
+# --- 配置区（默认值与历史硬编码一致；可通过 .env 中 TTS_* 覆盖）---
+ENGINE_MODEL = _settings.TTS_ENGINE_MODEL
+AUDIO_FORMAT = _settings.TTS_AUDIO_FORMAT
+PUBLIC_URL_TEMPLATE = _settings.TTS_PUBLIC_URL_TEMPLATE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 SOURCE_DIR_TEMPLATE = os.path.join(STATIC_DIR, "file", "{workflow_id}")
 AUDIO_SAVE_PATH_TEMPLATE = os.path.join(SOURCE_DIR_TEMPLATE, "audio")
-DEST_BASE_DIR = "E:\\Server\\x-pilot-oss\\uploads\\meta-doc\\video"
-MAX_WORKERS = 5
-MAX_RETRIES = 3
-RETRY_DELAY = 2
-TEXT_SPLIT_THRESHOLD = 60
+DEST_BASE_DIR = _settings.TTS_DEST_BASE_DIR
+MAX_WORKERS = _settings.TTS_MAX_WORKERS
+MAX_RETRIES = _settings.TTS_MAX_RETRIES
+RETRY_DELAY = _settings.TTS_RETRY_DELAY
+TEXT_SPLIT_THRESHOLD = _settings.TTS_TEXT_SPLIT_THRESHOLD
 SENTENCE_SPLIT_PATTERN = r"([。！？，、；…])"
-ENABLE_DYNAMIC_SPEED_ADJUSTMENT = True
-SPEED_ADJUST_THRESHOLD_RATIO = 1.05
-MAX_SPEECH_SPEED = 1.3
-START_PADDING_BUFFER_MS = 150
+ENABLE_DYNAMIC_SPEED_ADJUSTMENT = _settings.TTS_ENABLE_DYNAMIC_SPEED_ADJUSTMENT
+SPEED_ADJUST_THRESHOLD_RATIO = _settings.TTS_SPEED_ADJUST_THRESHOLD_RATIO
+MAX_SPEECH_SPEED = _settings.TTS_MAX_SPEECH_SPEED  # 注：下方"在线估算与回退策略"会再次覆盖该值
+START_PADDING_BUFFER_MS = _settings.TTS_START_PADDING_BUFFER_MS
 
 # ======================================================================================
-# 【改】新增：在线估算与回退策略参数（用于根据字幕目标时长调整生成速度并可回退到高质量 time-stretch）
+# 在线估算与回退策略参数（根据字幕目标时长调整生成速度并可回退到高质量 time-stretch）
+# 默认值与历史硬编码一致；可通过 TTS_* 覆盖
 # ======================================================================================
-CHARS_PER_SEC_ESTIMATE = 6.0  # 【改】初始估计：每秒平均字符数（中文场景下可调）
-CHARS_PER_SEC_ALPHA = 0.2  # 【改】指数平均校准权重（越大适应越快）
-MIN_SPEECH_SPEED = 0.7  # 【改】最小允许的 prosody.speed（保护可懂度）
-MAX_SPEECH_SPEED = 1.4  # 【改】最大允许的 prosody.speed（这里在局部覆盖原值）
-LIBROSA_FALLBACK = True  # 【改】如果 True 且被限速，使用 librosa 进行高质量 time-stretch 回退
+CHARS_PER_SEC_ESTIMATE = _settings.TTS_CHARS_PER_SEC_ESTIMATE
+CHARS_PER_SEC_ALPHA = _settings.TTS_CHARS_PER_SEC_ALPHA
+MIN_SPEECH_SPEED = _settings.TTS_MIN_SPEECH_SPEED
+MAX_SPEECH_SPEED = _settings.TTS_MAX_SPEECH_SPEED  # 这里在局部覆盖原值
+LIBROSA_FALLBACK = _settings.TTS_LIBROSA_FALLBACK
 # ======================================================================================
 
 # 【改】尝试导入 librosa 与 soundfile 以支持高质量 time-stretch 回退（可选依赖）

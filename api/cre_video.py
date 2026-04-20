@@ -20,35 +20,23 @@ import google.auth
 import google.auth.transport.requests
 
 # 尝试导入您项目中的日志模块
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    # 备用日志方案
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-            print(f"CRITICAL: Failed to import setup_module_logger. Using fallback console logger for {logger_name}.")
-        return logger
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
 
-# --- 配置区 ---
-# 使用您项目中的日志工具
 logger = setup_module_logger(__name__, "logs/video/veo.log")
 
 router = APIRouter()
 
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
 # --- Google Vertex AI Veo API 配置 ---
-# !! 重要: 请将这些值替换为您自己的配置 !!
-GOOGLE_PROJECT_ID = "x-pilot-469902"
-GOOGLE_LOCATION_ID = "us-central1"
-# 视频输出的GCS桶，并指定一个子目录
-GCS_OUTPUT_URI_TEMPLATE = "gs://x-pilot-storage/veo_video/"  # 使用 workflow_id 创建独立目录
-# GCS桶的公开访问URL前缀
-GCS_PUBLIC_URL_PREFIX = "https://storage.googleapis.com/x-pilot-storage"
+# 必要时通过 .env 中的 GCP_*/GCS_*/CRE_VIDEO_* 覆盖
+GOOGLE_PROJECT_ID = _settings.GCP_PROJECT_ID
+GOOGLE_LOCATION_ID = _settings.GCP_LOCATION_ID
+# 视频输出的 GCS URI（使用 workflow_id 创建独立目录）
+GCS_OUTPUT_URI_TEMPLATE = _settings.CRE_VIDEO_GCS_OUTPUT_URI
+# GCS 桶的公开访问 URL 前缀
+GCS_PUBLIC_URL_PREFIX = _settings.GCS_PUBLIC_URL_PREFIX
 
 # API 端点模板
 VEO_API_ENDPOINT_TEMPLATE = (
@@ -57,39 +45,50 @@ VEO_API_ENDPOINT_TEMPLATE = (
 )
 
 # 轮询配置
-POLLING_INTERVAL_SECONDS = 10  # 每10秒查询一次任务状态
-POLLING_TIMEOUT_SECONDS = 180  # 任务总超时时间 (3分钟)
+POLLING_INTERVAL_SECONDS = _settings.CRE_VIDEO_POLLING_INTERVAL_SEC
+POLLING_TIMEOUT_SECONDS = _settings.CRE_VIDEO_POLLING_TIMEOUT_SEC
 
 # 使用全局唯一的 httpx.AsyncClient 实例以获得更好的性能
 # 我们将在应用的 startup/shutdown 事件中管理它
 http_client: httpx.AsyncClient = None
 
 
-@router.on_event("startup")
-async def startup_event():
-    """在应用启动时创建全局 HTTP 客户端"""
+# ─── 生命周期资源管理（lifespan_resources）───────────────────────────
+# 旧版 @router.on_event 已 deprecated，改由 main.py 在 FastAPI lifespan
+# 中通过 AsyncExitStack 进入；行为/资源乘数完全一致。
+import contextlib  # noqa: E402
+
+
+async def _startup_resources() -> None:
     global http_client
-    # 设置一个合理的超时，包括连接和读写
-    timeout = httpx.Timeout(15.0, connect=5.0)
+    timeout = httpx.Timeout(
+        _settings.CRE_VIDEO_HTTPX_TIMEOUT,
+        connect=_settings.CRE_VIDEO_HTTPX_CONNECT_TIMEOUT,
+    )
     http_client = httpx.AsyncClient(timeout=timeout)
     logger.info("全局共享 httpx.AsyncClient 已创建。")
 
 
-@router.on_event("shutdown")
-async def shutdown_event():
-    """在应用关闭时优雅地关闭 HTTP 客户端"""
+async def _shutdown_resources() -> None:
     global http_client
     if http_client:
         await http_client.aclose()
         logger.info("全局共享 httpx.AsyncClient 已成功关闭。")
 
 
-class StandardResponse(BaseModel):
-    """标准的API响应模型"""
-    code: int = Field(200, description="HTTP状态码")
-    message: str = Field("Success", description="响应消息")
-    data: Optional[Any] = Field(None, description="响应数据")
-    timestamp: str = Field(..., description="ISO 8601 格式的时间戳")
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    await _startup_resources()
+    try:
+        yield
+    finally:
+        await _shutdown_resources()
+
+
+# 统一从 utils.responses 引入；本 router 历史行为是 model_dump(exclude_none=True)，
+# 因此用一层薄包装显式打开 exclude_none，对外接口字段集合保持完全不变
+from utils.responses import StandardResponse  # noqa: F401
+from utils.responses import create_standard_response as _shared_create_standard_response
 
 
 def create_standard_response(
@@ -97,20 +96,9 @@ def create_standard_response(
         code: int = 200,
         message: str = "Success"
 ) -> JSONResponse:
-    """
-    创建一个标准格式的 FastAPI 响应。
-    :param data: 响应的主要数据负载。
-    :param code: HTTP 状态码。
-    :param message: 描述性消息。
-    :return: 一个 JSONResponse 对象。
-    """
-    content = StandardResponse(
-        code=code,
-        message=message,
-        data=data,
-        timestamp=datetime.now().isoformat()
-    ).model_dump(exclude_none=True)  # 使用 exclude_none=True 避免 data 为 None 时也出现在json中
-    return JSONResponse(status_code=code, content=content)
+    return _shared_create_standard_response(
+        data=data, code=code, message=message, exclude_none=True
+    )
 
 
 # --- 工具函数 ---

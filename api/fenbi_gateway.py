@@ -13,70 +13,40 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except ImportError:
-    pass
-
 import httpx
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    import logging
-    import sys
-
-    def setup_module_logger(name: str, path: str):
-        lg = logging.getLogger(name)
-        if not lg.handlers:
-            h = logging.StreamHandler(sys.stdout)
-            lg.addHandler(h)
-            lg.setLevel(logging.INFO)
-        return lg
-
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
 
 logger = setup_module_logger(__name__, "logs/jobs/fenbi_gateway.log")
 
 router = APIRouter()
 
-HERA_ORIGIN = "https://hera-webapp.fenbi.com"
-MARKET_PC = "https://market-api.fenbi.com/toolkit/api/v1/pc"
-DEFAULT_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 
-META_CACHE_TTL_SEC = 600
+HERA_ORIGIN = _settings.FENBI_HERA_ORIGIN
+MARKET_PC = _settings.FENBI_MARKET_PC
+DEFAULT_UA = _settings.FETCH_USER_AGENT
+
+META_CACHE_TTL_SEC = _settings.FENBI_META_CACHE_TTL_SEC
 _META_LOCK = asyncio.Lock()
 _META_CACHE: Dict[Tuple[Optional[int], int], Tuple[float, Dict[str, Any]]] = {}
 
 NOISE_LINES = ("免费报考咨询", "考情随时掌握", "尽在粉笔")
 
-# 未设置环境变量 FENBI_COOKIE 时使用的默认 Cookie（职位详情等需登录字段）。
-# 生产环境请改用环境变量或 .env，勿将含有效 sess 的代码推送到公共仓库。
-_DEFAULT_FENBI_COOKIE = (
-    "sess=YTKcCC/Qi+iYb9gWv/E9lnplSHqoxb97m6+ARo8JkVlS9X5tJON7KTIimiZ2Tl7NkCQ6DdISA+mo1nZP+PwL1FW9dVr5GCzHU8UR5BEA8DE=; "
-    "userid=165100008"
-)
-
 
 def _fenbi_cookie() -> Optional[str]:
     """
     返回发往 market-api / hera-webapp 的 Cookie 头。
-    - 若环境变量 FENBI_COOKIE 已设置（含显式空字符串）：仅用其值，strip 后为空则不带 Cookie。
-    - 若未设置 FENBI_COOKIE：使用模块内 _DEFAULT_FENBI_COOKIE。
+    必须由 .env 中 FENBI_COOKIE 显式提供（含 sess、userid），未设置时不带 Cookie。
+    生产环境请勿将含有效 sess 的代码推送到 repo。
     """
-    if "FENBI_COOKIE" in os.environ:
-        raw = os.environ["FENBI_COOKIE"]
-        c = (raw or "").strip()
-        return c if c else None
-    c = _DEFAULT_FENBI_COOKIE.strip()
+    raw = _settings.FENBI_COOKIE or ""
+    c = raw.strip()
     return c if c else None
 
 

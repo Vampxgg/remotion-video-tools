@@ -30,24 +30,9 @@ from fastapi.responses import JSONResponse
 # ======================================================================================
 # --- [V1] 工业级日志配置 (沿用现有标准) ---
 # ======================================================================================
-try:
-    # 假设你有一个集中的日志设置模块
-    from utils.logger import setup_module_logger
-except ImportError:
-    # 如果找不到，提供一个备用方案，确保应用可以启动
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-            # 打印一条关键信息，告知正在使用备用日志记录器
-            print(f"CRITICAL: Using fallback console logger for {logger_name}.")
-        return logger
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
 
-# 初始化模块日志记录器
 logger = setup_module_logger(__name__, "logs/audio/fish_asr.log")
 # ======================================================================================
 
@@ -61,41 +46,44 @@ api_semaphore_asr: Optional[asyncio.Semaphore] = None
 async_http_client: Optional[httpx.AsyncClient] = None
 
 
-# --- 应用生命周期事件管理 ---
-@router_asr.on_event("startup")
-def startup_event():
+# ─── 生命周期资源管理（lifespan_resources）───────────────────────────
+# 旧版 @router_asr.on_event 已 deprecated，改由 main.py 在 FastAPI lifespan
+# 中通过 AsyncExitStack 进入；行为/资源乘数完全一致。
+import contextlib  # noqa: E402
+
+
+def _startup_resources() -> None:
     global asr_thread_pool, api_semaphore_asr, async_http_client
 
-    # 初始化用于CPU密集型任务或阻塞IO的线程池
     asr_thread_pool = concurrent.futures.ThreadPoolExecutor(
-        max_workers=10,
+        max_workers=_settings.FISH_ASR_THREAD_WORKERS,
         thread_name_prefix="Global_ASR_Worker"
     )
-    # 初始化信号量，控制对外部API的并发请求数量
-    api_semaphore_asr = Semaphore(20)
+    api_semaphore_asr = Semaphore(_settings.FISH_ASR_API_SEMAPHORE)
 
-    # 初始化可复用的异步HTTP客户端
     proxies = PROXY_URL if PROXY_URL else None
-    timeout = httpx.Timeout(10.0, connect=5.0, read=60.0, write=10.0)
+    timeout = httpx.Timeout(
+        _settings.FISH_ASR_HTTP_TIMEOUT,
+        connect=_settings.FISH_ASR_HTTP_CONNECT_TIMEOUT,
+        read=_settings.FISH_ASR_HTTP_READ_TIMEOUT,
+        write=_settings.FISH_ASR_HTTP_WRITE_TIMEOUT,
+    )
     async_http_client = httpx.AsyncClient(timeout=timeout)
 
     logger.info("ASR 模块启动完成。")
-    logger.info(f"ASR 线程池已创建，最大工作线程数: 10")
-    logger.info(f"ASR API 信号量已创建，许可数: 20")
+    logger.info(f"ASR 线程池已创建，最大工作线程数: {_settings.FISH_ASR_THREAD_WORKERS}")
+    logger.info(f"ASR API 信号量已创建，许可数: {_settings.FISH_ASR_API_SEMAPHORE}")
     logger.info(f"全局共享的 httpx.AsyncClient 已创建。代理: {'启用' if proxies else '未配置'}")
 
 
-@router_asr.on_event("shutdown")
-async def shutdown_event():
+async def _shutdown_resources() -> None:
     global asr_thread_pool, async_http_client
 
-    # 优雅关闭线程池
     if asr_thread_pool:
         logger.info("正在关闭 ASR 线程池...")
         asr_thread_pool.shutdown(wait=True)
         logger.info("ASR 线程池已成功关闭。")
 
-    # 优雅关闭HTTP客户端连接池
     if async_http_client and not async_http_client.is_closed:
         logger.info("正在关闭全局共享的 httpx.AsyncClient...")
         await async_http_client.aclose()
@@ -104,24 +92,30 @@ async def shutdown_event():
     logger.info("ASR 模块已成功关闭。")
 
 
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    _startup_resources()
+    try:
+        yield
+    finally:
+        await _shutdown_resources()
+
+
 # --- 配置区 ---
-PROXY_URL = ""  # 示例: "http://127.0.0.1:7890"
-FISH_ASR_API_URL = "https://api.fish.audio/v1/asr"
-FISH_API_KEY = "dae51de32a0743f6b4f2f7b6366747bf"  # 强烈建议从环境变量或配置文件中加载
-MAX_ASR_RETRIES = 3
-ASR_RETRY_DELAY = 1.5  # 秒
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+PROXY_URL = _settings.FISH_ASR_PROXY_URL or ""  # 示例: "http://127.0.0.1:7890"
+FISH_ASR_API_URL = _settings.FISH_ASR_API_URL
+FISH_API_KEY = _settings.FISH_API_KEY or ""  # 必须由 .env 提供，避免明文密钥进 repo
+MAX_ASR_RETRIES = _settings.FISH_ASR_MAX_RETRIES
+ASR_RETRY_DELAY = _settings.FISH_ASR_RETRY_DELAY  # 秒
 
 
 # ======================================================================================
 # --- API 响应模型与 Pydantic 模型定义 ---
 # ======================================================================================
 
-class StandardResponse(BaseModel):
-    """标准的API响应模型"""
-    code: int = Field(200, description="HTTP状态码")
-    message: str = Field("Success", description="响应消息")
-    data: Optional[Any] = Field(None, description="响应数据")
-    timestamp: str = Field(..., description="ISO 8601 格式的时间戳")
+# 统一的标准响应模型 / 工厂函数从 utils.responses 引入，避免 10 处重复定义
+from utils.responses import StandardResponse, create_standard_response  # noqa: F401  (re-export 兼容历史 import)
 
 
 class ASRResultItem(BaseModel):
@@ -138,23 +132,6 @@ class BatchASRResponseData(BaseModel):
     success_count: int = Field(..., description="成功处理的文件数")
     failed_count: int = Field(..., description="处理失败的文件数")
     results: List[ASRResultItem] = Field(..., description="每个文件的详细处理结果列表")
-
-
-# --- 工具函数 ---
-
-def create_standard_response(
-        data: Optional[Any] = None,
-        code: int = 200,
-        message: str = "Success"
-) -> JSONResponse:
-    """创建一个标准格式的 FastAPI 响应。"""
-    content = StandardResponse(
-        code=code,
-        message=message,
-        data=data,
-        timestamp=datetime.now().isoformat()
-    ).model_dump()
-    return JSONResponse(status_code=code, content=content)
 
 
 # ======================================================================================

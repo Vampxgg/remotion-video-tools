@@ -35,19 +35,9 @@ from pydub import AudioSegment
 # ======================================================================================
 # --- [V12] 工业级日志配置 (保持不变) ---
 # ======================================================================================
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        logger = logging.getLogger(logger_name)
-        if not logger.hasHandlers():
-            handler = logging.StreamHandler(sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging.INFO)
-            print(f"CRITICAL: Using fallback console logger for {logger_name}.")
-        return logger
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
+
 logger = setup_module_logger(__name__, "logs/audio/fish_json.log")
 # ======================================================================================
 
@@ -60,41 +50,43 @@ global_session_pool: Optional[queue.Queue] = None
 pool_init_lock = threading.Lock()
 dir_creation_lock = threading.Lock()
 
-# --- 代理与配置区 (保持不变) ---
-PROXY_URL = ""
-ENGINE_MODEL = "speech-1.6"
-AUDIO_FORMAT = "mp3"
-# 【建议】将 HOST 和端口配置化，便于部署
-API_BASE_URL = "https://server.x-pilot.ai"
-PUBLIC_URL_TEMPLATE = f"{API_BASE_URL}/static/meta-doc/video/{{workflow_id}}/audio/{{filename}}"
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
+# --- 代理与配置区（默认值与历史硬编码一致；可通过 .env 中 CRE_AUDIO_REFACTORED_* 覆盖）---
+PROXY_URL = _settings.CRE_AUDIO_REFACTORED_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
+ENGINE_MODEL = _settings.CRE_AUDIO_REFACTORED_ENGINE_MODEL
+AUDIO_FORMAT = _settings.CRE_AUDIO_REFACTORED_AUDIO_FORMAT
+API_BASE_URL = _settings.CRE_AUDIO_REFACTORED_API_BASE_URL
+PUBLIC_URL_TEMPLATE = _settings.CRE_AUDIO_REFACTORED_PUBLIC_URL_TEMPLATE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-# 临时工作目录
 TEMP_WORK_DIR_TEMPLATE = os.path.join(STATIC_DIR, "file", "{workflow_id}")
-# 最终产物目录
-FINAL_DEST_DIR = "/data/www/wwwroot/x-pilot-oss/uploads/meta-doc/video"
-MAX_WORKERS = 2
+FINAL_DEST_DIR = _settings.CRE_AUDIO_REFACTORED_DEST_BASE_DIR
+MAX_WORKERS = _settings.CRE_AUDIO_REFACTORED_MAX_WORKERS
 SESSION_POOL_SIZE = MAX_WORKERS
-MAX_RETRIES = 3
-RETRY_DELAY = 2
-TEXT_SPLIT_THRESHOLD = 120
-FISH_API_KEY = "dae51de32a0743f6b4f2f7b6366747bf"  # 【安全建议】应从环境变量或配置文件读取
+MAX_RETRIES = _settings.CRE_AUDIO_REFACTORED_MAX_RETRIES
+RETRY_DELAY = _settings.CRE_AUDIO_REFACTORED_RETRY_DELAY
+TEXT_SPLIT_THRESHOLD = _settings.CRE_AUDIO_REFACTORED_TEXT_SPLIT_THRESHOLD
+FISH_API_KEY = _settings.FISH_API_KEY or ""
 SENTENCE_SPLIT_PATTERN = r"([。！？，、；…])"
-ENABLE_DYNAMIC_SPEED_ADJUSTMENT = True
-SPEED_ADJUST_THRESHOLD_RATIO = 1.05
-MAX_SPEECH_SPEED = 1.3
-ENABLE_DYNAMIC_DECELERATION = True
-MIN_SPEECH_SPEED = 0.95
-START_PADDING_BUFFER_MS = 150
+ENABLE_DYNAMIC_SPEED_ADJUSTMENT = _settings.CRE_AUDIO_REFACTORED_ENABLE_DYNAMIC_SPEED_ADJUSTMENT
+SPEED_ADJUST_THRESHOLD_RATIO = _settings.CRE_AUDIO_REFACTORED_SPEED_ADJUST_THRESHOLD_RATIO
+MAX_SPEECH_SPEED = _settings.CRE_AUDIO_REFACTORED_MAX_SPEECH_SPEED
+ENABLE_DYNAMIC_DECELERATION = _settings.CRE_AUDIO_REFACTORED_ENABLE_DYNAMIC_DECELERATION
+MIN_SPEECH_SPEED = _settings.CRE_AUDIO_REFACTORED_MIN_SPEECH_SPEED
+START_PADDING_BUFFER_MS = _settings.CRE_AUDIO_REFACTORED_START_PADDING_BUFFER_MS
 
 
 # ======================================================================================
-# --- 生命周期事件 (Startup / Shutdown) ---
+# --- 生命周期事件 (lifespan_resources) ---
+# 旧版 @router.on_event 已 deprecated，改为暴露 lifespan_resources(app)，
+# 由 main.py 在 FastAPI lifespan 中通过 AsyncExitStack 进入；行为完全一致。
 # ======================================================================================
+import contextlib  # noqa: E402
 
-@router.on_event("startup")
-def startup_event():
-    """在应用启动时初始化全局资源。"""
+
+def _startup_resources() -> None:
+    """与历史 startup_event() 行为完全等价。"""
     global tts_thread_pool, api_semaphore, global_session_pool
 
     if PROXY_URL:
@@ -108,7 +100,7 @@ def startup_event():
         max_workers=MAX_WORKERS,
         thread_name_prefix="Global_TTS_Worker"
     )
-    api_semaphore = Semaphore(50)
+    api_semaphore = Semaphore(_settings.CRE_AUDIO_REFACTORED_API_SEMAPHORE)
 
     # 预先初始化 Session Pool
     with pool_init_lock:
@@ -116,23 +108,19 @@ def startup_event():
             try:
                 logger.info(f"正在初始化全局 Session 池，大小为 {SESSION_POOL_SIZE}...")
                 new_pool = queue.Queue(maxsize=SESSION_POOL_SIZE)
-                # 【优化】可以在一个线程里完成这个初始化，避免阻塞主事件循环启动
                 for i in range(SESSION_POOL_SIZE):
                     new_pool.put(Session(FISH_API_KEY))
                 global_session_pool = new_pool
                 logger.info("全局 Session 池成功创建并已缓存。")
             except Exception as e:
                 logger.critical(f"应用启动时创建 TTS Session 池失败: {e}", exc_info=True)
-                # 如果 Session 池创建失败，应用可能无法正常工作，可以选择退出
-                # sys.exit(1)
 
     logger.info(f"全局共享TTS线程池已创建，最大工作线程数: {MAX_WORKERS}")
-    logger.info(f"全局信号量已创建，许可数: {50}")
+    logger.info(f"全局信号量已创建，许可数: {_settings.CRE_AUDIO_REFACTORED_API_SEMAPHORE}")
 
 
-@router.on_event("shutdown")
-def shutdown_event():
-    """在应用关闭时优雅地释放资源。"""
+def _shutdown_resources() -> None:
+    """与历史 shutdown_event() 行为完全等价。"""
     global tts_thread_pool, global_session_pool
     if tts_thread_pool:
         logger.info("正在关闭全局共享TTS线程池...")
@@ -145,7 +133,7 @@ def shutdown_event():
             try:
                 session = global_session_pool.get_nowait()
                 if hasattr(session, 'close'):
-                    session.close()  # 假设 Session 对象有 close 方法
+                    session.close()
             except queue.Empty:
                 break
             except Exception as e:
@@ -153,31 +141,21 @@ def shutdown_event():
         logger.info("全局 Session 池已被清理。")
 
 
+@contextlib.asynccontextmanager
+async def lifespan_resources(app):
+    _startup_resources()
+    try:
+        yield
+    finally:
+        _shutdown_resources()
+
+
 # ======================================================================================
 # --- API 响应模型与工具函数 ---
 # ======================================================================================
 
-class StandardResponse(BaseModel):
-    """标准的API响应模型，提供一致的返回结构。"""
-    code: int = Field(200, description="业务状态码，通常与HTTP状态码一致")
-    message: str = Field("Success", description="响应的文本消息")
-    data: Optional[Any] = Field(None, description="实际的响应数据负载")
-    timestamp: str = Field(..., description="服务器响应时的ISO 8601格式时间戳")
-
-
-def create_standard_response(
-        data: Optional[Any] = None,
-        code: int = 200,
-        message: str = "Success"
-) -> JSONResponse:
-    """创建一个标准格式的 FastAPI 响应，便于客户端统一处理。"""
-    content = StandardResponse(
-        code=code,
-        message=message,
-        data=data,
-        timestamp=datetime.now().isoformat()
-    ).model_dump()
-    return JSONResponse(status_code=code, content=content)
+# 统一从 utils.responses 引入，避免 10 处重复定义；行为完全一致
+from utils.responses import StandardResponse, create_standard_response  # noqa: F401
 
 
 def extract_subtitles_from_json(data: Any) -> Generator[Dict[str, Any], None, None]:

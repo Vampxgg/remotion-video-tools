@@ -22,30 +22,19 @@ except ImportError:
     ChromiumPage = None
     By = None
 
-try:
-    from utils.logger import setup_module_logger
-except ImportError:
-    import logging
-    import sys
-
-    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
-        log = logging.getLogger(logger_name)
-        if not log.handlers:
-            h = logging.StreamHandler(sys.stdout)
-            h.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-            log.addHandler(h)
-            log.setLevel(logging.INFO)
-        return log
-
+# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
+from utils.logger import setup_module_logger
 
 logger = setup_module_logger(__name__, "logs/jobs/tuoyu_serp.log")
 
 router = APIRouter()
 
-BROWSER_HOST_PORT = "127.0.0.1:9527"
-GOOGLE_SEARCH_HOST = os.environ.get("GOOGLE_SEARCH_HOST", "www.google.com")
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 
-INCLUDE_WECHAT_SITE_QUERY = True
+BROWSER_HOST_PORT = _settings.TUOYU_SERP_BROWSER_HOST_PORT
+GOOGLE_SEARCH_HOST = _settings.TUOYU_SERP_GOOGLE_HOST
+
+INCLUDE_WECHAT_SITE_QUERY = _settings.TUOYU_SERP_INCLUDE_WECHAT
 
 # Google 自然结果（多 XPath 兜底，改版时需调整）
 XPATH_GOOGLE_BLOCK_CANDIDATES = [
@@ -69,25 +58,8 @@ XPATH_SNIPPET_GOOGLE = (
 )
 
 
-class StandardResponse(BaseModel):
-    code: int = Field(200, description="业务状态码")
-    message: str = Field("Success", description="文本消息")
-    data: Optional[Any] = Field(None, description="负载")
-    timestamp: str = Field(..., description="ISO 时间戳")
-
-
-def create_standard_response(
-    data: Optional[Any] = None,
-    code: int = 200,
-    message: str = "Success",
-) -> JSONResponse:
-    content = StandardResponse(
-        code=code,
-        message=message,
-        data=data,
-        timestamp=datetime.now().isoformat(),
-    ).model_dump()
-    return JSONResponse(status_code=code, content=content)
+# 统一从 utils.responses 引入，避免 10 处重复定义；行为完全一致
+from utils.responses import StandardResponse, create_standard_response  # noqa: F401
 
 
 def build_default_queries(keyword: str) -> List[str]:

@@ -1,9 +1,53 @@
 # .gitignore
 
-# ... 其他忽略项
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Environment variables
+# ===== 虚拟环境 =====
+.venv/
+venv/
+env/
+
+# ===== IDE / 工具 =====
+.idea/
+.vscode/
+.codebuddy/
+*.swp
+*.swo
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+
+# ===== 环境变量与机密 =====
 .env
+.env.local
+.env.*.local
 
-# Docker data volumes
+# ===== 运行时产物 =====
+logs/
+*.log
+*.log.*
+
+# ===== Docker 卷 =====
 volumes/
+
+# ===== 静态生成产物（业务运行时输出，不入库）=====
+static/generated_files/
+static/temp_images/
+static/compress_uploads/
+static/compress_outputs/
+static/file/
+static/meta-doc/
+
+# ===== Alembic 自动生成的 cache =====
+alembic/__pycache__/

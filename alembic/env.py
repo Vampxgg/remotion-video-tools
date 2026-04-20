@@ -1,19 +1,17 @@
 # alembic/env.py
 import os
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from alembic import context
-# --- [第一处修改：导入你的模型 Base 和 dotenv] ---
-from dotenv import load_dotenv
 import sys
+from logging.config import fileConfig
 
-# 将项目根目录添加到Python路径，这样alembic才能找到db模块
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
+
+# 将项目根目录添加到 Python 路径，这样 alembic 才能找到 db / utils 模块
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
-from db.models import Base  # 导入你的 Base
 
-# 加载 .env 文件
-load_dotenv()
+from db.models import Base  # noqa: E402  (路径注入后再 import)
+from utils.settings import settings  # noqa: E402  (settings 单点入口，已在内部 load_dotenv)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -71,7 +69,7 @@ def run_migrations_online() -> None:
     # 这个小技巧会让 Alembic 在读取 sqlalchemy.url 时，
     # 将 ${DB_USER} 等替换为实际的环境变量值
     section = config.get_section(config.config_ini_section)
-    section['sqlalchemy.url'] = os.path.expandvars(section['sqlalchemy.url'])
+    section['sqlalchemy.url'] = settings.url_sync
     connectable = engine_from_config(
         section,
         prefix="sqlalchemy.",

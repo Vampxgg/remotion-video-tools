@@ -15,12 +15,10 @@ from bs4 import BeautifulSoup
 from trafilatura.settings import use_config
 
 from api.document_parser_service import DataCleaningPipeline, DocumentParserService
+from utils.settings import settings as _settings
 
-DEFAULT_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
-MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
+DEFAULT_UA = _settings.FETCH_USER_AGENT
+MAX_DOCUMENT_BYTES = _settings.URL_FETCH_MAX_DOCUMENT_BYTES
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".csv",

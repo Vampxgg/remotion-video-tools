@@ -423,13 +423,21 @@ POST {BASE}/scrape/fenbi/action
 | `HERA_ORIGIN` | `https://hera-webapp.fenbi.com` |
 | `MARKET_PC` | `https://market-api.fenbi.com/toolkit/api/v1/pc` |
 
-**所有**通过 `httpx.AsyncClient(headers=_headers(), ...)` 发出的请求，均携带以下 **HTTP 请求头**（本服务固定写死，无 Cookie / Authorization）：
+**所有**通过 `httpx.AsyncClient(headers=_headers(), ...)` 发出的请求，均携带以下 **HTTP 请求头**：
 
 | 请求头 | 值 |
 |--------|-----|
 | `User-Agent` | `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36` |
 | `Referer` | `https://fenbi.com/` |
 | `Origin` | `https://fenbi.com` |
+| `Cookie` | **默认附带**（`sess` + `userid` 等，与官网登录态一致），使 `position/detail` 等返回完整结构化字段；**无** `Authorization` 头。 |
+
+**Cookie 来源（优先级）**：
+
+1. 若进程环境中 **已设置** `FENBI_COOKIE`（含 `.env` 经 `load_dotenv` 加载）：使用该字符串作为完整 `Cookie` 头；若值为仅空白则**不**发送 `Cookie`。  
+2. 若 **未设置** `FENBI_COOKIE`：使用 [`fenbi_gateway.py`](api/fenbi_gateway.py) 内模块级默认 Cookie（与当前部署约定一致）。
+
+**安全**：会话会过期；勿将含有效 `sess` 的代码或 `.env` 提交到公共仓库。示例键名见 [`.env.example`](.env.example)。
 
 **Market-API 公共 Query（`_market_qs()`）**  
 凡请求路径在 `MARKET_PC` 下的接口，均在 URL 上附加（`extra` 为可选扩展，与本表合并）：

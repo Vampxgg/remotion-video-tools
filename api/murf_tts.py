@@ -25,20 +25,23 @@ except ImportError:
 logger = logging.getLogger(__name__)
 # ... (所有配置项保持不变，此处省略以保持清晰) ...
 router = APIRouter()
-PROXY_URL = "http://127.0.0.1:7890"
+
+from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+
+PROXY_URL = _settings.MURF_TTS_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
 if PROXY_URL:
     os.environ['HTTP_PROXY'], os.environ['HTTPS_PROXY'] = PROXY_URL, PROXY_URL
     logger.info(f"已配置全局代理: {PROXY_URL}")
-AUDIO_FORMAT = "mp3"
-PUBLIC_URL_TEMPLATE = "http://119.45.167.133:7752/meta-doc/video/{workflow_id}/audio/{filename}"
+AUDIO_FORMAT = _settings.MURF_TTS_AUDIO_FORMAT
+PUBLIC_URL_TEMPLATE = _settings.MURF_TTS_PUBLIC_URL_TEMPLATE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 SOURCE_DIR_TEMPLATE = os.path.join(STATIC_DIR, "file", "{workflow_id}")
 AUDIO_SAVE_PATH_TEMPLATE = os.path.join(SOURCE_DIR_TEMPLATE, "audio")
-DEST_BASE_DIR = "/www/wwwroot/x-pilot-oss/uploads/meta-doc/video"
-MAX_WORKERS = 5
-MAX_RETRIES = 3
-RETRY_DELAY = 2
+DEST_BASE_DIR = _settings.MURF_TTS_DEST_BASE_DIR
+MAX_WORKERS = _settings.MURF_TTS_MAX_WORKERS
+MAX_RETRIES = _settings.MURF_TTS_MAX_RETRIES
+RETRY_DELAY = _settings.MURF_TTS_RETRY_DELAY
 
 
 # --- V4 智能解析器类 (保持不变) ---
