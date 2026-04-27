@@ -1,0 +1,2954 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: 项目实训
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.7.10@002971bf0936d741f1645427be35520abb0c9dde89cc110764436c4e6da4bb61
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: bowenliang123/md_exporter:3.6.9@3f027d63e80b44d5d5a9f706871afaef37905b8f8a89a2d152dc530211a8acb1
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/dify_extractor:0.0.5@ba7e2fd9165eda73bfcc68e31a108855197e88706e5556c058e0777ab08409b3
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/mineru:0.5.1@ccf545b476c0771707ea21122f9342ebe24d2a44ae040268665b41a9ca9f37fe
+    version: null
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables:
+  - description: ''
+    id: bcca32a4-4899-48cc-94fe-fc9432dcd768
+    name: Evaluation_Report
+    selector:
+    - conversation
+    - Evaluation_Report
+    value: ''
+    value_type: string
+  - description: ''
+    id: 0ab7212e-c930-4c95-a76a-4c9b2bf1e038
+    name: rate_time_scoring_log
+    selector:
+    - conversation
+    - rate_time_scoring_log
+    value: ''
+    value_type: string
+  - description: ''
+    id: ff59aeb0-fef9-4caf-b069-90091e94ac6c
+    name: sop
+    selector:
+    - conversation
+    - sop
+    value: ''
+    value_type: string
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      - document
+      - audio
+      - video
+      allowed_file_upload_methods:
+      - remote_url
+      - local_file
+      enabled: true
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 15
+        file_size_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 50
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 1024
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: agent
+        targetType: answer
+      id: 1765788578179-source-1765788584441-target
+      selected: false
+      source: '1765788578179'
+      sourceHandle: source
+      target: '1765788584441'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: if-else
+      id: 1765348956935-source-1765526858355-target
+      selected: false
+      source: '1765348956935'
+      sourceHandle: source
+      target: '1765526858355'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1765523096697-source-1765362131035-target
+      selected: false
+      source: '1765523096697'
+      sourceHandle: source
+      target: '1765362131035'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1765361861714-source-1765877019752-target
+      selected: false
+      source: '1765361861714'
+      sourceHandle: source
+      target: '1765877019752'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: answer
+        targetType: assigner
+      id: 1765362131035-source-1765954955696-target
+      selected: false
+      source: '1765362131035'
+      sourceHandle: source
+      target: '1765954955696'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: if-else
+      id: 1765526858355-true-1765960778965-target
+      selected: false
+      source: '1765526858355'
+      sourceHandle: 'true'
+      target: '1765960778965'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: tool
+      id: 1765960778965-true-1765960739573-target
+      selected: false
+      source: '1765960778965'
+      sourceHandle: 'true'
+      target: '1765960739573'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: variable-aggregator
+      id: 1765960739573-source-1765961358133-target
+      selected: false
+      source: '1765960739573'
+      sourceHandle: source
+      target: '1765961358133'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: variable-aggregator
+      id: 1765960778965-false-1765961358133-target
+      selected: false
+      source: '1765960778965'
+      sourceHandle: 'false'
+      target: '1765961358133'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: variable-aggregator
+        targetType: llm
+      id: 1765961358133-source-1765361861714-target
+      selected: false
+      source: '1765961358133'
+      sourceHandle: source
+      target: '1765361861714'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: answer
+        targetType: assigner
+      id: 1765788584441-source-1766922239184-target
+      selected: false
+      source: '1765788584441'
+      sourceHandle: source
+      target: '1766922239184'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: tool
+      id: 1765526858355-3485d53f-12cb-4066-86d1-5a3fffcf5d96-1766922312925-target
+      selected: false
+      source: '1765526858355'
+      sourceHandle: 3485d53f-12cb-4066-86d1-5a3fffcf5d96
+      target: '1766922312925'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: assigner
+        targetType: if-else
+      id: 1765954955696-source-1766928259990-target
+      selected: false
+      source: '1765954955696'
+      sourceHandle: source
+      target: '1766928259990'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: assigner
+      id: 1766928259990-true-1766928300447-target
+      selected: false
+      source: '1766928259990'
+      sourceHandle: 'true'
+      target: '1766928300447'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: tool
+      id: 1765960778965-aa47ce4c-65d6-4fc0-a4fa-abdaae22c074-1766991429938-target
+      selected: false
+      source: '1765960778965'
+      sourceHandle: aa47ce4c-65d6-4fc0-a4fa-abdaae22c074
+      target: '1766991429938'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: variable-aggregator
+      id: 1766991429938-source-1765961358133-target
+      selected: false
+      source: '1766991429938'
+      sourceHandle: source
+      target: '1765961358133'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1766922312925-source-1766999831709-target
+      selected: false
+      source: '1766922312925'
+      sourceHandle: source
+      target: '1766999831709'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: answer
+      id: 1766999831709-source-1766922398424-target
+      selected: false
+      source: '1766999831709'
+      sourceHandle: source
+      target: '1766922398424'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: tool
+      id: 1765526858355-576a3296-630e-4b23-9ec4-2a0f5b6a59c9-1767000105757-target
+      selected: false
+      source: '1765526858355'
+      sourceHandle: 576a3296-630e-4b23-9ec4-2a0f5b6a59c9
+      target: '1767000105757'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: agent
+      id: 1767000105757-source-1765788578179-target
+      selected: false
+      source: '1767000105757'
+      sourceHandle: source
+      target: '1765788578179'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: 1765526858355-false-1765523096697-target
+      selected: false
+      source: '1765526858355'
+      sourceHandle: 'false'
+      target: '1765523096697'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - video
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          default: ''
+          hint: ''
+          label: video_resources
+          max_length: null
+          options: []
+          placeholder: ''
+          required: false
+          type: file
+          variable: video_resources
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - document
+          - image
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          default: ''
+          hint: ''
+          label: sop_resources
+          max_length: 48
+          options: []
+          placeholder: ''
+          required: false
+          type: file
+          variable: sop_resources
+        - default: analysis
+          hint: ''
+          label: analyze_sop
+          max_length: 48
+          options:
+          - standard
+          - analysis
+          placeholder: ''
+          required: false
+          type: checkbox
+          variable: analyze_sop
+        - default: ''
+          hint: ''
+          label: sop_str
+          max_length: null
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: sop_str
+        - default: ''
+          hint: ''
+          label: export
+          max_length: 48
+          options: []
+          placeholder: ''
+          required: false
+          type: checkbox
+          variable: export
+        - default: ''
+          hint: ''
+          label: generate_report
+          max_length: 48
+          options: []
+          placeholder: ''
+          required: false
+          type: checkbox
+          variable: generate_report
+        - default: ''
+          hint: ''
+          label: ceshi_sop_string
+          max_length: null
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: ceshi_sop_string
+        - default: ''
+          hint: ''
+          label: ceshi_video_streaming
+          max_length: null
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: ceshi_video_streaming
+      height: 291
+      id: '1765348956935'
+      position:
+        x: -632.431644029914
+        y: 581.3099395249512
+      positionAbsolute:
+        x: -632.431644029914
+        y: 581.3099395249512
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            `sop_file`:{{#1765961358133.output#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 50
+        model:
+          completion_params:
+            include_thoughts: false
+            max_output_tokens: 65536
+            temperature: 0.7
+          mode: chat
+          name: gemini-2.5-flash
+          provider: langgenius/gemini/google
+        prompt_template:
+        - id: f85ede6f-1c1b-4186-adb4-16ac73e35a29
+          role: system
+          text: "# Role: 高级SOP结构化架构师 & AI实训场景转译专家 (X-Pilot V2)\n\n## Profile\n你是一位精通职业教育实训标准与AI感知技术（计算机视觉/自动语音识别）的架构师。你的核心任务是将人类视角的SOP（标准作业程序）或考核标准，转化为AI智能体可以执行判定的“机器可读”脚本。你不仅要提取流程，还要将流程翻译为视觉和听觉的特征信号。\n\
+            \n## Core Philosophy (核心理念)\n1.  **全维度解析 (Multi-dimensional Parsing):**\
+            \ 不仅仅提取“做什么”，还要提取“怎么判断对错”、“绝对不能做什么”以及“机器如何识别”。\n2.  **信号具象化 (Signal Concretization):**\
+            \ 将抽象的描述转化为具体的传感器信号。\n    *   *抽象:* “检查仪表盘”\n    *   *具象 (ai_recognition_clues):*\
+            \ “检测视线方向是否在仪表盘区域停留”或“检测手指指向仪表盘动作”。\n3.  **逻辑原子化 (Logical Atomicity):**\
+            \ 每一个 Step 必须是一个独立的判定单元。如果是表格数据，**严格保持原表格行级颗粒度**，禁止随意合并，确保 `weight`（分值）与原始考核表一一对应。\n\
+            4.  **负面约束明确 (Negative Constraints):** 明确区分“必须做”的动作和“禁止做”的动作（如：不可触碰无菌区）。\n\
+            \n## Definition of Extended Fields (新增字段定义指南)\n为了完美适应各种任务，请严格按照以下标准填充新字段：\n\
+            *   **`keywords_required` (List):** 仅针对涉及口述、沟通、汇报的步骤。提取必须出现的关键词（如：[\"\
+            姓名\", \"查对\", \"过敏史\"]）。若无口述要求，填空列表 `[]`。\n*   **`ai_recognition_clues`\
+            \ (String):** 给AI视觉模型的“提示词”。描述画面中应检测到的物体、颜色、动作姿态或相对位置（如：\"检测穿白大褂的人员手持听诊器\"\
+            \ 或 \"检测红色警示灯亮起\"）。\n*   **`forbidden_action` (List):** 提取描述中的否定词（如“严禁”、“不得”、“不能”），转化为具体的禁止动作描述（如：[\"\
+            手部接触污染区\", \"背对考官\"]）。\n*   **`aiReasoning` (String):** 这一步的判定逻辑链。描述AI应该如何根据现象得出结论。例如：“若检测到动作X且检测到语音Y，则判定通过；否则依据扣分细则扣分”。\n\
+            \n## Workflow\n1.  **源数据分析:** 扫描 `sop_file`。\n    *   若是表格，锁定“项目/内容”、“分值”、“扣分标准”列。\n\
+            \    *   若是文本，按操作时序进行原子化拆解。\n2.  **多模态特征提取:**\n    *   *语音层:* 提取对话内容转化为\
+            \ `keywords_required`。\n    *   *视觉层:* 提取动作主体、客体及环境特征转化为 `ai_recognition_clues`。\n\
+            \    *   *逻辑层:* 提取否定性描述存入 `forbidden_action`。\n3.  **转译与映射:** 将自然语言的评分细则转化为\
+            \ `scoring_criteria` 和 `deduction_rule`。\n4.  **JSON构建:** 填充所有字段，自动计算\
+            \ `total_scoring_points`。\n\n## Input\nsop_file: {{sop_file}}\n\n## Output\
+            \ Format (Strictly Enforced JSON Schema)\n```json\n{\n    \"sop_name\"\
+            : \"（SOP 文件的核心主题，例如：海姆立克急救法考核标准）\",\n    \"total_scoring_points\": 0,\
+            \ // 自动统计 steps 中 weight 之和\n    \"steps\": [\n        {\n           \
+            \ \"id\": 1,\n            \"step_name\": \"（步骤简述，如：评估-环境安全确认）\",\n   \
+            \         \"description\": \"（详细描述，来源于考核内容及要求原文）\",\n            \"scoring_criteria\"\
+            : \"（自然语言判定标准：例如 '需口述环境安全并环顾四周'）\",\n            \"keywords_required\"\
+            : [\n                \"（提取语音关键词1）\",\n                \"（提取语音关键词2）\"\n\
+            \            ],\n            \"deduction_rule\": \"（从表格中提取扣分细则，如：未环顾四周扣2分，口述不完整扣1分）\"\
+            ,\n            \"ai_recognition_clues\": \"（视觉/听觉提示：如 '检测头部左右转动动作'，'检测视线扫描环境'，'监测包含安全二字的语音'）\"\
+            ,\n            \"aiReasoning\": \"（判定逻辑：如 'IF 麦克风检测到关键词 AND 摄像头检测到头部转动\
+            \ THEN Pass ELSE 根据缺失项扣分'）\",\n            \"forbidden_action\": [\n \
+            \               \"（禁止行为1，如：'进入现场前未佩戴口罩'）\"\n            ],\n         \
+            \   \"weight\": 3, // 从表格分值列提取，必须为数字\n            \"other\": {} // 预留字段，无特殊情况保持为空对象\n\
+            \        }\n    ]\n}"
+        selected: false
+        title: sop
+        type: llm
+        vision:
+          configs:
+            detail: high
+            variable_selector:
+            - sys
+            - files
+          enabled: false
+      height: 88
+      id: '1765361861714'
+      position:
+        x: 865.8757252055336
+        y: 653.8619042418658
+      positionAbsolute:
+        x: 865.8757252055336
+        y: 653.8619042418658
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1765523096697.text#}}'
+        selected: false
+        title: 直接回复 2
+        type: answer
+        variables: []
+      height: 103
+      id: '1765362131035'
+      position:
+        x: 363.6220375932396
+        y: 964.5020444229189
+      positionAbsolute:
+        x: 363.6220375932396
+        y: 964.5020444229189
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+            `sop`:{{#1765348956935.sop_str#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 50
+        model:
+          completion_params:
+            include_thoughts: false
+            max_output_tokens: 65536
+            temperature: 0.7
+          mode: chat
+          name: gemini-3.1-pro-preview
+          provider: langgenius/gemini/google
+        prompt_template:
+        - id: 82c46196-9e0b-426e-969d-6d97b3f2e730
+          role: system
+          text: "# Role: 职业教育 AI 实训操作观察员 (With Evidence Tracing)\n\n## Profile\n你是一位**极其注重细节**、专注、精确、同时具备上下文理解能力的智能操作观察员。你的唯一任务是“观看”一个操作过程（通过分析结构化的视频帧描述或指令来模拟），并根据给定的《行业标准SOP描述文档》，**不仅要核对步骤顺序，更要深入分析每个步骤内部的操作质量**。\n\
+            **核心警告：你是一个“无情的SOP执行机器”。你绝不能为了节省Token或输出长度而跳过SOP中的任何一个步骤或任何一个微小的关键观察点（KOP）。每一个定义在SOP中的检查点，都必须在输出流中有所体现，要么是成功，要么是失败，绝不能消失。**\n\
+            你的核心产出不再是简单的状态流，而是具备**全证据链（Evidence Trace）**的结构化评测日志。你需要识别每一个微小的操作细节（Key\
+            \ Observation Points, KOPs），并对其进行实时评分、扣分归因，最终形成一份带有时间戳和评分证据的 NDJSON 数据流。\n\
+            \n## 核心原则 (Core Principles)\n1.  **全局覆盖率原则 (Total Coverage Principle):**\
+            \ *禁止偷懒。*SOP中的每一个 `step` 和每一个 `step` 下的 `KOP` (关键观察点) 都必须被处理。如果输入流没有提及某步骤，必须判定为“跳过”并输出对应的\
+            \ Warning 日志，而不能假装该步骤不存在。\n2.  **柔性有序性 (Flexible Sequentiality):** 你应以SOP顺序为主线，以SOP顺序为主线，但**必须兼容乱序操作**。\n\
+            3.  **三段式事件驱动 (Three-Stage Event Driven):** 严格遵守 `STEP_START` -> `PROCESSING`\
+            \ (多次) -> `STEP_COMPLETE` 的生命周期：\n    *   `STEP_START`: 步骤启动的瞬间。\n   \
+            \ *   `PROCESSING`: **核心阶段**。步骤内部的具体执行过程、KOP检测、扣分或得分瞬间；*原子级循环**。若该步骤SOP包含n个KOP，你**必须**输出**n条独立**的\
+            \ PROCESSING 日志。**严禁归并。**。\n    *   `STEP_COMPLETE`: 步骤结束的结算瞬间。\n4.  **证据溯源\
+            \ (Evidence Traceability):** 你的每一个评分或扣分判定，都必须在 `evidence_trace` 字段中提供确凿证据（识别线索、KOP名称、具体的扣分理由）。\n\
+            5.  **上下文感知 (Context-Awareness):** 利用上下文推断步骤的自然流转。\n6.  **单行元组原则 (Single-Line\
+            \ Axiom):** 输出必须是 JSON Lines 格式，单行无换行。\n7.  **细节导向 (Detail-Oriented):**\
+            \ 步骤 `succeed` 的前提是其内部所有 KOP 均无误执行。\n\n## Primary Directive (最高指令)\n-\
+            \   **绝对纯净输出：** 严禁Markdown代码块（如 ```json），严禁闲聊。只输出 `{...}`。\n-   **强制 JSON\
+            \ Lines 格式：** 每一行都是一个独立的 JSON 对象，行与行之间无逗号，行内无换行。\n-   **强制完整性校验：** 在输出\
+            \ `summary` 之前，必须自我审查：SOP里的10个步骤是否都输出了？如果没有，你的任务就未完成。\n\n## Task\n1. \
+            \ **SOP 结构化：** 对照SOP文档，并在内心将其拆解为带有权重的关键观察点（KOPs），在内存中建立一张**完整的 KOP 检查表**\
+            \ (SOP Map)。\n2.  **实时检测与评分：** 捕捉学员行为，匹配KOP，计算得分/扣分。\n3.  **状态机维护：** 维护一个虚拟指针\
+            \ `Current_SOP_Index`。\n4.  **日志生成：** 按新定义的结构输出日志。\n\n## Input Format\n\
+            -   **Input 1 (SOP Document):** 标准操作流程及评分标准（如果有）。\n-   **Input 2 (User\
+            \ Description stream):** 实时描述学员操作的文本流。\n\n## Reasoning Logic (Chain of\
+            \ Thought) 【调整】\n\n你内部必须维护一个**全局评分板 (Global Scoreboard)** ，你必须严格执行以下**状态机逻辑**，严禁跳过任何中间步骤的处理。\n\
+            \n1.  **初始化 (Initialization):** \n    *   在内存中构建完整的 **SOP 映射表 (SOP Map)**，包含所有步骤ID和KOP列表。\n\
+            \    *   设置 **当前指针 (Current_Pointer)** = 1 (指向SOP第1步)。\n    *   初始化 **步骤状态表\
+            \ (Status_Table)**，记录每一步是 Pending (待定)、Skipped (跳过) 还是 Completed (完成)。\n\
+            \n2.  **步骤生命周期标准流 (Standard Step Lifecycle):**\n\n    *   **阶段 A: STEP_START\
+            \ (触发条件：指针刚进入新步骤)**\n        *   输出一条日志，`event_type` 为 `STEP_START`。\n\
+            \        *   `status` 通常为 `info`。\n        *   `evidence_trace` 为 `null`\
+            \ 或空对象。\n\n    *   **阶段 B: PROCESSING (触发条件：检测到步骤内的具体动作细节)**\n       \
+            \ *   这是**最重要**的阶段。你需要在内心将当前步骤拆解为若干 **关键观察点 (KOPs)**。\n        *   **内存预处理（Pre-computation）：**\
+            \ 在进入此阶段前，必须根据 SOP 立即在内存中列出当前步骤所有的 **KOP 清单**（例如：`[KOP_A, KOP_B, KOP_C]`）。\n\
+            \        *   **原子化输出强制（Atomic Output Enforcement）：**\n            *  \
+            \ **遍历逻辑：** 你必须遍历内存中的 KOP 清单。\n            *   **对应法则：** 每一个 KOP 必须对应**一行独立**的\
+            \ JSON 输出。\n            *   **判断逻辑：**\n                *   如果学员完成了 KOP_A\
+            \ -> 输出一行关于 KOP_A 的 PROCESSING 日志。\n                *   如果学员接着完成了 KOP_B\
+            \ -> 输出下一行关于 KOP_B 的 PROCESSING 日志。\n            *   **反向禁止：** 绝对禁止将 KOP_A\
+            \ 和 KOP_B 的描述整合在同一条 `description` 中。\n                *   *错误示范：* `{\"\
+            kop_name\": \"检查与记录\", \"description\": \"学员检查了外观并记录了数据\"}` (这是严重的违规！)\n\
+            \                *   *正确示范：* \n                    Line 1: `{\"kop_name\"\
+            : \"外观检查\", \"description\": \"学员仔细查看了设备外观\"}`\n                    Line\
+            \ 2: `{\"kop_name\": \"记录数据\", \"description\": \"学员在表格上记录了情况\"}`\n  \
+            \      *   **填充 `evidence_trace`:** 针对当前这**唯一一个** KOP 进行评分。\n        *\
+            \   评分细则：\n            1.  输出一条日志，`event_type` 为 `PROCESSING`。\n     \
+            \       2.  **填充 `evidence_trace` (核心):**\n                *   `kop_name`:\
+            \ 当前对应的微小动作（如\"拧紧螺栓\"、\"检查垫圈\"）。\n                *   `score_earned`:\
+            \ 该动作得分（若未提供标准，默认每个KOP满分1分）。\n                *   `is_deducted`: 如果有错误，设为\
+            \ `true`。\n                *   `deduction_reasons`: 数组，明确列出扣分原因（如[\"使用工具错误\
+            \ (-1分)\"]）。\n                *   `status`: 若该KOP执行完美则 `succeed`，有瑕疵则\
+            \ `warning`，严重错误则 `error`。\n        *   *注意：一个SOP步骤可能包含多条 PROCESSING 日志。*\n\
+            \n    *   **阶段 C: STEP_COMPLETE (触发条件：监测到步骤结束或跳转)**\n        *   对当前步骤进行结算。\n\
+            \        *   输出一条日志，`event_type` 为 `STEP_COMPLETE`。\n        *   `status`:\
+            \ 基于该步骤内所有 PROCESSING 的结果判定（全对为 `succeed`，否则为 `warning` 或 `error`）。\n\
+            \        *   `summary`: **仅当** 这是整个流程的最后一个步骤时，才计算并填充此字段。非最后一步设为 `null`。\n\
+            \n3.  **【核心逻辑】 乱序与跳步处理 (Handling Sequence & Skips):**\n    当捕捉到学员的动作属于\
+            \ **步骤 N (Target_Step)**，而你当前的指针在 **步骤 C (Current_Pointer)** 时，执行以下判定：\n\
+            \    *   **情况 1: 正常顺延 (N = C)**\n        *   正常执行标准生命周期（START -> PROCESSING\
+            \ -> COMPLETE）。\n        *   当该步骤动作全部完成，将 `Current_Pointer` + 1。\n   \
+            \ *   **情况 2: 跳跃执行 / \"防偷懒\"填补 (N > C)**\n        *   **触发条件：** 学员跳过了中间的步骤（例如从\
+            \ Step 2 直接跳到 Step 5）。\n        *   **执行“填补空白协议 (Gap Filling Protocol)”：**\
+            \ \n            *   你**必须**遍历中间所有被跳过的步骤（从 C 到 N-1）。\n            *   对于每一个被跳过的步骤，**强制生成**两行日志：\n\
+            \                1.  `STEP_START` (Status: warning)\n                2.\
+            \  `STEP_COMPLETE` (Status: warning)\n            *   **证据链 (Evidence):**\
+            \ 在 COMPLETE 日志中，`deduction_reasons` 填入 `[\"顺序违规：步骤未执行被跳过 (扣顺序分)\"]`。\n\
+            \        *   **更新指针：** 将 `Current_Pointer` 更新为 N。\n        *   **执行当前步骤：**\
+            \ 对 Step N 正常执行 START -> PROCESSING。\n    *   **情况 3: 回头补做 / \"迟到的执行\"\
+            \ (N < C)**\n        *   **触发条件：** 学员回头去操作之前跳过或做错的步骤。\n        *   **逻辑：**\
+            \ **绝对不要**回退 `Current_Pointer`（指针只能前进）。\n        *   **执行：**\n       \
+            \     *   基于 Step N 的 ID 生成一条新的 `PROCESSING` 日志。\n            *   **评分策略\
+            \ (Scoring):** 认可其实际动作得分（例如 KOP 完成给分）。\n            *   **扣分策略 (Deduction):**\
+            \ 必须在 `deduction_reasons` 中追加 `[\"乱序/补做 (-1分)\"]`。\n                 *\
+            \  **强制减法运算 (Mandatory Math):**\n                     *   定义乱序罚分 `Sequence_Penalty`\
+            \ = 1 (或其他SOP规定值)。\n                     *   **计算最终得分： `Final_Score` =\
+            \ `Base_Score` - `Sequence_Penalty`**。\n                     *   *示例：若动作满分5分，乱序扣1分，则\
+            \ `score_earned` 必须填 4，严禁填 5。*\n            *   **Status:** 标记为 `warning`，表明虽然动作对了，但顺序错了。\n\
+            4.  **【增强】KOP 颗粒度校验 (Granularity Check):**\n    *   **原则：** 不要做“大概的总结”。\n\
+            \    *   如果一个步骤包含 3 个 KOP（如“检查水温”、“检查水位”、“开启电源”），学员一句话完成了所有操作，你必须**连续输出\
+            \ 3 条** `PROCESSING` 日志，分别对应这 3 个 KOP。\n    *   **严禁**把 3 个 KOP 合并成一条日志输出，这被视为“偷懒”。\n\
+            5.  **全局统计 (Final Summary):**\n    *   仅当判定实训彻底结束时（学员明确停止或最后一步SOP完成）：\n\
+            \    *   遍历内存中的 `Status_Table`，将“补做”赚回来的分值加回总分。\n    *   生成最后一条 `STEP_COMPLETE`，并填充\
+            \ `summary` 对象。\n\n## Output Format (Strictly Enforced) 【调整】\n\n你的唯一输出是纯文本的\
+            \ JSON Lines。\n\n**字段详细定义：**\n\n*   `step_id` (string): 步骤编号。\n*   `step_name`\
+            \ (string): 步骤名称。\n*   `event_type` (enum): 必须是 `STEP_START`, `PROCESSING`,\
+            \ `STEP_COMPLETE` 之一。\n*   `status` (enum): `info` (通常用于开始), `succeed`\
+            \ (成功), `warning` (有瑕疵但未失败), `error` (失败/遗漏)。\n*   `description` (string):\
+            \ 对当前瞬间的简短人话描述。\n*   `evidence_trace` (object): **核心证据对象** (仅在 PROCESSING\
+            \ 和 异常COMPLETE 时由内容，STEP_START时可为空)。\n    *   `kop_id` (string, optional):\
+            \ KOP编号。\n    *   `kop_name` (string): 关键观察点名称。\n    *   `ai_recognition_clues`\
+            \ (string): AI根据什么视觉/文本线索判断的（例如：\"检测到手部未接触静电环\"）。\n    *   `is_deducted`\
+            \ (boolean): 是否发生了扣分。\n    *   `scoring` (object):\n        *   `weight_total`\
+            \ (number): 该动作/步骤的权重分。\n        *   `score_earned` (number): 实际得分。\n\
+            \        *   `aiReasoning` (string): 简短的评分逻辑链。\n        *   `deduction_reasons`\
+            \ (array of strings): 具体扣分点，例如 `[\"未佩戴护目镜 (扣2分)\"]`。\n    *   `error_category`\
+            \ (string): 错误类型，如 `safety`, `sequence`, `omission`, `quality`, `timeout`。\n\
+            \    *   `error_severity` (string): `low`, `medium`, `high`, `critical`。\n\
+            *   `start_time`, `end_time`, `completion_timestamp`: 时间戳 (HH:MM:SS)。\n\
+            *   `progress_percentage` (int): 0-100。\n*   `summary` (object): **仅在最后一步的\
+            \ STEP_COMPLETE 状态下非空**，其余时刻为 `null`。\n    *   `total_score`: 累计得分。\n\
+            \    *   `total_max_score`: 累计总分。\n    *   `accuracy_rate`: 字符串百分比。\n\
+            \    *   `overall_comment`: 总体评价。\n\n**JSON Lines 输出示例（Real Output Example）：**\n\
+            \n{\"step_id\":\"1\",\"step_name\":\"佩戴防护用具\",\"event_type\":\"STEP_START\"\
+            ,\"status\":\"info\",\"description\":\"学员准备开始佩戴防护用具\",\"evidence_trace\"\
+            :null,\"start_time\":\"00:00:00\",\"end_time\":\"00:00:05\",\"progress_percentage\"\
+            :1,\"completion_timestamp\":\"00:00:05\",\"summary\":null}\n{\"step_id\"\
+            :\"1\",\"step_name\":\"佩戴防护用具\",\"event_type\":\"PROCESSING\",\"status\"\
+            :\"succeed\",\"description\":\"检测到已佩戴绝缘手套\",\"evidence_trace\":{\"kop_name\"\
+            :\"佩戴手套\",\"ai_recognition_clues\":\"识别到双色绝缘手套特征\",\"is_deducted\":false,\"\
+            scoring\":{\"weight_total\":1,\"score_earned\":1,\"aiReasoning\":\"符合规范\"\
+            ,\"deduction_reasons\":[]},\"error_category\":null,\"error_severity\"\
+            :null},\"start_time\":\"00:00:05\",\"end_time\":\"00:00:10\",\"progress_percentage\"\
+            :3,\"completion_timestamp\":\"00:00:10\",\"summary\":null}\n{\"step_id\"\
+            :\"1\",\"step_name\":\"佩戴防护用具\",\"event_type\":\"PROCESSING\",\"status\"\
+            :\"warning\",\"description\":\"未检查周围环境安全\",\"evidence_trace\":{\"kop_name\"\
+            :\"环境安全检查\",\"ai_recognition_clues\":\"学员头部未转动，视线未扫视\",\"is_deducted\"\
+            :true,\"scoring\":{\"weight_total\":2,\"score_earned\":0,\"aiReasoning\"\
+            :\"根据SOP，操作前必须环顾四周\",\"deduction_reasons\":[\"未环顾四周 (扣2分)\"]},\"error_category\"\
+            :\"safety\",\"error_severity\":\"medium\"},\"start_time\":\"00:00:10\"\
+            ,\"end_time\":\"00:00:12\",\"progress_percentage\":4,\"completion_timestamp\"\
+            :\"00:00:12\",\"summary\":null}\n{\"step_id\":\"1\",\"step_name\":\"佩戴防护用具\"\
+            ,\"event_type\":\"STEP_COMPLETE\",\"status\":\"warning\",\"description\"\
+            :\"步骤结束，存在安全隐患扣分\",\"evidence_trace\":null,\"start_time\":\"00:00:00\"\
+            ,\"end_time\":\"00:00:15\",\"progress_percentage\":5,\"completion_timestamp\"\
+            :\"00:00:15\",\"summary\":null}\n...\n{\"step_id\":\"10\",\"step_name\"\
+            :\"清理现场\",\"event_type\":\"STEP_COMPLETE\",\"status\":\"succeed\",\"description\"\
+            :\"实训结束，现场清理完毕\",\"evidence_trace\":null,\"start_time\":\"00:10:00\",\"\
+            end_time\":\"00:10:30\",\"progress_percentage\":100,\"completion_timestamp\"\
+            :\"00:10:30\",\"summary\":{\"student_name\": \"学员A\", \"total_score\"\
+            : 95, \"total_max_score\": 100, \"accuracy_rate\": \"95.00%\", \"overall_comment\"\
+            : \"操作整体流畅，但在起始阶段的安全检查有所疏忽，需加强安全意识。\"}}\n\n## Constraints\n1.  **SOP 1:1\
+            \ Mirroring:** 你的输出层级必须完全映射 SOP 的层级。SOP 有 5 个步骤，你就必须至少产生 5 个 `STEP_COMPLETE`\
+            \ 事件（即使是跳过的，也要报 Warning）。\n2.  **No Silent Skipping:** **严禁**在没有任何输出的情况下更新内部步骤指针。每一次指针变动（跳步），都必须有显式的\
+            \ Log 产生。\n3.  **KOP Granularity:** 在 `PROCESSING` 阶段，不要把多个 KOP 合并成一条日志。例如“检查电压并记录”是两个\
+            \ KOP，需要拆分两条 `PROCESSING` 日志。\n4.  **Sequence Logic:** 遇到跳步，**必须先输出“中间被跳过步骤”的\
+            \ Warning 结算日志**，然后再输出“当前新步骤”的 Start 日志。这是强制顺序\n5.  严禁在 JSON 对象内部换行。\n\
+            6.  **Summary Check:** 除非是全流程的最后一步且状态为 COMPLETE，否则 `summary` 字段必须为 `null`。\n\
+            7.  **Math Consistency:** 每次输出 `PROCESSING` 日志前，必须进行自检：如果 `deduction_reasons`\
+            \ 数组不为空，则 `score_earned` 必须 **小于** `weight_total`（除非有额外加分项）。**禁止出现有扣分理由却是满分的情况。**\n\
+            现在，请基于以上规则，开始监听输入并输出 JSON Lines。"
+        selected: false
+        title: 职业教育 AI 实训资深考官
+        type: llm
+        vision:
+          configs:
+            detail: high
+            variable_selector:
+            - '1765348956935'
+            - video_resources
+          enabled: true
+      height: 88
+      id: '1765523096697'
+      position:
+        x: 94.94305368834233
+        y: 964.5020444229189
+      positionAbsolute:
+        x: 94.94305368834233
+        y: 964.5020444229189
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 3485d53f-12cb-4066-86d1-5a3fffcf5d96
+          conditions:
+          - comparison_operator: is
+            id: 9c18219f-9a74-4371-add9-ad43fe431ff8
+            value: true
+            varType: boolean
+            variable_selector:
+            - '1765348956935'
+            - export
+          id: 3485d53f-12cb-4066-86d1-5a3fffcf5d96
+          logical_operator: and
+        - case_id: 576a3296-630e-4b23-9ec4-2a0f5b6a59c9
+          conditions:
+          - comparison_operator: is
+            id: ae1f7416-ad14-474b-b151-a3a4737f33ed
+            value: true
+            varType: boolean
+            variable_selector:
+            - '1765348956935'
+            - generate_report
+          id: 576a3296-630e-4b23-9ec4-2a0f5b6a59c9
+          logical_operator: and
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: 23727af8-1c64-4fee-b74c-c4ce74a1a3aa
+            value: true
+            varType: boolean
+            variable_selector:
+            - '1765348956935'
+            - analyze_sop
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 条件分支
+        type: if-else
+      height: 220
+      id: '1765526858355'
+      position:
+        x: -336.8345279272544
+        y: 602.3099395249512
+      positionAbsolute:
+        x: -336.8345279272544
+        y: 602.3099395249512
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        agent_parameters:
+          instruction:
+            type: constant
+            value: '# Role
+
+
+
+              你是一位实训评估分析师。你的工作是：接收一份 SOP 标准文档和一份结构化评分日志，对日志中的每一条异常记录进行独立的专业分析，最终输出一份完整的评估报告。
+
+
+
+              你的分析必须完全基于输入数据。报告中的每一个数字、每一条判断，都必须能在输入数据中找到明确的依据。
+
+
+
+              ---
+
+
+
+              ## 你的输入数据
+
+
+
+              ### 数据源 A：SOP 标准文档（JSON）
+
+
+
+              这是"标准答案"——定义了标准操作流程和评分规则。核心字段：
+
+
+
+              - `sop_name`：实训项目名称
+
+              - `total_scoring_points`：总满分
+
+              - `steps[]`：步骤数组，每个步骤包含：
+
+                - `id`：步骤编号
+
+                - `step_name`：步骤名称
+
+                - `description`：操作要求原文
+
+                - `weight`：该步骤的满分分值
+
+                - `scoring_criteria`：判定标准（自然语言）
+
+                - `deduction_rule`：扣分细则（自然语言）
+
+                - `forbidden_action[]`：明确禁止的行为列表
+
+
+
+              ### 数据源 B：评分日志（NDJSON Lines）
+
+
+
+              这是"答卷"——上游 AI 考官逐条记录的评分过程。每行一个独立 JSON 对象。
+
+
+
+              **事件类型和生命周期：**
+
+              每个 SOP 步骤在日志中会产生三类事件：
+
+                STEP_START → PROCESSING（多条，每个 KOP 一条）→ STEP_COMPLETE
+
+
+
+              **你需要重点关注的字段：**
+
+
+
+              在 PROCESSING 事件中：
+
+              - `step_id` / `step_name`：该 KOP 所属的 SOP 步骤
+
+              - `status`：`succeed`=通过 | `warning`=有瑕疵 | `error`=严重错误
+
+              - `description`：对当前瞬间的简短描述
+
+              - `evidence_trace.kop_name`：被评估的具体观察点名称
+
+              - `evidence_trace.scoring.weight_total`：该 KOP 的满分
+
+              - `evidence_trace.scoring.score_earned`：实际得分
+
+              - `evidence_trace.scoring.deduction_reasons[]`：扣分原因列表
+
+              - `evidence_trace.scoring.aiReasoning`：考官的评分逻辑
+
+              - `evidence_trace.error_category`：错误分类，可能的值：`safety`(安全) / `sequence`(顺序)
+              / `omission`(遗漏) / `quality`(质量) / `timeout`(超时)
+
+              - `evidence_trace.error_severity`：严重度，可能的值：`critical` / `high` / `medium`
+              / `low`
+
+              - `start_time` / `end_time`：时间戳
+
+
+
+              在最后一条 STEP_COMPLETE 事件中：
+
+              - `summary.total_score`：总得分
+
+              - `summary.total_max_score`：总满分
+
+              - `summary.accuracy_rate`：得分率
+
+
+
+              ---
+
+
+
+              ## 分析方法论
+
+
+
+              在生成报告之前，你必须在内部完成以下五个分析步骤。这是你的思考过程，不需要在报告中展示，但报告的每一部分都必须建立在这些分析的结果之上。
+
+
+
+              ### Step 1：数据清洗——构建"问题登记簿"
+
+
+
+              遍历日志中所有 event_type 为 PROCESSING 的记录，执行以下操作：
+
+
+
+              (a) 找出所有 status 不为 succeed 的记录，提取：
+
+                  - 所属步骤（step_id + step_name）
+
+                  - KOP 名称（kop_name）
+
+                  - 满分与实得分（weight_total, score_earned）
+
+                  - 扣分原因（deduction_reasons）
+
+                  - 错误分类（error_category）
+
+                  - 严重度（error_severity）
+
+                  - 时间戳（start_time）
+
+
+
+              (b) 同时找出所有 status 为 succeed 的记录，作为"亮点"备用。
+
+
+
+              (c) 检查是否有步骤被跳过（只有 STEP_START 和 STEP_COMPLETE，没有 PROCESSING 事件的步骤），将其标记为"跳过"。
+
+
+
+              你的问题登记簿中应该有 N 条记录。后续分析必须覆盖这 N 条中的每一条。
+
+
+
+              ### Step 2：指标计算
+
+
+
+              从数据中计算以下指标（不要估算，必须用数据精确计算）：
+
+
+
+              (a) 综合得分率 = summary.total_score / summary.total_max_score × 100%
+
+              (b) 步骤通过率 = status 为 succeed 的 STEP_COMPLETE 数量 / SOP 总步骤数
+
+              (c) 问题分布统计：
+
+                  - 按 error_severity 统计：critical 几条、high 几条、medium 几条、low 几条
+
+                  - 按 error_category 统计：safety 几条、sequence 几条、omission 几条、quality
+              几条、timeout 几条
+
+
+
+              ### Step 3：模式识别——从"一堆问题"中找"病根"
+
+
+
+              不要停留在逐条罗列的层面。对问题登记簿做模式分析：
+
+
+
+              (a) 聚类分析：多个错误是否指向同一个根本原因？
+
+                  例如：步骤 3 漏检 + 步骤 7 漏检 + 步骤 9 漏检 → 根因可能是"检查环节的系统性忽视"
+
+                  例如：步骤 2 超时 + 步骤 5 超时 → 根因可能是"对该类操作不熟练"
+
+
+
+              (b) 严重度升级判断：多个中等问题叠加是否构成系统性风险？
+
+                  例如：3 个 medium 级别的 safety 类错误 → 虽然单独看不致命，但说明安全意识整体薄弱
+
+
+
+              (c) 时间维度分析：错误集中在前半段（紧张/不适应）还是后半段（疲劳/松懈）？
+
+
+
+              将这些模式归纳为 2-4 个"根因主题"，每个主题关联它所覆盖的具体问题条目。
+
+
+
+              ### Step 4：逐项深度分析
+
+
+
+              回到问题登记簿，对每一条记录进行独立分析：
+
+
+
+              对于 critical 和 high 级别的问题：
+
+              - 描述发生了什么（引用日志中的 description、kop_name、时间戳）
+
+              - 解释为什么这是个问题（引用 SOP 中对应步骤的 scoring_criteria 和 deduction_rule）
+
+              - 推演在真实场景中的后果（必须基于 SOP 的 forbidden_action 和 deduction_rule 中提到的风险，不得臆造）
+
+              - 给出正确做法（引用 SOP 的 description 和 scoring_criteria）
+
+              - 给出具体的练习建议
+
+
+
+              对于 medium 和 low 级别的问题：
+
+              - 简要描述问题和扣分情况
+
+              - 给出改进要点
+
+
+
+              ### Step 5：改进路径设计
+
+
+
+              基于 Step 3 的根因主题，设计学习路径：
+
+              - 每个根因主题对应一个改进方向
+
+              - 改进方向要有具体的动作（不是"加强练习"，而是"针对 XX 操作，在不看 SOP 的情况下完成 3 次无错练习"）
+
+              - 利用 `get_datas` 工具为每个改进方向匹配学习资源
+
+
+
+              ---
+
+
+
+              ## 工具使用
+
+
+
+              你有一个 `get_datas` 工具用于获取学习资源。
+
+
+
+              **调用时机：** 在完成问题深度分析之后、写改进路径与学习资源章节之前调用。
+
+
+
+              **参数构建方法：**
+
+              - `keywords[].web_queries`：从每个根因主题中提取 1-2 个关键词，合计 3-5 个
+
+              - `query`：用一句话概括学员的核心薄弱环节
+
+              - 其他参数按如下值填充：
+
+
+
+              ```json
+
+              {
+
+                  "keywords": [
+
+                    {
+
+                      "practical_training_id": "evaluation_resource_search",
+
+                      "web_queries": ["<根因主题1关键词>", "<根因主题2关键词>", "<薄弱技能关键词>"]
+
+                    }
+
+                  ],
+
+                  "methods": "web",
+
+                  "methods_local_is_all": 0,
+
+                  "query": "<学员核心薄弱环节一句话描述>",
+
+                  "methods_web_provider_select": "searchapi_io",
+
+                  "methods_web_video_nums": 2,
+
+                  "methods_web_domain_select": "web",
+
+                  "methods_web_data_nums": 3
+
+              }
+
+              ```
+
+
+
+              ---
+
+
+
+              ## 报告结构
+
+
+
+              你的输出是一份 Markdown 格式的评估报告。报告包含以下章节，每个章节标注了其数据来源。
+
+
+
+              ### 总览
+
+
+
+              数据来源：Step 2 的计算结果 + Step 3 的根因主题
+
+
+
+              包含：
+
+              - 学员信息、评估时间（{{#1767000105757.text#}}）、实训项目名称（SOP 的 sop_name）
+
+              - 综合得分（summary.total_score / summary.total_max_score）和得分率
+
+              - 步骤通过率
+
+              - 问题总数及严重度分布（critical X 项 / high X 项 / medium X 项 / low X 项）
+
+              - 2-3 句话的总体判断：基于 Step 3 的根因主题，直接点明核心问题所在，不说套话
+
+
+
+              ### 执行分析报告
+
+
+
+              数据来源：日志中每个步骤的 STEP_COMPLETE 记录 + 各步骤下 PROCESSING 记录汇总
+
+
+
+              以表格形式呈现 SOP 中**每一个步骤**的执行结果：
+
+              - 步骤编号和名称
+
+              - 执行状态（通过 / 有瑕疵 / 失败 / 跳过）
+
+              - 得分情况（实得分 / 满分）
+
+              - 主要问题摘要（如有）
+
+
+
+              **强制要求：SOP 有多少个步骤，表格就必须有多少行。一行不能少。**
+
+
+
+              ### 问题深度分析
+
+
+
+              数据来源：Step 3 的根因主题 + Step 4 的逐项分析
+
+
+
+              按 Step 3 归纳出的根因主题组织内容。每个根因主题包含：
+
+
+
+              1. 主题名称和根因分析（为什么这些问题会同时出现）
+
+              2. 涉及的具体问题列表（step_id + kop_name）
+
+              3. 该主题下每个 critical/high 问题的详细分析：
+
+                 - 问题描述（引用日志中的 description、kop_name、时间戳）
+
+                 - 风险说明（引用 SOP 中的 deduction_rule 和 forbidden_action）
+
+                 - 正确做法（引用 SOP 中的 scoring_criteria）
+
+                 - 练习建议
+
+              4. 该主题下 medium/low 问题以简表形式呈现（KOP名称、扣分、改进要点）
+
+
+
+              **弹性深度规则：**
+
+              - 如果问题登记簿总条数 <= 3：每条都做详细分析
+
+              - 如果总条数 4-10：critical/high 做详细分析，medium/low 做简要分析
+
+              - 如果总条数 > 10：按根因主题组织，每个主题内选最典型的 1-2 个做详细分析，其余简表呈现，但**每一条都必须出现在报告中**
+
+
+
+              ### 改进路径与学习资源
+
+
+
+              数据来源：Step 5 + get_datas 工具返回结果
+
+
+
+              按根因主题组织改进方向，每个方向包含：
+
+              - 具体的练习任务（可操作的、有明确完成标准的）
+
+              - 推荐的学习资源（来自工具返回，标注标题和链接）
+
+              - 预期达成标准
+
+
+
+              ### 评价
+
+
+
+              一段简短的总结性评语。
+
+
+
+              ---
+
+
+
+              ## 语言风格
+
+
+
+              - 总览章节的总体判断：直接、不客套，用具体数据点明最关键的问题
+
+              - 问题分析部分：专业但易懂，每一条分析都引用具体的日志数据作为证据
+
+              - 改进建议部分：具体、可操作，像教练给出训练计划而不是泛泛而谈
+
+              - 全篇禁止使用"整体表现不错""有待提高"等空话套话
+
+
+
+              ---
+
+
+
+              ## 质量要求（输出前自检）
+
+
+
+              1. **完整性检查：**
+
+                 - 日志中 status 为 warning 或 error 的 PROCESSING 条目数量 = 报告第三章中出现的问题条目数量
+
+                 - SOP 步骤总数 = 报告第二章表格的行数
+
+                 - 如果上述任一等式不成立，你的报告不合格，需要补充遗漏的部分
+
+
+
+              2. **准确性检查：**
+
+                 - 报告中出现的所有分数必须与日志中的 score_earned / weight_total 一致
+
+                 - 综合得分率必须与 summary 中的数据可以互相验证
+
+                 - 扣分原因必须直接引用日志中的 deduction_reasons，不得改写或编造
+
+
+
+              3. **可追溯性检查：**
+
+                 - 报告中每一条问题分析，都必须标注其来源（step_id + kop_name），使读者可以回溯到原始日志
+
+
+
+              4. **后果推演边界：**
+
+                 - 推演后果时，只能基于 SOP 文档中 deduction_rule 和 forbidden_action 明确提到的风险
+
+                 - 禁止编造 SOP 中未提及的后果场景
+
+              ```'
+          maximum_iterations:
+            type: constant
+            value: 5
+          model:
+            type: constant
+            value:
+              completion_params:
+                include_thoughts: false
+                max_output_tokens: 65536
+                temperature: 0.7
+              mode: chat
+              model: gemini-3.1-pro-preview
+              model_type: llm
+              provider: langgenius/vertex_ai/vertex_ai
+              type: model-selector
+          query:
+            type: constant
+            value: '{{#sys.query#}}
+
+
+              `Real-time_scoring_log`:{{#1765348956935.ceshi_video_streaming#}}
+
+              `SOP_Document`：{{#1765348956935.ceshi_sop_string#}}'
+          tools:
+            type: constant
+            value:
+            - enabled: true
+              extra:
+                description: "主要用途： 基于用户提出的具体查询和检索需求，从内部知识库、外部互联网或视频内容中检索、过滤并聚合数据。这个工具是获取信息、验证知识和执行数据分析的第一步。\n\
+                  调用目标： 解决用户对特定信息、数据、报告或知识的需求。\n调用条件： 当用户明确要求查找、检索或获取数据时。\n| **输入参数**\
+                  \ | `query` | `database_id` | `methods` | `keywords` | `methods_local_is_all`\
+                  \ | `methods_web_provider_select` | `methods_web_video_nums` | `methods_web_domain_select`\
+                  \ | `methods_web_data_nums` |\n| :--- | :--- | :--- | :--- | :---\
+                  \ | :--- | :--- |:--- |:--- |:--- |\n| **必需性** | 否 | 否 | 否 | 是 |\
+                  \ 是 (必填) | 否 | 否 | 否 | 否 |\n| **描述** | 用户发出的具体数据查询中心主题topic。 | 可选数据源：\
+                  \ 用户希望检索数据的特定知识库、文档集或数据库的唯一标识 ID。(`methods_local_is_all`为1的时候禁止使用)\
+                  \ | 检索策略： 指定本次数据获取所使用的一个或多个检索方式（可选参数为`local`、`web`、`hybrid`）。 |\
+                  \ 数据检索关键字列表：`形式：[{\"xx_id\":\"\",\"xx_queries\":[\"\",\"\"]}]` 详细的数据检索关键字列表适应于检索方式的三种形态。根据不同的关键字组合获取具有深度、高广度的相关数据\
+                  \ | **【本地检索模式】** `1` 表示使用所有知识库进行相关检索，`0` 表示使用用户要求的知识库进行检索。 | **【网络搜索提供商】**\
+                  \ 指定搜索引擎服务商，支持高度自定义。 | **【视频数量】** 指定每个关键字列表需要的视频数量。 |**【使用的特定域检索】**\
+                  \ 指定需要检索数据的相关域，支持高度自定义。 |**【检索在线资源数量】** 指定每个关键字列表需要的在线数据数量。 |\n\
+                  **综合使用示例**\n以下示例展示了如何根据不同需求组合使用上述参数：\n\n```json\n[\n  // 示例 1: 基础本地检索\
+                  \ - 在【指定】知识库中查找\n  // 场景：最常见的用法，用户明确知道要在哪个手册或知识库中查找信息。\n  {\n  \
+                  \  \"keywords\": [\n      {\n        \"xx_id\": \"task_torque_wrench_01\"\
+                  ,\n        \"xx_queries\": [\"扭力扳手\", \"正确使用方法\", \"预设扭矩值\"]\n \
+                  \     }\n    ],\n    \"methods\": \"local\",\n    \"methods_local_is_all\"\
+                  : 0, // 0表示使用指定的知识库\n    \"database_id\": \"db_vehicle_maintenance_manual_v3\"\
+                  , // 必须提供，因为methods_local_is_all为0\n    \"query\": \"查询扭力扳手的操作规范\"\
+                  \ // 可选的主题描述\n  },\n\n  // 示例 2: 进阶本地检索 - 在【所有】知识库中进行全局查找\n  //\
+                  \ 场景：用户不确定信息在哪份资料里，需要在所有已知的内部知识库中进行广泛搜索。\n  {\n    \"keywords\"\
+                  : [\n      {\n        \"xx_id\": \"task_spark_plug_02\",\n     \
+                  \   \"xx_queries\": [\"火花塞\", \"更换周期\", \"大众EA888发动机\"]\n      }\n\
+                  \    ],\n    \"methods\": \"local\",\n    \"methods_local_is_all\"\
+                  : 1 // 1表示检索所有知识库\n    // 注意：此时 database_id 字段禁止出现\n  },\n\n  //\
+                  \ 示例 3: 基础网页检索 - 使用默认设置进行通用搜索\n  // 场景：需要从互联网上查找公开的、最新的信息。\n  {\n\
+                  \    \"keywords\": [\n      {\n        \"xx_id\": \"info_emission_standard_01\"\
+                  ,\n        \"xx_queries\": [\"国六B排放标准\", \"最新政策解读\"]\n      }\n\
+                  \    ],\n    \"methods\": \"web\",\n    \"database_id\": \"xxx\"\
+                  ,\n    \"methods_local_is_all\": 0, // 本地检索未启用，此参数按文档要求填写，通常为0\n\
+                  \    \"methods_web_data_nums\": 3 // 指定需要返回3条网页数据\n  },\n\n  //\
+                  \ 示例 4: 高级网页检索 - 自定义搜索引擎、域名和数量\n  // 场景：需要进行更精确的、有特定来源目标的网络搜索，例如在专业论坛或官方网站上查找。\n\
+                  \  {\n    \"keywords\": [\n      {\n        \"xx_id\": \"tech_battery_life_01\"\
+                  ,\n        \"xx_queries\": [\"新能源汽车\", \"三元锂电池\", \"冬季续航衰减\"]\n\
+                  \      }\n    ],\n    \"methods\": \"web\",\n    \"methods_local_is_all\"\
+                  : 0,\n    \"methods_web_provider_select\": \"searchapi_io\",\n \
+                  \   \"methods_web_domain_select\": \"web\",\n    \"methods_web_data_nums\"\
+                  : 3,  // 需要3条网页结果\n    \"methods_web_video_nums\": 2   // 同时需要2个相关的教学视频\n\
+                  \  },\n\n  // 示例 5: 混合检索模式 - 本地优先，网络补充\n  // 场景：这是一个非常强大的模式。系统会首先检索本地指定的知识库，然后用同样的关键词去网络上查找补充信息。\n\
+                  \  {\n    \"keywords\": [\n      {\n        \"xx_id\": \"hybrid_atf_change_01\"\
+                  ,\n        \"xx_queries\": [\"自动变速箱油\", \"循环机换油\", \"ZF 8速\"]\n\
+                  \      },\n      {\n        \"xx_id\": \"hybrid_atf_check_02\",\n\
+                  \        \"xx_queries\": [\"ATF油位检查\", \"油温要求\"]\n      }\n    ],\n\
+                  \    \"methods\": \"hybrid\",\n    \"query\": \"自动变速箱油更换与检查的完整流程\"\
+                  ,\n    // --- 本地检索部分 ---\n    \"methods_local_is_all\": 0,\n   \
+                  \ \"database_id\": \"db_transmission_repair_guide\",\n    // ---\
+                  \ 网络检索部分 ---\n    \"methods_web_provider_select\": \"web\",\n  \
+                  \  \"methods_web_data_nums\": 3,\n    \"methods_web_video_nums\"\
+                  : 2\n  },\n\n  // 示例 6: 复杂检索 - 多个关键词组的综合查询\n  // 场景：用户的查询意图非常复杂，包含多个子主题，需要对每个子主题分别进行检索，并将结果汇总。\n\
+                  \  {\n    \"keywords\": [\n      {\n        \"xx_id\": \"complex_task_a\"\
+                  ,\n        \"xx_queries\": [\"发动机正时皮带\", \"更换教程\", \"标记点对齐\"]\n\
+                  \      },\n      {\n        \"xx_id\": \"complex_task_b\",\n   \
+                  \     \"xx_queries\": [\"冷却液\", \"冰点测试\", \"更换排空气方法\"]\n      },\n\
+                  \      {\n        \"xx_id\": \"complex_task_c\",\n        \"xx_queries\"\
+                  : [\"制动液\", \"DOT4标准\", \"含水量检测\"]\n      }\n    ],\n    \"methods\"\
+                  : \"hybrid\",\n    \"query\": \"车辆大保养全套流程技术要点\",\n    \"methods_local_is_all\"\
+                  : 1, // 对所有本地知识库进行检索\n    \"methods_web_data_nums\": 3,\n    \"\
+                  methods_web_video_nums\": 1\n  }\n]\n\n**输出**：包含相关数据的数据关键列表"
+              parameters:
+                database_id:
+                  auto: 1
+                  value: null
+                keywords:
+                  auto: 1
+                  value: null
+                methods:
+                  auto: 1
+                  value: null
+                methods_local_is_all:
+                  auto: 1
+                  value: null
+                methods_web_data_nums:
+                  auto: 1
+                  value: null
+                methods_web_domain_select:
+                  auto: 1
+                  value: null
+                methods_web_provider_select:
+                  auto: 1
+                  value: null
+                methods_web_video_nums:
+                  auto: 1
+                  value: null
+                query:
+                  auto: 1
+                  value: null
+              provider_name: 5f7c0f31-5cd0-4771-9278-55d41e2733a3
+              provider_show_name: 数据Pipeline
+              schemas:
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: query
+                  ja_JP: query
+                  pt_BR: query
+                  zh_Hans: query
+                llm_description: ''
+                max: null
+                min: null
+                name: query
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: database_id
+                  ja_JP: database_id
+                  pt_BR: database_id
+                  zh_Hans: database_id
+                llm_description: ''
+                max: null
+                min: null
+                name: database_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: methods
+                  ja_JP: methods
+                  pt_BR: methods
+                  zh_Hans: methods
+                llm_description: ''
+                max: null
+                min: null
+                name: methods
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: keywords
+                  ja_JP: keywords
+                  pt_BR: keywords
+                  zh_Hans: keywords
+                llm_description: ''
+                max: null
+                min: null
+                name: keywords
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: methods_local_is_all
+                  ja_JP: methods_local_is_all
+                  pt_BR: methods_local_is_all
+                  zh_Hans: methods_local_is_all
+                llm_description: ''
+                max: null
+                min: null
+                name: methods_local_is_all
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: number
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: methods_web_provider_select
+                  ja_JP: methods_web_provider_select
+                  pt_BR: methods_web_provider_select
+                  zh_Hans: methods_web_provider_select
+                llm_description: ''
+                max: null
+                min: null
+                name: methods_web_provider_select
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: methods_web_video_nums
+                  ja_JP: methods_web_video_nums
+                  pt_BR: methods_web_video_nums
+                  zh_Hans: methods_web_video_nums
+                llm_description: ''
+                max: null
+                min: null
+                name: methods_web_video_nums
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: number
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: methods_web_domain_select
+                  ja_JP: methods_web_domain_select
+                  pt_BR: methods_web_domain_select
+                  zh_Hans: methods_web_domain_select
+                llm_description: ''
+                max: null
+                min: null
+                name: methods_web_domain_select
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: methods_web_data_nums
+                  ja_JP: methods_web_data_nums
+                  pt_BR: methods_web_data_nums
+                  zh_Hans: methods_web_data_nums
+                llm_description: ''
+                max: null
+                min: null
+                name: methods_web_data_nums
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: "主要用途： 基于用户提出的具体查询和检索需求，从内部知识库、外部互联网或视频内容中检索、过滤并聚合数据。这个工具是获取信息、验证知识和执行数据分析的第一步。\n\
+                调用目标： 解决用户对特定信息、数据、报告或知识的需求。\n调用条件： 当用户明确要求查找、检索或获取数据时。\n| **输入参数**\
+                \ | `query` | `database_id` | `methods` | `keywords` | `methods_local_is_all`\
+                \ | `methods_web_provider_select` | `methods_web_video_nums` | `methods_web_domain_select`\
+                \ | `methods_web_data_nums` |\n| :--- | :--- | :--- | :--- | :---\
+                \ | :--- | :--- |:--- |:--- |:--- |\n| **必需性** | 否 | 否 | 否 | 是 | 是\
+                \ (必填) | 否 | 否 | 否 | 否 |\n| **描述** | 用户发出的具体数据查询中心主题topic。 | 可选数据源：\
+                \ 用户希望检索数据的特定知识库、文档集或数据库的唯一标识 ID。(`methods_local_is_all`为1的时候禁止使用)\
+                \ | 检索策略： 指定本次数据获取所使用的一个或多个检索方式（可选参数为`local`、`web`、`hybrid`）。 | 数据检索关键字列表：`形式：[{\"\
+                xx_id\":\"\",\"xx_queries\":[\"\",\"\"]}]` 详细的数据检索关键字列表适应于检索方式的三种形态。根据不同的关键字组合获取具有深度、高广度的相关数据\
+                \ | **【本地检索模式】** `1` 表示使用所有知识库进行相关检索，`0` 表示使用用户要求的知识库进行检索。 | **【网络搜索提供商】**\
+                \ 指定搜索引擎服务商，支持高度自定义。 | **【视频数量】** 指定每个关键字列表需要的视频数量。 |**【使用的特定域检索】**\
+                \ 指定需要检索数据的相关域，支持高度自定义。 |**【检索在线资源数量】** 指定每个关键字列表需要的在线数据数量。 |\n**综合使用示例**\n\
+                以下示例展示了如何根据不同需求组合使用上述参数：\n\n```json\n[\n  // 示例 1: 基础本地检索 - 在【指定】知识库中查找\n\
+                \  // 场景：最常见的用法，用户明确知道要在哪个手册或知识库中查找信息。\n  {\n    \"keywords\": [\n\
+                \      {\n        \"xx_id\": \"task_torque_wrench_01\",\n        \"\
+                xx_queries\": [\"扭力扳手\", \"正确使用方法\", \"预设扭矩值\"]\n      }\n    ],\n\
+                \    \"methods\": \"local\",\n    \"methods_local_is_all\": 0, //\
+                \ 0表示使用指定的知识库\n    \"database_id\": \"db_vehicle_maintenance_manual_v3\"\
+                , // 必须提供，因为methods_local_is_all为0\n    \"query\": \"查询扭力扳手的操作规范\"\
+                \ // 可选的主题描述\n  },\n\n  // 示例 2: 进阶本地检索 - 在【所有】知识库中进行全局查找\n  // 场景：用户不确定信息在哪份资料里，需要在所有已知的内部知识库中进行广泛搜索。\n\
+                \  {\n    \"keywords\": [\n      {\n        \"xx_id\": \"task_spark_plug_02\"\
+                ,\n        \"xx_queries\": [\"火花塞\", \"更换周期\", \"大众EA888发动机\"]\n \
+                \     }\n    ],\n    \"methods\": \"local\",\n    \"methods_local_is_all\"\
+                : 1 // 1表示检索所有知识库\n    // 注意：此时 database_id 字段禁止出现\n  },\n\n  // 示例\
+                \ 3: 基础网页检索 - 使用默认设置进行通用搜索\n  // 场景：需要从互联网上查找公开的、最新的信息。\n  {\n   \
+                \ \"keywords\": [\n      {\n        \"xx_id\": \"info_emission_standard_01\"\
+                ,\n        \"xx_queries\": [\"国六B排放标准\", \"最新政策解读\"]\n      }\n  \
+                \  ],\n    \"methods\": \"web\",\n    \"database_id\": \"xxx\",\n\
+                \    \"methods_local_is_all\": 0, // 本地检索未启用，此参数按文档要求填写，通常为0\n   \
+                \ \"methods_web_data_nums\": 3 // 指定需要返回3条网页数据\n  },\n\n  // 示例 4:\
+                \ 高级网页检索 - 自定义搜索引擎、域名和数量\n  // 场景：需要进行更精确的、有特定来源目标的网络搜索，例如在专业论坛或官方网站上查找。\n\
+                \  {\n    \"keywords\": [\n      {\n        \"xx_id\": \"tech_battery_life_01\"\
+                ,\n        \"xx_queries\": [\"新能源汽车\", \"三元锂电池\", \"冬季续航衰减\"]\n  \
+                \    }\n    ],\n    \"methods\": \"web\",\n    \"methods_local_is_all\"\
+                : 0,\n    \"methods_web_provider_select\": \"searchapi_io\",\n   \
+                \ \"methods_web_domain_select\": \"web\",\n    \"methods_web_data_nums\"\
+                : 3,  // 需要3条网页结果\n    \"methods_web_video_nums\": 2   // 同时需要2个相关的教学视频\n\
+                \  },\n\n  // 示例 5: 混合检索模式 - 本地优先，网络补充\n  // 场景：这是一个非常强大的模式。系统会首先检索本地指定的知识库，然后用同样的关键词去网络上查找补充信息。\n\
+                \  {\n    \"keywords\": [\n      {\n        \"xx_id\": \"hybrid_atf_change_01\"\
+                ,\n        \"xx_queries\": [\"自动变速箱油\", \"循环机换油\", \"ZF 8速\"]\n  \
+                \    },\n      {\n        \"xx_id\": \"hybrid_atf_check_02\",\n  \
+                \      \"xx_queries\": [\"ATF油位检查\", \"油温要求\"]\n      }\n    ],\n\
+                \    \"methods\": \"hybrid\",\n    \"query\": \"自动变速箱油更换与检查的完整流程\"\
+                ,\n    // --- 本地检索部分 ---\n    \"methods_local_is_all\": 0,\n    \"\
+                database_id\": \"db_transmission_repair_guide\",\n    // --- 网络检索部分\
+                \ ---\n    \"methods_web_provider_select\": \"web\",\n    \"methods_web_data_nums\"\
+                : 3,\n    \"methods_web_video_nums\": 2\n  },\n\n  // 示例 6: 复杂检索 -\
+                \ 多个关键词组的综合查询\n  // 场景：用户的查询意图非常复杂，包含多个子主题，需要对每个子主题分别进行检索，并将结果汇总。\n\
+                \  {\n    \"keywords\": [\n      {\n        \"xx_id\": \"complex_task_a\"\
+                ,\n        \"xx_queries\": [\"发动机正时皮带\", \"更换教程\", \"标记点对齐\"]\n  \
+                \    },\n      {\n        \"xx_id\": \"complex_task_b\",\n       \
+                \ \"xx_queries\": [\"冷却液\", \"冰点测试\", \"更换排空气方法\"]\n      },\n   \
+                \   {\n        \"xx_id\": \"complex_task_c\",\n        \"xx_queries\"\
+                : [\"制动液\", \"DOT4标准\", \"含水量检测\"]\n      }\n    ],\n    \"methods\"\
+                : \"hybrid\",\n    \"query\": \"车辆大保养全套流程技术要点\",\n    \"methods_local_is_all\"\
+                : 1, // 对所有本地知识库进行检索\n    \"methods_web_data_nums\": 3,\n    \"methods_web_video_nums\"\
+                : 1\n  }\n]\n\n**输出**：包含相关数据的数据关键列表"
+              tool_label: 数据Pipeline
+              tool_name: get_datas
+              type: workflow
+        agent_strategy_label: FunctionCalling
+        agent_strategy_name: function_calling
+        agent_strategy_provider_name: langgenius/agent/agent
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          window:
+            enabled: true
+            size: 50
+        meta:
+          minimum_dify_version: 1.7.0
+          version: 0.0.2
+        output_schema: {}
+        plugin_unique_identifier: langgenius/agent:0.0.24@0274c08e62efaa28f6327e7bdba655e16559ec28d4f41f2fa3ef553e6327c0f6
+        selected: false
+        title: Agent 2
+        tool_node_version: '2'
+        type: agent
+      height: 188
+      id: '1765788578179'
+      position:
+        x: 363.6220375932396
+        y: 412.29651721262525
+      positionAbsolute:
+        x: 363.6220375932396
+        y: 412.29651721262525
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1765788578179.text#}}'
+        selected: false
+        title: 直接回复 2
+        type: answer
+        variables: []
+      height: 103
+      id: '1765788584441'
+      position:
+        x: 638.4781987613472
+        y: 412.29651721262525
+      positionAbsolute:
+        x: 638.4781987613472
+        y: 412.29651721262525
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1765361861714.text#}}'
+        selected: false
+        title: 直接回复 3
+        type: answer
+        variables: []
+      height: 103
+      id: '1765877019752'
+      position:
+        x: 1114.6953048131397
+        y: 653.8619042418658
+      positionAbsolute:
+        x: 1114.6953048131397
+        y: 653.8619042418658
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1765523096697'
+          - text
+          variable_selector:
+          - conversation
+          - rate_time_scoring_log
+          write_mode: over-write
+        selected: false
+        title: 变量赋值
+        type: assigner
+        version: '2'
+      height: 84
+      id: '1765954955696'
+      position:
+        x: 671.9750085576401
+        y: 964.5020444229189
+      positionAbsolute:
+        x: 671.9750085576401
+        y: 964.5020444229189
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: the file to be parsed (support pdf, xls, xlsx, md, markdown, mdx,
+              htm, html, pptx, docx, csv, json, yaml, yml)
+            ja_JP: the file to be parsed (support pdf, xls, xlsx, md, markdown, mdx,
+              htm, html, pptx, docx, csv, json, yaml, yml)
+            pt_BR: o arquivo a ser analisado (suporta pdf, xls, xlsx, md, markdown,
+              mdx, htm, html, pptx, docx, csv, json, yaml, yml)
+            zh_Hans: 用于解析的文件 (支持 pdf, xls, xlsx, md, markdown, mdx, htm, html, pptx,
+              docx, csv, json, yaml, yml)
+          label:
+            en_US: file
+            ja_JP: file
+            pt_BR: file
+            zh_Hans: file
+          llm_description: the file to be parsed (support pdf, xls, xlsx, md, markdown,
+            mdx, htm, html, pptx, docx, csv, json, yaml, yml)
+          max: null
+          min: null
+          name: file
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: file
+        params:
+          file: ''
+        provider_id: langgenius/dify_extractor/dify_extractor
+        provider_name: langgenius/dify_extractor/dify_extractor
+        provider_type: builtin
+        selected: false
+        title: Dify文本提取器
+        tool_configurations: {}
+        tool_description: Dify Extractor
+        tool_label: Dify文本提取器
+        tool_name: dify_extractor
+        tool_node_version: '2'
+        tool_parameters:
+          file:
+            type: variable
+            value:
+            - '1765348956935'
+            - sop_resources
+        type: tool
+      height: 52
+      id: '1765960739573'
+      position:
+        x: 363.6220375932396
+        y: 613.9187812441382
+      positionAbsolute:
+        x: 363.6220375932396
+        y: 613.9187812441382
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: 1f5a7cd6-dd65-4fac-98d8-dcb98eb560bb
+            value: .docx
+            varType: file
+            variable_selector:
+            - '1765348956935'
+            - sop_resources
+            - extension
+          - comparison_operator: is
+            id: 6bfa9d9f-f002-42c4-b729-66383d463196
+            value: .pptx
+            varType: file
+            variable_selector:
+            - '1765348956935'
+            - sop_resources
+            - extension
+          - comparison_operator: contains
+            id: aa071ef1-d7bd-4cd3-b77a-b6ac5dec6cd9
+            value: .csv
+            varType: file
+            variable_selector:
+            - '1765348956935'
+            - sop_resources
+            - extension
+          - comparison_operator: is
+            id: 96b2e67d-6be2-46f8-a0a5-e61cc54f5828
+            value: .xlsx
+            varType: file
+            variable_selector:
+            - '1765348956935'
+            - sop_resources
+            - extension
+          id: 'true'
+          logical_operator: or
+        - case_id: aa47ce4c-65d6-4fc0-a4fa-abdaae22c074
+          conditions:
+          - comparison_operator: is
+            id: fda69459-b96a-4387-b2e6-1785da4a7275
+            value: .doc
+            varType: file
+            variable_selector:
+            - '1765348956935'
+            - sop_resources
+            - extension
+          - comparison_operator: is
+            id: 745d26a7-f3b8-40db-8547-a0f34b1b25c2
+            value: .ppt
+            varType: file
+            variable_selector:
+            - '1765348956935'
+            - sop_resources
+            - extension
+          - comparison_operator: is
+            id: 3318bccb-5c5c-4241-b8ca-f1860d536785
+            value: .xls
+            varType: file
+            variable_selector:
+            - '1765348956935'
+            - sop_resources
+            - extension
+          id: aa47ce4c-65d6-4fc0-a4fa-abdaae22c074
+          logical_operator: or
+        selected: false
+        title: 条件分支 2
+        type: if-else
+      height: 302
+      id: '1765960778965'
+      position:
+        x: 94.94305368834233
+        y: 622.2102583209461
+      positionAbsolute:
+        x: 94.94305368834233
+        y: 622.2102583209461
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        output_type: file
+        selected: false
+        title: 变量聚合器
+        type: variable-aggregator
+        variables:
+        - - '1765960739573'
+          - text
+        - - '1766991429938'
+          - text
+        - - '1765348956935'
+          - sop_resources
+      height: 160
+      id: '1765961358133'
+      position:
+        x: 616.3069302990663
+        y: 622.2102583209461
+      positionAbsolute:
+        x: 616.3069302990663
+        y: 622.2102583209461
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1765788578179'
+          - text
+          variable_selector:
+          - conversation
+          - Evaluation_Report
+          write_mode: over-write
+        selected: false
+        title: 变量赋值 2
+        type: assigner
+        version: '2'
+      height: 84
+      id: '1766922239184'
+      position:
+        x: 914.5521261614853
+        y: 412.29651721262525
+      positionAbsolute:
+        x: 914.5521261614853
+        y: 412.29651721262525
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Markdown text
+            ja_JP: Markdown text
+            pt_BR: Markdown text
+            zh_Hans: Markdown格式文本
+          label:
+            en_US: Markdown text
+            ja_JP: Markdown text
+            pt_BR: Markdown text
+            zh_Hans: Markdown格式文本
+          llm_description: ''
+          max: null
+          min: null
+          name: md_text
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Optional docx template file for styling。Use "Home"-"Styles Pane"
+              in Microsoft Word to edit styles of the docx file.
+            ja_JP: Optional docx template file for styling。Use "Home"-"Styles Pane"
+              in Microsoft Word to edit styles of the docx file.
+            pt_BR: Optional docx template file for styling。Use "Home"-"Styles Pane"
+              in Microsoft Word to edit styles of the docx file.
+            zh_Hans: 可选的docx模板文件，用于样式控制。使用Microsoft Word中“开始”-“样式窗格”对docx文件的样式进行编辑。
+          label:
+            en_US: DOCX Template File
+            ja_JP: DOCX Template File
+            pt_BR: DOCX Template File
+            zh_Hans: DOCX 模板文件
+          llm_description: An optional .pptx file that serves as a template for the
+            generated presentation
+          max: null
+          min: null
+          name: docx_template_file
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: file
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Optional custom output file name, and the filename suffix is not
+              required.
+            ja_JP: Optional custom output file name, and the filename suffix is not
+              required.
+            pt_BR: Optional custom output file name, and the filename suffix is not
+              required.
+            zh_Hans: 可选的自定义输出文件名，后缀名无需指定
+          label:
+            en_US: Output Filename
+            ja_JP: Output Filename
+            pt_BR: Output Filename
+            zh_Hans: 输出文件名
+          llm_description: ''
+          max: null
+          min: null
+          name: output_filename
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        params:
+          docx_template_file: ''
+          md_text: ''
+          output_filename: ''
+        provider_id: bowenliang123/md_exporter/md_exporter
+        provider_name: bowenliang123/md_exporter/md_exporter
+        provider_type: builtin
+        selected: false
+        title: Markdown 转 DOCX 文件
+        tool_configurations: {}
+        tool_description: 将 Markdown 转换为 DOCX 文件的工具
+        tool_label: Markdown 转 DOCX 文件
+        tool_name: md_to_docx
+        tool_node_version: '2'
+        tool_parameters:
+          docx_template_file:
+            type: constant
+            value: null
+          md_text:
+            type: mixed
+            value: '{{#conversation.Evaluation_Report#}}'
+          output_filename:
+            type: mixed
+            value: 评估报告
+        type: tool
+      height: 52
+      id: '1766922312925'
+      position:
+        x: 88.52631272107811
+        y: 299.3351835488556
+      positionAbsolute:
+        x: 88.52631272107811
+        y: 299.3351835488556
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        answer: '{{#1766999831709.markdown_output#}}'
+        selected: false
+        title: 直接回复 4
+        type: answer
+        variables: []
+      height: 103
+      id: '1766922398424'
+      position:
+        x: 631.8740173311573
+        y: 299.3351835488556
+      positionAbsolute:
+        x: 631.8740173311573
+        y: 299.3351835488556
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: not empty
+            id: 329d5536-7c7a-46b3-bcc5-c76601ad0ba0
+            value: ''
+            varType: string
+            variable_selector:
+            - '1765348956935'
+            - sop_str
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 条件分支 3
+        type: if-else
+      height: 124
+      id: '1766928259990'
+      position:
+        x: 950.8414713718892
+        y: 964.5020444229189
+      positionAbsolute:
+        x: 950.8414713718892
+        y: 964.5020444229189
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: variable
+          operation: over-write
+          value:
+          - '1765348956935'
+          - sop_str
+          variable_selector:
+          - conversation
+          - sop
+          write_mode: over-write
+        selected: false
+        title: 变量赋值 4
+        type: assigner
+        version: '2'
+      height: 84
+      id: '1766928300447'
+      position:
+        x: 1212.9000687933103
+        y: 996.9764242635918
+      positionAbsolute:
+        x: 1212.9000687933103
+        y: 996.9764242635918
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: The file to be parsed(support pdf, ppt, pptx, doc, docx, png, jpg,
+              jpeg)
+            ja_JP: 解析するファイル(pdf、ppt、pptx、doc、docx、png、jpg、jpegをサポート)
+            pt_BR: The file to be parsed(support pdf, ppt, pptx, doc, docx, png, jpg,
+              jpeg)
+            zh_Hans: 用于解析的文件(支持 pdf, ppt, pptx, doc, docx, png, jpg, jpeg)
+          label:
+            en_US: file
+            ja_JP: file
+            pt_BR: file
+            zh_Hans: file
+          llm_description: The file to be parsed (support pdf, ppt, pptx, doc, docx,
+            png, jpg, jpeg)
+          max: null
+          min: null
+          name: file
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: file
+        - auto_generate: null
+          default: auto
+          form: form
+          human_description:
+            en_US: (For local deployment v1 and v2) Parsing method, can be auto, ocr,
+              or txt. Default is auto. If results are not satisfactory, try ocr
+            ja_JP: （ローカルデプロイメントv1とv2用）解析方法は、auto、ocr、またはtxtのいずれかです。デフォルトはautoです。結果が満足できない場合は、ocrを試してください
+            pt_BR: (For local deployment v1 and v2) Parsing method, can be auto, ocr,
+              or txt. Default is auto. If results are not satisfactory, try ocr
+            zh_Hans: （用于本地部署v1和v2版本）解析方法，可以是auto, ocr, 或 txt。默认是auto。如果结果不理想，请尝试ocr
+          label:
+            en_US: parse method
+            ja_JP: 解析方法
+            pt_BR: parse method
+            zh_Hans: 解析方法
+          llm_description: (For local deployment v1 and v2) Parsing method, can be
+            auto, ocr, or txt. Default is auto. If results are not satisfactory, try
+            ocr
+          max: null
+          min: null
+          name: parse_method
+          options:
+          - icon: ''
+            label:
+              en_US: auto
+              ja_JP: auto
+              pt_BR: auto
+              zh_Hans: auto
+            value: auto
+          - icon: ''
+            label:
+              en_US: ocr
+              ja_JP: ocr
+              pt_BR: ocr
+              zh_Hans: ocr
+            value: ocr
+          - icon: ''
+            label:
+              en_US: txt
+              ja_JP: txt
+              pt_BR: txt
+              zh_Hans: txt
+            value: txt
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: select
+        - auto_generate: null
+          default: true
+          form: form
+          human_description:
+            en_US: (For official API and local deployment v2) Whether to enable formula
+              recognition
+            ja_JP: （公式API用とローカルデプロイメントv2用）数式認識を有効にするかどうか
+            pt_BR: (For official API and local deployment v2) Whether to enable formula
+              recognition
+            zh_Hans: （用于官方API和本地部署v2版本）是否开启公式识别
+          label:
+            en_US: Enable formula recognition
+            ja_JP: 数式認識を有効にする
+            pt_BR: Enable formula recognition
+            zh_Hans: 开启公式识别
+          llm_description: (For official API and local deployment v2) Whether to enable
+            formula recognition
+          max: null
+          min: null
+          name: enable_formula
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        - auto_generate: null
+          default: true
+          form: form
+          human_description:
+            en_US: (For official API and local deployment v2) Whether to enable table
+              recognition
+            ja_JP: （公式API用とローカルデプロイメントv2用）表認識を有効にするかどうか
+            pt_BR: (For official API and local deployment v2) Whether to enable table
+              recognition
+            zh_Hans: （用于官方API和本地部署v2版本）是否开启表格识别
+          label:
+            en_US: Enable table recognition
+            ja_JP: 表認識を有効にする
+            pt_BR: Enable table recognition
+            zh_Hans: 开启表格识别
+          llm_description: (For official API and local deployment v2) Whether to enable
+            table recognition
+          max: null
+          min: null
+          name: enable_table
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        - auto_generate: null
+          default: auto
+          form: form
+          human_description:
+            en_US: '(For official API and local deployment v2) Specify document language,
+              default ch, can be set to auto(local deployment need to specify the
+              language, default ch), other optional value list see: https://paddlepaddle.github.io/PaddleOCR/latest/version3.x/pipeline_usage/OCR.html#5'
+            ja_JP: （公式API用とローカルデプロイメントv2用）ドキュメント言語を指定します。デフォルトはchで、autoに設定できます。autoの場合（ローカルデプロイメントでは言語を指定する必要があります。デフォルトはchです）、モデルはドキュメント言語を自動的に識別します。他のオプション値リストについては、次を参照してください：https://paddlepaddle.github.io/PaddleOCR/latest/version3.x/pipeline_usage/OCR.html#5
+            pt_BR: '(For official API and local deployment v2) Specify document language,
+              default ch, can be set to auto(local deployment need to specify the
+              language, default ch), other optional value list see: https://paddlepaddle.github.io/PaddleOCR/latest/version3.x/pipeline_usage/OCR.html#5'
+            zh_Hans: （仅限官方api和本地部署v2版本）指定文档语言，默认 ch，可以设置为auto，当为auto时模型会自动识别文档语言（本地部署需要指定明确的语言，默认ch），其他可选值列表详见：https://paddlepaddle.github.io/PaddleOCR/latest/version3.x/pipeline_usage/OCR.html#5
+          label:
+            en_US: Document language
+            ja_JP: ドキュメント言語
+            pt_BR: Document language
+            zh_Hans: 文档语言
+          llm_description: '(For official API and local deployment v2) Specify document
+            language, default ch, can be set to auto(local deployment need to specify
+            the language, default ch), other optional value list see: https://paddlepaddle.github.io/PaddleOCR/latest/version3.x/pipeline_usage/OCR.html#5'
+          max: null
+          min: null
+          name: language
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: false
+          form: form
+          human_description:
+            en_US: (For official API) Whether to enable OCR recognition
+            ja_JP: （公式API用）OCR認識を有効にするかどうか
+            pt_BR: (For official API) Whether to enable OCR recognition
+            zh_Hans: （用于官方API）是否开启OCR识别
+          label:
+            en_US: Enable OCR recognition
+            ja_JP: OCR認識を有効にする
+            pt_BR: Enable OCR recognition
+            zh_Hans: 开启OCR识别
+          llm_description: (For official API) Whether to enable OCR recognition
+          max: null
+          min: null
+          name: enable_ocr
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: boolean
+        - auto_generate: null
+          default: '[]'
+          form: form
+          human_description:
+            en_US: '(For official API) Example: ["docx","html"], markdown, json are
+              the default export formats, no need to set, this parameter only supports
+              one or more of docx, html, latex'
+            ja_JP: （公式API用）例：["docx","html"]、markdown、jsonはデフォルトのエクスポート形式であり、設定する必要はありません。このパラメータは、docx、html、latexの3つの形式のいずれかまたは複数のみをサポートします
+            pt_BR: '(For official API) Example: ["docx","html"], markdown, json are
+              the default export formats, no need to set, this parameter only supports
+              one or more of docx, html, latex'
+            zh_Hans: （用于官方API）示例：["docx","html"],markdown、json为默认导出格式，无须设置，该参数仅支持docx、html、latex三种格式中的一个或多个
+          label:
+            en_US: Extra export formats
+            ja_JP: 追加のエクスポート形式
+            pt_BR: Extra export formats
+            zh_Hans: 额外导出格式
+          llm_description: '(For official API) Example: ["docx","html"], markdown,
+            json are the default export formats, no need to set, this parameter only
+            supports one or more of docx, html, latex'
+          max: null
+          min: null
+          name: extra_formats
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: pipeline
+          form: form
+          human_description:
+            en_US: '(For local deployment v2 or v2.5) Example: pipeline, vlm-transformers,
+              vlm-sglang-engine, vlm-sglang-client, default is pipeline'
+            ja_JP: （ローカルデプロイメント v2/v2.5 用）例：pipeline、vlm-transformers、vlm-sglang-engine、vlm-sglang-client、デフォルトはpipeline
+            pt_BR: '(For local deployment v2 or v2.5) Example: pipeline, vlm-transformers,
+              vlm-sglang-engine, vlm-sglang-client, default is pipeline'
+            zh_Hans: （用于本地部署 v2 或 v2.5 版本）示例：pipeline、vlm-transformers、vlm-sglang-engine、vlm-sglang-client，默认值为pipeline
+          label:
+            en_US: Backend type
+            ja_JP: バックエンドタイプ
+            pt_BR: Backend type
+            zh_Hans: 解析后端
+          llm_description: '(For local deployment v2/v2.5) Example: pipeline, vlm-transformers,
+            vlm-sglang-engine, vlm-sglang-client, default is pipeline'
+          max: null
+          min: null
+          name: backend
+          options:
+          - icon: ''
+            label:
+              en_US: pipeline
+              ja_JP: pipeline
+              pt_BR: pipeline
+              zh_Hans: pipeline
+            value: pipeline
+          - icon: ''
+            label:
+              en_US: vlm-transformers
+              ja_JP: vlm-transformers
+              pt_BR: vlm-transformers
+              zh_Hans: vlm-transformers
+            value: vlm-transformers
+          - icon: ''
+            label:
+              en_US: vlm-sglang-engine (v2.2)
+              ja_JP: vlm-sglang-engine (v2.2)
+              pt_BR: vlm-sglang-engine (v2.2)
+              zh_Hans: vlm-sglang-engine (v2.2)
+            value: vlm-sglang-engine
+          - icon: ''
+            label:
+              en_US: vlm-sglang-client (v2.2)
+              ja_JP: vlm-sglang-client (v2.2)
+              pt_BR: vlm-sglang-client (v2.2)
+              zh_Hans: vlm-sglang-client (v2.2)
+            value: vlm-sglang-client
+          - icon: ''
+            label:
+              en_US: vlm-http-client (v2.5)
+              ja_JP: vlm-http-client (v2.5)
+              pt_BR: vlm-http-client (v2.5)
+              zh_Hans: vlm-http-client (v2.5)
+            value: vlm-http-client
+          - icon: ''
+            label:
+              en_US: vlm-vllm-async-engine (v2.5)
+              ja_JP: vlm-vllm-async-engine (v2.5)
+              pt_BR: vlm-vllm-async-engine (v2.5)
+              zh_Hans: vlm-vllm-async-engine (v2.5)
+            value: vlm-vllm-async-engine
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: select
+        - auto_generate: null
+          default: ''
+          form: form
+          human_description:
+            en_US: '(For local deployment v2 when backend is vlm-sglang-client or
+              vlm-http-client) Example: http://127.0.0.1:30000, default is empty'
+            ja_JP: （ローカルデプロイメントv2用 解析後端が vlm-sglang-client 或 vlm-http-client の場合）例：http://127.0.0.1:30000、デフォルトは空
+            pt_BR: '(For local deployment v2 when backend is vlm-sglang-client or
+              vlm-http-client) Example: http://127.0.0.1:30000, default is empty'
+            zh_Hans: （用于本地部署v2版本 解析后端为 vlm-sglang-client 或 vlm-http-client 时）示例：http://127.0.0.1:30000，默认值为空
+          label:
+            en_US: server url
+            ja_JP: serverアドレス
+            pt_BR: server url
+            zh_Hans: server地址
+          llm_description: '(For local deployment v2 when backend is vlm-sglang-client
+            or vlm-http-client) Example: http://127.0.0.1:30000, default is empty'
+          max: null
+          min: null
+          name: server_url
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        params:
+          backend: ''
+          enable_formula: ''
+          enable_ocr: ''
+          enable_table: ''
+          extra_formats: ''
+          file: ''
+          language: ''
+          parse_method: ''
+          server_url: ''
+        provider_id: langgenius/mineru/mineru
+        provider_name: langgenius/mineru/mineru
+        provider_type: builtin
+        selected: false
+        title: Parse File
+        tool_configurations:
+          backend:
+            type: constant
+            value: pipeline
+          enable_formula:
+            type: constant
+            value: true
+          enable_ocr:
+            type: constant
+            value: true
+          enable_table:
+            type: constant
+            value: true
+          extra_formats:
+            type: mixed
+            value: '[]'
+          language:
+            type: mixed
+            value: auto
+          parse_method:
+            type: constant
+            value: auto
+          server_url:
+            type: mixed
+            value: ''
+        tool_description: 一个用于解析文本，表格和图片的工具，支持pdf,pptx,docx等多种格式。支持英语，中文等多种语言
+        tool_label: Parse File
+        tool_name: parse-file
+        tool_node_version: '2'
+        tool_parameters:
+          file:
+            type: variable
+            value:
+            - '1765348956935'
+            - sop_resources
+        type: tool
+      height: 270
+      id: '1766991429938'
+      position:
+        x: 363.6220375932396
+        y: 678.3413717512294
+      positionAbsolute:
+        x: 363.6220375932396
+        y: 678.3413717512294
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import requests\nimport json\nfrom typing import List, Dict, Any\n\n\
+          # ==============================================================================\n\
+          # ----------------------------> 用户配置区 <---------------------------------\n\
+          # ==============================================================================\n\
+          CONFIG = {\n    \"API_BASE_URL\": \"http://119.45.167.133:7751\", # 提取基础URL，方便管理\n\
+          \    \n    # 1. 认证相关配置\n    \"AUTH_DETAILS\": {\n        \"login\": \"xt666666\"\
+          ,      # 您的登录账号\n        \"password\": \"123456\",    # 您的登录密码\n       \
+          \ # 初始令牌（可选，可以留空）。如果提供，第一次请求会用它，过期后会自动刷新。\n        \"initial_token\": \"\
+          eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwMjAxMDExLCJyb2xlIjoxLCJpYXQiOjE3NjE3Mjg1NTAsImV4cCI6MTc2MTgxNDk1MH0.4YTszVwCiSZ3Ag-mDvvcCYPmIBoTWppnKBu9IpxguA0\"\
+          \n    },\n\n    # 2. 功能接口路径\n    \"ENDPOINTS\": {\n        \"upload\": \"\
+          /file/upload\",\n        \"sign_in\": \"/auth/sign_in\"\n    }\n}\n# ==============================================================================\n\
+          # ---------------------------> 认证管理模块 <---------------------------------\n\
+          # ==============================================================================\n\
+          \nclass AuthManager:\n    \"\"\"\n    一个专门用于管理认证令牌的类。\n    - 负责存储当前有效的令牌。\n\
+          \    - 负责在需要时调用API刷新令牌。\n    \"\"\"\n    def __init__(self, config: Dict[str,\
+          \ Any]):\n        self.api_base_url = config[\"API_BASE_URL\"]\n       \
+          \ self.sign_in_endpoint = config[\"ENDPOINTS\"][\"sign_in\"]\n        self.credentials\
+          \ = config[\"AUTH_DETAILS\"]\n        self.token = self.credentials.get(\"\
+          initial_token\") # 使用初始令牌\n\n    def get_headers(self) -> Dict[str, str]:\n\
+          \        \"\"\"获取带有当前 Authorization Token 的请求头\"\"\"\n        if not self.token:\n\
+          \            print(\"当前无可用Token，立即尝试刷新。\")\n            self.refresh_token()\n\
+          \        return {'Authorization': f'Bearer {self.token}'}\n\n    def refresh_token(self):\n\
+          \        \"\"\"\n        请求新的认证令牌并更新到实例中。\n        \"\"\"\n        print(\"\
+          --- 开始刷新认证令牌 ---\")\n        refresh_url = f\"{self.api_base_url}{self.sign_in_endpoint}\"\
+          \n        payload = {\n            'login': self.credentials['login'],\n\
+          \            'password': self.credentials['password']\n        }\n     \
+          \   headers = {'Content-Type': 'application/x-www-form-urlencoded'}\n\n\
+          \        try:\n            response = requests.post(refresh_url, data=payload,\
+          \ headers=headers, timeout=30)\n            response.raise_for_status()\n\
+          \            response_data = response.json()\n\n            if response_data.get(\"\
+          status\") and 'data' in response_data and 'token' in response_data['data']:\n\
+          \                self.token = response_data['data']['token']\n         \
+          \       print(f\"令牌刷新成功！新的令牌已存储。\")\n            else:\n               \
+          \ raise Exception(f\"刷新令牌API返回错误: {response_data.get('message', '未知错误')}\"\
+          )\n        except Exception as e:\n            print(f\"!!! 致命错误: 刷新令牌失败，程序无法继续。错误:\
+          \ {e}\")\n            # 在一个关键任务中，如果连认证都失败了，就应该直接抛出异常中断执行\n            raise\
+          \ e\n\n# ==============================================================================\n\
+          # ---------------------------> 核心实现区 <---------------------------------\n\
+          # ==============================================================================\n\
+          \ndef main(input_files: List[Dict[str, Any]]) -> Dict[str, Any]:\n    \"\
+          \"\"\n    主函数，处理文件上传，并内置令牌过期自动刷新重试逻辑。\n    \"\"\"\n    # 1. 输入验证\n    if\
+          \ not isinstance(input_files, list):\n        raise TypeError(f\"输入应为文件数组\
+          \ (List)，但收到了 {type(input_files)} 类型。\")\n\n    if not input_files:\n  \
+          \      return {\"output_files\": [], \"markdown_output\": \"没有文件需要处理。\"\
+          }\n\n    # 初始化认证管理器\n    auth_manager = AuthManager(CONFIG)\n    target_url\
+          \ = f\"{CONFIG['API_BASE_URL']}{CONFIG['ENDPOINTS']['upload']}\"\n    processed_files\
+          \ = []\n\n    # 2. 遍历处理每个文件\n    for index, file_obj in enumerate(input_files):\n\
+          \        print(f\"--- 开始处理第 {index + 1} 个文件: {file_obj.get('filename')}\
+          \ ---\")\n        updated_file_obj = file_obj.copy()\n\n        try:\n \
+          \           # a. 参数校验 (逻辑不变)\n            dify_download_url = file_obj.get('url')\n\
+          \            original_filename = file_obj.get('filename')\n            mime_type\
+          \ = file_obj.get('mime_type')\n            if not all([dify_download_url,\
+          \ original_filename, mime_type]):\n                raise ValueError(\"文件对象缺少\
+          \ 'url', 'filename', 或 'mime_type' 关键字段。\")\n\n            # b. 下载文件 (逻辑不变)\n\
+          \            print(\"步骤 1/3: 正在从Dify下载文件...\")\n            # ... (下载逻辑保持完全一致)\n\
+          \            with requests.get(dify_download_url, stream=True, timeout=60)\
+          \ as download_response:\n                download_response.raise_for_status()\n\
+          \                file_content = download_response.content\n            \n\
+          \            files_to_upload = {'file': (original_filename, file_content,\
+          \ mime_type)}\n\n            # c. 上传文件 - 包含重试逻辑\n            print(\"步骤\
+          \ 2/3: 正在上传文件...\")\n            try:\n                # 第一次尝试上传\n     \
+          \           upload_response = requests.post(\n                    target_url,\
+          \ \n                    headers=auth_manager.get_headers(), \n         \
+          \           files=files_to_upload, \n                    timeout=120\n \
+          \               )\n                upload_response.raise_for_status()\n\
+          \            except requests.exceptions.HTTPError as e:\n              \
+          \  # 关键：检查是否是401错误\n                if e.response.status_code == 401:\n\
+          \                    print(\"上传失败 (401 Unauthorized)，疑似令牌过期。尝试刷新令牌并重试...\"\
+          )\n                    auth_manager.refresh_token() # 刷新令牌\n           \
+          \         print(\"重试上传...\")\n                    # 第二次尝试上传\n          \
+          \          upload_response = requests.post(\n                        target_url,\
+          \ \n                        headers=auth_manager.get_headers(), \n     \
+          \                   files=files_to_upload, \n                        timeout=120\n\
+          \                    )\n                    upload_response.raise_for_status()\
+          \ # 如果再次失败，异常会向上抛出\n                else:\n                    # 如果是其他HTTP错误（如500,\
+          \ 404等），直接抛出\n                    raise e\n            \n            # d.\
+          \ 解析API响应 (逻辑不变)\n            response_data = upload_response.json()\n \
+          \           print(\"上传成功，API返回:\", json.dumps(response_data, indent=2, ensure_ascii=False))\n\
+          \            if response_data.get(\"status\") is True and 'data' in response_data\
+          \ and 'url' in response_data['data']:\n                new_url = response_data['data']['url']\n\
+          \                print(f\"步骤 3/3: 成功获取新URL: {new_url}\")\n             \
+          \   updated_file_obj['url'] = new_url\n            else:\n             \
+          \   raise Exception(f\"API响应格式不正确或状态为false。消息: {response_data.get('message')}\"\
+          )\n\n        except Exception as e:\n            error_message = f\"处理文件时发生错误:\
+          \ {e}\"\n            print(f\"错误: {error_message}\")\n            updated_file_obj['error']\
+          \ = error_message\n\n        processed_files.append(updated_file_obj)\n\
+          \        print(f\"--- 文件 {file_obj.get('filename')} 处理完毕 ---\\n\")\n\n \
+          \   # 3. 生成 Markdown 字符串 (逻辑不变)\n    markdown_links = []\n    for file_data\
+          \ in processed_files:\n        if 'error' not in file_data:\n          \
+          \  filename = file_data.get('filename')\n            url = file_data.get('url')\n\
+          \            if filename and url:\n                markdown_links.append(f\"\
+          [{filename}]({url})\")\n    markdown_output_string = \"\\n\".join(markdown_links)\n\
+          \n    # 4. 返回结果 (逻辑不变)\n    return {\n        \"output_files\": processed_files,\n\
+          \        \"markdown_output\": markdown_output_string\n    }"
+        code_language: python3
+        outputs:
+          markdown_output:
+            children: null
+            type: string
+          output_files:
+            children: null
+            type: array[object]
+        selected: false
+        title: 上传服务器
+        type: code
+        variables:
+        - value_selector:
+          - '1766922312925'
+          - files
+          value_type: array[file]
+          variable: input_files
+      height: 52
+      id: '1766999831709'
+      position:
+        x: 357.8128511771931
+        y: 299.3351835488556
+      positionAbsolute:
+        x: 357.8128511771931
+        y: 299.3351835488556
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: '%Y-%m-%d %H:%M:%S'
+          form: form
+          human_description:
+            en_US: Time format in strftime standard.
+            ja_JP: Time format in strftime standard.
+            pt_BR: Time format in strftime standard.
+            zh_Hans: strftime 标准的时间格式。
+          label:
+            en_US: Format
+            ja_JP: Format
+            pt_BR: Format
+            zh_Hans: 格式
+          llm_description: null
+          max: null
+          min: null
+          name: format
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: UTC
+          form: form
+          human_description:
+            en_US: Timezone
+            ja_JP: Timezone
+            pt_BR: Timezone
+            zh_Hans: 时区
+          label:
+            en_US: Timezone
+            ja_JP: Timezone
+            pt_BR: Timezone
+            zh_Hans: 时区
+          llm_description: null
+          max: null
+          min: null
+          name: timezone
+          options:
+          - icon: null
+            label:
+              en_US: UTC
+              ja_JP: UTC
+              pt_BR: UTC
+              zh_Hans: UTC
+            value: UTC
+          - icon: null
+            label:
+              en_US: America/New_York
+              ja_JP: America/New_York
+              pt_BR: America/New_York
+              zh_Hans: 美洲/纽约
+            value: America/New_York
+          - icon: null
+            label:
+              en_US: America/Los_Angeles
+              ja_JP: America/Los_Angeles
+              pt_BR: America/Los_Angeles
+              zh_Hans: 美洲/洛杉矶
+            value: America/Los_Angeles
+          - icon: null
+            label:
+              en_US: America/Chicago
+              ja_JP: America/Chicago
+              pt_BR: America/Chicago
+              zh_Hans: 美洲/芝加哥
+            value: America/Chicago
+          - icon: null
+            label:
+              en_US: America/Sao_Paulo
+              ja_JP: America/Sao_Paulo
+              pt_BR: América/São Paulo
+              zh_Hans: 美洲/圣保罗
+            value: America/Sao_Paulo
+          - icon: null
+            label:
+              en_US: Asia/Shanghai
+              ja_JP: Asia/Shanghai
+              pt_BR: Asia/Shanghai
+              zh_Hans: 亚洲/上海
+            value: Asia/Shanghai
+          - icon: null
+            label:
+              en_US: Asia/Ho_Chi_Minh
+              ja_JP: Asia/Ho_Chi_Minh
+              pt_BR: Ásia/Ho Chi Minh
+              zh_Hans: 亚洲/胡志明市
+            value: Asia/Ho_Chi_Minh
+          - icon: null
+            label:
+              en_US: Asia/Tokyo
+              ja_JP: Asia/Tokyo
+              pt_BR: Asia/Tokyo
+              zh_Hans: 亚洲/东京
+            value: Asia/Tokyo
+          - icon: null
+            label:
+              en_US: Asia/Dubai
+              ja_JP: Asia/Dubai
+              pt_BR: Asia/Dubai
+              zh_Hans: 亚洲/迪拜
+            value: Asia/Dubai
+          - icon: null
+            label:
+              en_US: Asia/Kolkata
+              ja_JP: Asia/Kolkata
+              pt_BR: Asia/Kolkata
+              zh_Hans: 亚洲/加尔各答
+            value: Asia/Kolkata
+          - icon: null
+            label:
+              en_US: Asia/Seoul
+              ja_JP: Asia/Seoul
+              pt_BR: Asia/Seoul
+              zh_Hans: 亚洲/首尔
+            value: Asia/Seoul
+          - icon: null
+            label:
+              en_US: Asia/Singapore
+              ja_JP: Asia/Singapore
+              pt_BR: Asia/Singapore
+              zh_Hans: 亚洲/新加坡
+            value: Asia/Singapore
+          - icon: null
+            label:
+              en_US: Europe/London
+              ja_JP: Europe/London
+              pt_BR: Europe/London
+              zh_Hans: 欧洲/伦敦
+            value: Europe/London
+          - icon: null
+            label:
+              en_US: Europe/Berlin
+              ja_JP: Europe/Berlin
+              pt_BR: Europe/Berlin
+              zh_Hans: 欧洲/柏林
+            value: Europe/Berlin
+          - icon: null
+            label:
+              en_US: Europe/Moscow
+              ja_JP: Europe/Moscow
+              pt_BR: Europe/Moscow
+              zh_Hans: 欧洲/莫斯科
+            value: Europe/Moscow
+          - icon: null
+            label:
+              en_US: Australia/Sydney
+              ja_JP: Australia/Sydney
+              pt_BR: Australia/Sydney
+              zh_Hans: 澳大利亚/悉尼
+            value: Australia/Sydney
+          - icon: null
+            label:
+              en_US: Pacific/Auckland
+              ja_JP: Pacific/Auckland
+              pt_BR: Pacific/Auckland
+              zh_Hans: 太平洋/奥克兰
+            value: Pacific/Auckland
+          - icon: null
+            label:
+              en_US: Africa/Cairo
+              ja_JP: Africa/Cairo
+              pt_BR: Africa/Cairo
+              zh_Hans: 非洲/开罗
+            value: Africa/Cairo
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: select
+        params:
+          format: ''
+          timezone: ''
+        provider_id: time
+        provider_name: time
+        provider_type: builtin
+        selected: false
+        title: 获取当前时间
+        tool_configurations:
+          format:
+            type: mixed
+            value: '%Y-%m-%d'
+          timezone:
+            type: constant
+            value: UTC
+        tool_description: 一个用于获取当前时间的工具。
+        tool_label: 获取当前时间
+        tool_name: current_time
+        tool_node_version: '2'
+        tool_parameters: {}
+        type: tool
+      height: 114
+      id: '1767000105757'
+      position:
+        x: 88.52631272107811
+        y: 412.29651721262525
+      positionAbsolute:
+        x: 88.52631272107811
+        y: 412.29651721262525
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -547.7139539573514
+      y: -187.87775894354905
+      zoom: 1.259921080741321
+  rag_pipeline_variables: []

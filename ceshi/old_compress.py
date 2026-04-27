@@ -5,6 +5,7 @@
 
 import asyncio
 import os
+import sys
 import uuid
 import json
 import re
@@ -19,32 +20,38 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-# utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
-from utils.logger import setup_module_logger
+try:
+    from utils.logger import setup_module_logger
+except ImportError:
+    def setup_module_logger(logger_name: str, log_file: str) -> logging.Logger:
+        _logger = logging.getLogger(logger_name)
+        if not _logger.hasHandlers():
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            _logger.addHandler(handler)
+            _logger.setLevel(logging.INFO)
+        return _logger
 
 logger = setup_module_logger(__name__, "logs/video/compress.log")
 
 router = APIRouter()
 
-from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
-
 # ──────────────────────────── 目录配置 ────────────────────────────
-# 与 main.py 的 StaticFiles(directory=settings.static_dir_abs) 同一物理根目录
-STATIC_DIR_NAME = _settings.STATIC_DIR
-COMPRESS_UPLOAD_SUBDIR = _settings.VIDEO_COMPRESS_UPLOAD_SUBDIR
-COMPRESS_OUTPUT_SUBDIR = _settings.VIDEO_COMPRESS_OUTPUT_SUBDIR
+STATIC_DIR_NAME = "static"
+COMPRESS_UPLOAD_SUBDIR = "compress_uploads"
+COMPRESS_OUTPUT_SUBDIR = "compress_outputs"
 
-_STATIC_ROOT = Path(_settings.static_dir_abs)
-UPLOAD_DIR = _STATIC_ROOT / COMPRESS_UPLOAD_SUBDIR
-OUTPUT_DIR = _STATIC_ROOT / COMPRESS_OUTPUT_SUBDIR
+UPLOAD_DIR = Path(STATIC_DIR_NAME) / COMPRESS_UPLOAD_SUBDIR
+OUTPUT_DIR = Path(STATIC_DIR_NAME) / COMPRESS_OUTPUT_SUBDIR
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".webm", ".m4v", ".ts", ".mts"}
-MAX_UPLOAD_SIZE_MB = _settings.VIDEO_COMPRESS_MAX_UPLOAD_MB
+MAX_UPLOAD_SIZE_MB = 500
 
 # ──────────────────────────── 并发控制 ────────────────────────────
-MAX_CONCURRENT_FFMPEG = _settings.VIDEO_COMPRESS_MAX_CONCURRENT_FFMPEG
+MAX_CONCURRENT_FFMPEG = int(os.getenv("MAX_CONCURRENT_FFMPEG", "2"))
 ffmpeg_semaphore: Optional[asyncio.Semaphore] = None
 
 # ──────────────────────────── 任务存储 ────────────────────────────
@@ -69,10 +76,11 @@ class CompressionPreset(str, Enum):
     SLOW = "slow"
 
 
-# 统一从 utils.responses 引入；本 router 历史行为是 model_dump(exclude_none=True)，
-# 因此用一层薄包装显式打开 exclude_none，对外接口字段集合保持完全不变
-from utils.responses import StandardResponse  # noqa: F401
-from utils.responses import create_standard_response as _shared_create_standard_response
+class StandardResponse(BaseModel):
+    code: int = Field(200, description="HTTP状态码")
+    message: str = Field("Success", description="响应消息")
+    data: Optional[Any] = Field(None, description="响应数据")
+    timestamp: str = Field(..., description="ISO 8601 格式的时间戳")
 
 
 def create_standard_response(
@@ -80,9 +88,13 @@ def create_standard_response(
         code: int = 200,
         message: str = "Success"
 ) -> JSONResponse:
-    return _shared_create_standard_response(
-        data=data, code=code, message=message, exclude_none=True
-    )
+    content = StandardResponse(
+        code=code,
+        message=message,
+        data=data,
+        timestamp=datetime.now().isoformat()
+    ).model_dump(exclude_none=True)
+    return JSONResponse(status_code=code, content=content)
 
 
 # ──────────────────────────── 工具函数 ────────────────────────────
@@ -399,7 +411,6 @@ def _get_semaphore() -> asyncio.Semaphore:
     return ffmpeg_semaphore
 
 
-# Swagger/OpenAPI：为二进制 200 声明 schema，减少「Undocumented」；并声明 JSON 类错误体
 _COMPRESS_DIFY_ERR_JSON = {
     "application/json": {
         "schema": {
@@ -450,7 +461,7 @@ _COMPRESS_VIDEO_DIFY_OPENAPI_RESPONSES: Dict[int, Any] = {
     description=(
         "**Body**：`multipart/form-data`，且**只传一个文件**，字段名必须为 **`video`**（Swagger / Dify 一致）。\n"
         "**参数**：`crf`、`preset`、`resolution`、`max_bitrate`、`audio_bitrate` 全部放在 **URL Query**，不要放在 form 里。\n\n"
-        "**Swagger 说明**：成功时返回 **video/mp4 二进制**，与 JSON 接口不同；界面可能无法预览视频、或仍显示 Undocumented，"
+        "**Swagger 说明**：成功时返回 **video/mp4 二进制**；界面可能无法预览或仍显示 Undocumented，"
         "属 Swagger UI 限制，**只要状态码为 200 即成功**，请下载保存为 `.mp4` 后播放。"
     ),
     response_class=FileResponse,

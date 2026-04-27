@@ -12,7 +12,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
-    job_search, fish_asr, fenbi_gateway
+    job_search, fish_asr, fenbi_gateway, video_compress
 from fastapi.staticfiles import StaticFiles
 from db.database import engine, Base, get_db
 from utils.settings import settings
@@ -153,7 +153,7 @@ app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
 app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
 app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
-
+app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])
 
 # app.include_router(auth.router)
 
