@@ -198,7 +198,7 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
     def get_data(item, prov) -> List[Dict[str, Any]]:
         extracted_data = []
         json_data = item.response.body
-        print(json_data[:50])
+        print(str(json_data)[:50])
         if json_data:
             try:
                 for data in json_data['data']['list']:
