@@ -1,52 +1,257 @@
-2025-11-17 00:17:32,090 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据'], provinces=['深圳'], page_size=1
-2025-11-17 00:17:32,090 - INFO     - [api.job_search] [asyncio_0] - 准备启动 1 个并发爬虫任务，最大并发数: 10...
-2025-11-17 00:17:38,577 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 开始处理组合: '大数据' - '深圳'
-2025-11-17 00:17:40,672 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
-2025-11-17 00:17:42,763 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2025-11-17 00:17:42,778 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2025-11-17 00:17:42,778 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40783841305
-2025-11-17 00:17:42,960 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40783841305 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:43,178 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC424188180J40847869312
-2025-11-17 00:17:43,355 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC424188180J40847869312 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:43,673 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40772249516
-2025-11-17 00:17:43,947 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40772249516 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:44,192 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1445845820J40769916605
-2025-11-17 00:17:44,394 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1445845820J40769916605 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:44,650 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40818479205
-2025-11-17 00:17:44,999 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40818479205 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:45,335 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40771496416
-2025-11-17 00:17:45,525 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40771496416 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:45,759 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC179014620J40733178106
-2025-11-17 00:17:45,944 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC179014620J40733178106 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:46,351 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40826050405
-2025-11-17 00:17:46,666 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40826050405 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:47,009 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40674612416
-2025-11-17 00:17:47,205 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40674612416 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:47,656 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC453635220J40853170803
-2025-11-17 00:17:47,930 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC453635220J40853170803 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:48,242 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40826136405
-2025-11-17 00:17:48,411 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40826136405 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:48,844 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40696118816
-2025-11-17 00:17:49,036 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40696118816 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:49,390 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC254955810J40785036211
-2025-11-17 00:17:49,647 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC254955810J40785036211 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:49,893 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CCL1480117890J40822807005
-2025-11-17 00:17:50,169 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CCL1480117890J40822807005 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:50,420 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40710191116
-2025-11-17 00:17:50,603 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40710191116 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:50,857 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC453635220J40851024503
-2025-11-17 00:17:51,049 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC453635220J40851024503 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:51,251 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC218795280J40790657511
-2025-11-17 00:17:51,554 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC218795280J40790657511 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:51,834 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC000544460J40755860616
-2025-11-17 00:17:52,689 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC000544460J40755860616 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:53,152 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC453635220J40850756203
-2025-11-17 00:17:53,318 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC453635220J40850756203 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:53,641 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在通过API获取详情，number: CC133233090J40771241101
-2025-11-17 00:17:53,889 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_0] - 请求详情API https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number=CC133233090J40771241101 期间发生异常: 'bool' object has no attribute 'status_code'
-2025-11-17 00:17:54,269 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 已达到设定的爬取页数限制 (1)，停止采集当前组合。
-2025-11-17 00:17:54,269 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
-2025-11-17 00:17:54,291 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
-2025-11-17 00:17:54,291 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 20 条数据。
-2025-11-17 00:17:54,291 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 20 条数据。
-2025-11-17 00:17:54,291 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 20 个岗位。
+2026-04-28 01:27:02,394 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
+2026-04-28 01:27:02,421 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-04-28 01:27:11,313 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 开始处理组合: '大数据' - '北京'
+2026-04-28 01:27:12,195 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 开始处理组合: 'Java工程师' - '北京'
+2026-04-28 01:27:12,224 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 开始处理组合: '大数据' - '深圳'
+2026-04-28 01:27:12,302 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 开始处理组合: 'Java工程师' - '深圳'
+2026-04-28 01:27:13,671 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 等待采集 -> 大数据 | 北京 | 第 1 页
+2026-04-28 01:27:14,554 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
+2026-04-28 01:27:14,633 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 等待采集 -> Java工程师 | 北京 | 第 1 页
+2026-04-28 01:27:14,779 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
+2026-04-28 01:27:16,077 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 01:27:16,150 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:16,891 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 01:27:16,892 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:16,965 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:17,351 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:17,370 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 01:27:17,371 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 01:27:17,372 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:17,377 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:17,884 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:18,090 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:18,164 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 等待采集 -> 大数据 | 北京 | 第 2 页
+2026-04-28 01:27:18,653 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 等待采集 -> Java工程师 | 北京 | 第 2 页
+2026-04-28 01:27:19,067 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
+2026-04-28 01:27:19,191 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
+2026-04-28 01:27:20,436 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 01:27:20,437 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:20,819 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:21,061 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 01:27:21,063 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:21,652 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:21,750 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 等待采集 -> 大数据 | 北京 | 第 3 页
+2026-04-28 01:27:21,864 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 01:27:21,864 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 01:27:21,865 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:21,865 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 准备并发获取 20 个职位详情...
+2026-04-28 01:27:22,519 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:22,670 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 01:27:22,752 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 等待采集 -> Java工程师 | 北京 | 第 3 页
+2026-04-28 01:27:23,709 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
+2026-04-28 01:27:23,863 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
+2026-04-28 01:27:39,164 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_1] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 01:27:39,164 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-04-28 01:27:39,195 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-04-28 01:27:39,195 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 40 条数据。
+2026-04-28 01:27:39,995 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_3] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 01:27:39,995 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-04-28 01:27:40,027 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-04-28 01:27:40,027 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 40 条数据。
+2026-04-28 01:27:40,802 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_0] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 01:27:40,802 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-04-28 01:27:40,817 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-04-28 01:27:40,818 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 40 条数据。
+2026-04-28 01:27:40,848 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_2] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 01:27:40,848 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-04-28 01:27:40,879 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-04-28 01:27:40,879 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 40 条数据。
+2026-04-28 01:27:40,880 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 160 条数据。
+2026-04-28 01:27:40,880 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 160 个岗位。
+2026-04-28 02:02:47,339 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
+2026-04-28 02:02:47,340 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-04-28 02:02:52,856 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 开始处理组合: '大数据' - '深圳'
+2026-04-28 02:02:53,105 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 开始处理组合: 'Java工程师' - '深圳'
+2026-04-28 02:02:53,673 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 开始处理组合: 'Java工程师' - '北京'
+2026-04-28 02:02:53,749 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 开始处理组合: '大数据' - '北京'
+2026-04-28 02:02:55,103 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
+2026-04-28 02:02:55,836 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
+2026-04-28 02:02:56,098 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 等待采集 -> 大数据 | 北京 | 第 1 页
+2026-04-28 02:02:56,278 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 等待采集 -> Java工程师 | 北京 | 第 1 页
+2026-04-28 02:02:57,949 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 02:02:57,950 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 准备并发获取 20 个职位详情...
+2026-04-28 02:02:58,391 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 02:02:58,489 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 02:02:58,491 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 准备并发获取 20 个职位详情...
+2026-04-28 02:02:58,881 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 02:02:58,881 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 02:02:58,882 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 准备并发获取 20 个职位详情...
+2026-04-28 02:02:58,882 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 准备并发获取 20 个职位详情...
+2026-04-28 02:02:59,054 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 02:02:59,282 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 02:02:59,343 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 02:02:59,661 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
+2026-04-28 02:03:00,094 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
+2026-04-28 02:03:00,473 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 等待采集 -> Java工程师 | 北京 | 第 2 页
+2026-04-28 02:03:00,597 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 等待采集 -> 大数据 | 北京 | 第 2 页
+2026-04-28 02:03:01,917 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 02:03:01,918 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 准备并发获取 20 个职位详情...
+2026-04-28 02:03:02,452 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 02:03:02,561 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 02:03:02,561 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 准备并发获取 20 个职位详情...
+2026-04-28 02:03:03,187 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 02:03:03,187 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 02:03:03,188 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 准备并发获取 20 个职位详情...
+2026-04-28 02:03:03,188 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 准备并发获取 20 个职位详情...
+2026-04-28 02:03:03,303 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 02:03:03,358 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
+2026-04-28 02:03:03,573 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 02:03:03,650 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 02:03:04,539 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 等待采集 -> 大数据 | 北京 | 第 3 页
+2026-04-28 02:03:04,554 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
+2026-04-28 02:03:04,806 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 等待采集 -> Java工程师 | 北京 | 第 3 页
+2026-04-28 02:03:05,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 02:03:05,982 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 准备并发获取 20 个职位详情...
+2026-04-28 02:03:06,372 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
+2026-04-28 02:03:06,372 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
+2026-04-28 02:03:06,372 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-04-28 02:03:06,394 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-04-28 02:03:06,394 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 60 条数据。
+2026-04-28 02:03:07,522 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 02:03:07,522 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 准备并发获取 20 个职位详情...
+2026-04-28 02:03:07,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
+2026-04-28 02:03:07,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
+2026-04-28 02:03:07,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-04-28 02:03:08,000 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-04-28 02:03:08,000 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 60 条数据。
+2026-04-28 02:03:21,999 - WARNING  - [api.job_search] [ThreadPoolExecutor-1_1] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 02:03:22,000 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-04-28 02:03:22,015 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-04-28 02:03:22,015 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 40 条数据。
+2026-04-28 02:03:22,338 - WARNING  - [api.job_search] [ThreadPoolExecutor-1_3] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 02:03:22,338 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-04-28 02:03:22,353 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-04-28 02:03:22,353 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 40 条数据。
+2026-04-28 02:03:22,354 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 200 条数据。
+2026-04-28 02:03:22,354 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 200 个岗位。
+2026-04-28 10:08:05,104 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
+2026-04-28 10:08:05,105 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-04-28 10:08:14,473 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 开始处理组合: 'Java工程师' - '深圳'
+2026-04-28 10:08:14,862 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 开始处理组合: 'Java工程师' - '北京'
+2026-04-28 10:08:14,986 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 开始处理组合: '大数据' - '深圳'
+2026-04-28 10:08:15,093 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 开始处理组合: '大数据' - '北京'
+2026-04-28 10:08:17,234 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
+2026-04-28 10:08:17,295 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 等待采集 -> 大数据 | 北京 | 第 1 页
+2026-04-28 10:08:17,442 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
+2026-04-28 10:08:17,531 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 等待采集 -> Java工程师 | 北京 | 第 1 页
+2026-04-28 10:08:20,169 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 10:08:20,176 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 10:08:20,178 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 10:08:20,179 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:20,179 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:20,185 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:20,279 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 10:08:20,280 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:20,796 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:20,939 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:20,964 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:21,135 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:21,888 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 等待采集 -> 大数据 | 北京 | 第 2 页
+2026-04-28 10:08:21,891 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
+2026-04-28 10:08:22,190 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
+2026-04-28 10:08:22,374 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 等待采集 -> Java工程师 | 北京 | 第 2 页
+2026-04-28 10:08:24,072 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 10:08:24,072 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:24,556 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 10:08:24,557 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:24,589 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:24,789 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 10:08:24,789 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:25,014 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 10:08:25,015 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:25,139 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:25,407 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:25,483 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:25,800 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 等待采集 -> 大数据 | 北京 | 第 3 页
+2026-04-28 10:08:26,189 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
+2026-04-28 10:08:26,284 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
+2026-04-28 10:08:26,674 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 等待采集 -> Java工程师 | 北京 | 第 3 页
+2026-04-28 10:08:28,080 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 10:08:28,081 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:28,661 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:28,661 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
+2026-04-28 10:08:28,661 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-04-28 10:08:28,682 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-04-28 10:08:28,682 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 60 条数据。
+2026-04-28 10:08:28,990 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 10:08:28,991 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 准备并发获取 20 个职位详情...
+2026-04-28 10:08:29,395 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 第 3 页详情获取完成，成功 20 / 20。
+2026-04-28 10:08:29,395 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
+2026-04-28 10:08:29,395 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-04-28 10:08:29,409 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-04-28 10:08:29,409 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 60 条数据。
+2026-04-28 10:08:42,692 - WARNING  - [api.job_search] [ThreadPoolExecutor-2_1] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 10:08:42,692 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-04-28 10:08:42,707 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-04-28 10:08:42,708 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 40 条数据。
+2026-04-28 10:08:43,460 - WARNING  - [api.job_search] [ThreadPoolExecutor-2_2] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 10:08:43,460 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-04-28 10:08:43,491 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-04-28 10:08:43,491 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 40 条数据。
+2026-04-28 10:08:43,492 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 200 条数据。
+2026-04-28 10:08:43,492 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 200 个岗位。
+2026-04-28 11:07:08,730 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
+2026-04-28 11:07:08,731 - INFO     - [api.job_search] [asyncio_0] - 智联爬虫浏览器: DrissionPage=4.1.1.2, 调试地址=127.0.0.1:9527, 预检 GET /json/version …
+2026-04-28 11:07:08,747 - INFO     - [api.job_search] [asyncio_0] - 智联爬虫浏览器预检成功: http://127.0.0.1:9527/json/version
+2026-04-28 11:07:08,799 - INFO     - [api.job_search] [asyncio_0] - 准备执行 4 个智联组合（单浏览器串行；配置项 JOB_SEARCH_MAX_CONCURRENT=10 对本接口不再启用线程池）。
+2026-04-28 11:07:14,618 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: '大数据' - '深圳'
+2026-04-28 11:07:16,976 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
+2026-04-28 11:07:19,522 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 11:07:19,523 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:07:19,880 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 11:07:20,706 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
+2026-04-28 11:07:22,972 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 11:07:22,972 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:07:23,346 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 11:07:24,418 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
+2026-04-28 11:07:41,871 - WARNING  - [api.job_search] [asyncio_0] - 在第 3 页等待数据超时，可能已无更多内容。
+2026-04-28 11:07:41,871 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-04-28 11:07:41,902 - INFO     - [api.job_search] [asyncio_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-04-28 11:07:41,902 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 40 条数据。
+2026-04-28 11:07:47,885 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: '大数据' - '北京'
+2026-04-28 11:07:50,143 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 北京 | 第 1 页
+2026-04-28 11:07:52,734 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 11:07:52,735 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:07:53,216 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 11:07:54,401 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 北京 | 第 2 页
+2026-04-28 11:08:11,785 - WARNING  - [api.job_search] [asyncio_0] - 在第 2 页等待数据超时，可能已无更多内容。
+2026-04-28 11:08:11,785 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-04-28 11:08:11,816 - INFO     - [api.job_search] [asyncio_0] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-04-28 11:08:11,816 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 20 条数据。
+2026-04-28 11:08:17,937 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: 'Java工程师' - '深圳'
+2026-04-28 11:08:20,219 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
+2026-04-28 11:08:22,870 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 11:08:22,871 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:08:23,535 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 11:08:24,407 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
+2026-04-28 11:08:27,021 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 11:08:27,021 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:08:27,462 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 11:08:28,716 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
+2026-04-28 11:08:31,440 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-04-28 11:08:31,441 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:08:31,834 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
+2026-04-28 11:08:31,835 - INFO     - [api.job_search] [asyncio_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
+2026-04-28 11:08:31,835 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-04-28 11:08:31,867 - INFO     - [api.job_search] [asyncio_0] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-04-28 11:08:31,867 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 60 条数据。
+2026-04-28 11:08:37,833 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: 'Java工程师' - '北京'
+2026-04-28 11:08:40,038 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 北京 | 第 1 页
+2026-04-28 11:08:42,673 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 11:08:42,673 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:08:43,125 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-04-28 11:08:44,114 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 北京 | 第 2 页
+2026-04-28 11:08:46,967 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 11:08:46,967 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:08:47,554 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
+2026-04-28 11:08:48,604 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 北京 | 第 3 页
+2026-04-28 11:08:51,376 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-04-28 11:08:51,377 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
+2026-04-28 11:08:51,889 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 第 3 页详情获取完成，成功 20 / 20。
+2026-04-28 11:08:51,889 - INFO     - [api.job_search] [asyncio_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
+2026-04-28 11:08:51,889 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-04-28 11:08:51,921 - INFO     - [api.job_search] [asyncio_0] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-04-28 11:08:51,921 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 60 条数据。
+2026-04-28 11:08:51,924 - INFO     - [api.job_search] [asyncio_0] - 已断开与调试浏览器的 DrissionPage 连接（未关闭 Chrome 进程）。
+2026-04-28 11:08:51,924 - INFO     - [api.job_search] [asyncio_0] - 所有智联组合完成，共采集到 180 条数据。
+2026-04-28 11:08:51,924 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 180 个岗位。

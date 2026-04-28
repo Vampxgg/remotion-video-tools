@@ -28,3 +28,69 @@
 2026-04-28 00:37:43,461 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
 2026-04-28 00:55:37,879 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
 2026-04-28 00:55:37,881 - INFO     - [main] [MainThread] - 应用关闭完成。
+2026-04-28 01:26:47,231 - INFO     - [__main__] [MainThread] - 主应用日志系统已启动。
+2026-04-28 01:26:47,232 - INFO     - [__main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 01:26:47,232 - INFO     - [__main__] [MainThread] - 正在加载路由模块...
+2026-04-28 01:26:47,315 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
+2026-04-28 01:26:47,315 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 01:26:47,316 - INFO     - [main] [MainThread] - 正在加载路由模块...
+2026-04-28 01:26:47,355 - INFO     - [main] [MainThread] - 应用启动...
+2026-04-28 01:26:51,422 - ERROR    - [main] [MainThread] - 数据库连接失败: [WinError 1225] 远程计算机拒绝网络连接。
+2026-04-28 01:26:51,423 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
+2026-04-28 01:26:51,423 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-04-28 01:26:52,114 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-04-28 01:26:52,784 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-04-28 01:26:53,466 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-04-28 11:05:13,776 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
+2026-04-28 11:05:14,311 - INFO     - [main] [MainThread] - 应用关闭完成。
+2026-04-28 11:05:31,265 - INFO     - [__main__] [MainThread] - 主应用日志系统已启动。
+2026-04-28 11:05:31,265 - INFO     - [__main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:31,265 - INFO     - [__main__] [MainThread] - 正在加载路由模块...
+2026-04-28 11:05:35,118 - INFO     - [__mp_main__] [MainThread] - 主应用日志系统已启动。
+2026-04-28 11:05:35,118 - INFO     - [__mp_main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,118 - INFO     - [__mp_main__] [MainThread] - 正在加载路由模块...
+2026-04-28 11:05:35,136 - INFO     - [__mp_main__] [MainThread] - 主应用日志系统已启动。
+2026-04-28 11:05:35,136 - INFO     - [__mp_main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,136 - INFO     - [__mp_main__] [MainThread] - 正在加载路由模块...
+2026-04-28 11:05:35,145 - INFO     - [__mp_main__] [MainThread] - 主应用日志系统已启动。
+2026-04-28 11:05:35,146 - INFO     - [__mp_main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,146 - INFO     - [__mp_main__] [MainThread] - 正在加载路由模块...
+2026-04-28 11:05:35,148 - INFO     - [__mp_main__] [MainThread] - 主应用日志系统已启动。
+2026-04-28 11:05:35,148 - INFO     - [__mp_main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,148 - INFO     - [__mp_main__] [MainThread] - 正在加载路由模块...
+2026-04-28 11:05:35,613 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
+2026-04-28 11:05:35,614 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,614 - INFO     - [main] [MainThread] - 正在加载路由模块...
+2026-04-28 11:05:35,614 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
+2026-04-28 11:05:35,614 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,615 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,615 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-04-28 11:05:35,615 - INFO     - [main] [MainThread] - 正在加载路由模块...
+2026-04-28 11:05:35,647 - INFO     - [main] [MainThread] - 应用启动...
+2026-04-28 11:05:35,649 - INFO     - [main] [MainThread] - 应用启动...
+2026-04-28 11:05:35,649 - INFO     - [main] [MainThread] - 应用启动...
+2026-04-28 11:05:35,649 - INFO     - [main] [MainThread] - 应用启动...
+2026-04-28 11:05:39,699 - ERROR    - [main] [MainThread] - 数据库连接失败: Multiple exceptions: [Errno 10061] Connect call failed ('::1', 5432, 0, 0), [Errno 10061] Connect call failed ('127.0.0.1', 5432)
+2026-04-28 11:05:39,700 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
+2026-04-28 11:05:39,700 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
+2026-04-28 11:05:39,700 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
+2026-04-28 11:05:39,700 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-04-28 11:05:39,701 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-04-28 11:05:39,701 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-04-28 11:05:39,701 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-04-28 11:05:40,725 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-04-28 11:05:40,734 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-04-28 11:05:40,736 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-04-28 11:05:40,737 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-04-28 11:05:41,780 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-04-28 11:05:41,791 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-04-28 11:05:41,799 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-04-28 11:05:41,800 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-04-28 11:05:42,797 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-04-28 11:05:42,801 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-04-28 11:05:42,815 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-04-28 11:05:42,818 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-04-28 11:11:05,466 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
+2026-04-28 11:11:05,474 - INFO     - [main] [MainThread] - 应用关闭完成。
+2026-04-28 11:11:05,558 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
+2026-04-28 11:11:05,565 - INFO     - [main] [MainThread] - 应用关闭完成。

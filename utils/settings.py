@@ -38,7 +38,7 @@ class _Base(BaseSettings):
 class AppSettings(_Base):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 2906
-    APP_WORKERS: int = 1
+    APP_WORKERS: int = 4
     APP_PUBLIC_BASE_URL: str = "http://127.0.0.1:2906"
     CORS_ALLOW_ORIGINS: List[str] = ["*"]
     # 当 CORS_ALLOW_ORIGINS=["*"] 时，CORS 规范要求 allow_credentials 必须为 False

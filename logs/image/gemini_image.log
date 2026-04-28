@@ -2,3 +2,11 @@
 2026-04-28 00:23:13,986 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360.0s 供单次请求覆盖使用。
 2026-04-28 00:37:42,818 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360.0s 供单次请求覆盖使用。
 2026-04-28 00:55:37,880 - INFO     - [api.cre_image] [MainThread] - httpx.AsyncClient 已关闭 (cre_image)。
+2026-04-28 01:26:52,783 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360.0s 供单次请求覆盖使用。
+2026-04-28 11:05:14,309 - INFO     - [api.cre_image] [MainThread] - httpx.AsyncClient 已关闭 (cre_image)。
+2026-04-28 11:05:41,780 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360.0s 供单次请求覆盖使用。
+2026-04-28 11:05:41,791 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360.0s 供单次请求覆盖使用。
+2026-04-28 11:05:41,798 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360.0s 供单次请求覆盖使用。
+2026-04-28 11:05:41,800 - INFO     - [api.cre_image] [MainThread] - 全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 360.0s 供单次请求覆盖使用。
+2026-04-28 11:11:05,472 - INFO     - [api.cre_image] [MainThread] - httpx.AsyncClient 已关闭 (cre_image)。
+2026-04-28 11:11:05,564 - INFO     - [api.cre_image] [MainThread] - httpx.AsyncClient 已关闭 (cre_image)。

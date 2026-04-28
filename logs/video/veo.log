@@ -2,3 +2,11 @@
 2026-04-28 00:23:13,296 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已创建。
 2026-04-28 00:37:42,132 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已创建。
 2026-04-28 00:55:37,880 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭。
+2026-04-28 01:26:52,113 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已创建。
+2026-04-28 11:05:14,310 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭。
+2026-04-28 11:05:40,724 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已创建。
+2026-04-28 11:05:40,734 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已创建。
+2026-04-28 11:05:40,736 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已创建。
+2026-04-28 11:05:40,737 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已创建。
+2026-04-28 11:11:05,473 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭。
+2026-04-28 11:11:05,564 - INFO     - [api.cre_video] [MainThread] - 全局共享 httpx.AsyncClient 已成功关闭。

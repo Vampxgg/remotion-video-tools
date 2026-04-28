@@ -8,3 +8,24 @@
 2026-04-28 00:37:41,436 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
 2026-04-28 00:55:37,880 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
 2026-04-28 00:55:37,881 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
+2026-04-28 01:26:45,143 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-04-28 01:26:51,423 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-04-28 01:26:51,423 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
+2026-04-28 11:05:14,310 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
+2026-04-28 11:05:14,310 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
+2026-04-28 11:05:26,559 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-04-28 11:05:32,619 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-04-28 11:05:32,650 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-04-28 11:05:32,659 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-04-28 11:05:32,668 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-04-28 11:05:39,700 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-04-28 11:05:39,700 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
+2026-04-28 11:05:39,700 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-04-28 11:05:39,700 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-04-28 11:05:39,701 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
+2026-04-28 11:05:39,701 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-04-28 11:05:39,701 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
+2026-04-28 11:11:05,473 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
+2026-04-28 11:11:05,473 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
+2026-04-28 11:11:05,564 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
+2026-04-28 11:11:05,564 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
