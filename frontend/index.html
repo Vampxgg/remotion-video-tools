@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gemini Live API 控制台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Vertex AI Gemini Live API</p>
+          <h1>实时语音与视频演示台</h1>
+          <p class="muted">通过本项目 FastAPI WebSocket 中继连接 Gemini Live，支持文本、麦克风、摄像头、转写和打断。</p>
+        </div>
+        <div class="status-card">
+          <span id="statusDot" class="dot idle"></span>
+          <div>
+            <strong id="statusText">未连接</strong>
+            <small id="latencyText">等待连接</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="grid">
+        <section class="panel controls">
+          <h2>连接配置</h2>
+          <label>
+            WebSocket 地址
+            <input id="wsUrl" type="text" />
+          </label>
+          <div class="row">
+            <label>
+              模型
+              <input id="model" type="text" />
+            </label>
+            <label>
+              语言
+              <input id="languageCode" type="text" value="zh-CN" />
+            </label>
+          </div>
+          <label>
+            系统指令
+            <textarea id="systemInstruction" rows="4">你是一个实时语音助手。请使用简体中文自然、简洁地回答用户。</textarea>
+          </label>
+          <div class="checks">
+            <label><input id="enableAudio" type="checkbox" checked /> 音频输出</label>
+            <label><input id="enableText" type="checkbox" /> 文本输出</label>
+            <label><input id="enableTranscription" type="checkbox" checked /> 启用音频转写</label>
+            <label><input id="enableAffectiveDialog" type="checkbox" checked /> 共情对话</label>
+            <label><input id="proactiveAudio" type="checkbox" /> 主动音频</label>
+            <label><input id="mockMode" type="checkbox" /> Mock 模式</label>
+          </div>
+          <div class="actions">
+            <button id="connectBtn" class="primary">连接</button>
+            <button id="disconnectBtn" disabled>断开</button>
+          </div>
+        </section>
+
+        <section class="panel media">
+          <h2>实时输入</h2>
+          <div class="actions">
+            <button id="micBtn" disabled>启动麦克风</button>
+            <button id="cameraBtn" disabled>启动摄像头</button>
+            <button id="clearAudioBtn">清空播放缓冲</button>
+          </div>
+          <video id="preview" autoplay muted playsinline></video>
+          <p class="muted">麦克风会重采样为 16kHz PCM；摄像头以 1FPS JPEG 帧发送。</p>
+        </section>
+
+        <section class="panel chat">
+          <h2>文字对话</h2>
+          <form id="textForm" class="text-form">
+            <textarea id="textInput" rows="3" placeholder="输入文字并发送给 Gemini"></textarea>
+            <button id="sendTextBtn" class="primary" disabled>发送</button>
+          </form>
+          <div id="transcripts" class="transcripts"></div>
+        </section>
+
+        <section class="panel events">
+          <h2>事件日志</h2>
+          <div id="eventLog" class="event-log"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

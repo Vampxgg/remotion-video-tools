@@ -1,0 +1,822 @@
+{
+    "step_id": "1",
+    "step_name": "安全防护",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始执行安全防护步骤",
+    "evidence_trace": null,
+    "start_time": "00:00:00",
+    "end_time": "00:00:01",
+    "progress_percentage": 1,
+    "completion_timestamp": "00:00:01",
+    "summary": null
+}
+{
+    "step_id": "1",
+    "step_name": "安全防护",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "检测到学员已规范佩戴手套",
+    "evidence_trace": {
+        "kop_name": "佩戴耐磨手套",
+        "ai_recognition_clues": "视觉识别到学员双手已佩戴白色手套，且手套完好无破损",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 2,
+            "score_earned": 2,
+            "aiReasoning": "符合SOP要求，操作前已佩戴手套",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:01",
+    "end_time": "00:00:02",
+    "progress_percentage": 2,
+    "completion_timestamp": "00:00:02",
+    "summary": null
+}
+{
+    "step_id": "1",
+    "step_name": "安全防护",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "安全防护步骤完成",
+    "evidence_trace": null,
+    "start_time": "00:00:00",
+    "end_time": "00:00:02",
+    "progress_percentage": 3,
+    "completion_timestamp": "00:00:02",
+    "summary": null
+}
+{
+    "step_id": "2",
+    "step_name": "连接万用表线束",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始连接万用表线束",
+    "evidence_trace": null,
+    "start_time": "00:00:03",
+    "end_time": "00:00:04",
+    "progress_percentage": 4,
+    "completion_timestamp": "00:00:04",
+    "summary": null
+}
+{
+    "step_id": "2",
+    "step_name": "连接万用表线束",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "红色线束正确连接",
+    "evidence_trace": {
+        "kop_name": "红色线束连接",
+        "ai_recognition_clues": "识别到红色表笔插入万用表最右侧插孔",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 1,
+            "score_earned": 1,
+            "aiReasoning": "红色线束插孔位置正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:04",
+    "end_time": "00:00:09",
+    "progress_percentage": 6,
+    "completion_timestamp": "00:00:09",
+    "summary": null
+}
+{
+    "step_id": "2",
+    "step_name": "连接万用表线束",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "黑色线束正确连接",
+    "evidence_trace": {
+        "kop_name": "黑色线束连接",
+        "ai_recognition_clues": "识别到黑色表笔插入万用表右数第二插孔(COM孔)",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 1,
+            "score_earned": 1,
+            "aiReasoning": "黑色线束插孔位置正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:09",
+    "end_time": "00:00:15",
+    "progress_percentage": 8,
+    "completion_timestamp": "00:00:15",
+    "summary": null
+}
+{
+    "step_id": "2",
+    "step_name": "连接万用表线束",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "万用表线束连接完成",
+    "evidence_trace": null,
+    "start_time": "00:00:03",
+    "end_time": "00:00:15",
+    "progress_percentage": 10,
+    "completion_timestamp": "00:00:15",
+    "summary": null
+}
+{
+    "step_id": "3",
+    "step_name": "万用表校零",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始万用表校零",
+    "evidence_trace": null,
+    "start_time": "00:00:16",
+    "end_time": "00:00:17",
+    "progress_percentage": 11,
+    "completion_timestamp": "00:00:17",
+    "summary": null
+}
+{
+    "step_id": "3",
+    "step_name": "万用表校零",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "万用表打到蜂鸣挡并短接表笔",
+    "evidence_trace": {
+        "kop_name": "表笔对接校零",
+        "ai_recognition_clues": "识别到万用表旋钮转动，红黑表笔金属笔尖对接",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 3,
+            "score_earned": 3,
+            "aiReasoning": "校零动作规范，符合SOP要求",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:17",
+    "end_time": "00:00:29",
+    "progress_percentage": 13,
+    "completion_timestamp": "00:00:29",
+    "summary": null
+}
+{
+    "step_id": "3",
+    "step_name": "万用表校零",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "万用表校零完成",
+    "evidence_trace": null,
+    "start_time": "00:00:16",
+    "end_time": "00:00:29",
+    "progress_percentage": 15,
+    "completion_timestamp": "00:00:29",
+    "summary": null
+}
+{
+    "step_id": "4",
+    "step_name": "电池内阻测试仪线束连接",
+    "event_type": "STEP_START",
+    "status": "warning",
+    "description": "检测到学员跳过此步骤，直接进行电压测量",
+    "evidence_trace": null,
+    "start_time": "00:00:29",
+    "end_time": "00:00:29",
+    "progress_percentage": 15,
+    "completion_timestamp": "00:00:29",
+    "summary": null
+}
+{
+    "step_id": "4",
+    "step_name": "电池内阻测试仪线束连接",
+    "event_type": "STEP_COMPLETE",
+    "status": "error",
+    "description": "步骤被跳过，记录顺序违规",
+    "evidence_trace": {
+        "kop_name": "步骤完整性校验",
+        "ai_recognition_clues": "系统状态机检测到后续步骤动作，当前步骤未见执行动作",
+        "is_deducted": true,
+        "scoring": {
+            "weight_total": 3,
+            "score_earned": 0,
+            "aiReasoning": "学员未按SOP顺序执行，直接跳过了内阻仪线束连接",
+            "deduction_reasons": [
+                "顺序违规：步骤未执行被跳过 (扣顺序分)"
+            ]
+        },
+        "error_category": "sequence",
+        "error_severity": "high"
+    },
+    "start_time": "00:00:29",
+    "end_time": "00:00:29",
+    "progress_percentage": 15,
+    "completion_timestamp": "00:00:29",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "STEP_START",
+    "status": "warning",
+    "description": "检测到学员跳过此步骤，直接进行电压测量",
+    "evidence_trace": null,
+    "start_time": "00:00:29",
+    "end_time": "00:00:29",
+    "progress_percentage": 15,
+    "completion_timestamp": "00:00:29",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "STEP_COMPLETE",
+    "status": "error",
+    "description": "步骤被跳过，记录顺序违规",
+    "evidence_trace": {
+        "kop_name": "步骤完整性校验",
+        "ai_recognition_clues": "系统状态机检测到直接进入步骤6，步骤5未执行",
+        "is_deducted": true,
+        "scoring": {
+            "weight_total": 36,
+            "score_earned": 0,
+            "aiReasoning": "学员未按SOP顺序执行内阻测量",
+            "deduction_reasons": [
+                "顺序违规：步骤未执行被跳过 (扣顺序分)"
+            ]
+        },
+        "error_category": "sequence",
+        "error_severity": "high"
+    },
+    "start_time": "00:00:29",
+    "end_time": "00:00:29",
+    "progress_percentage": 15,
+    "completion_timestamp": "00:00:29",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始测量六个电芯的电压",
+    "evidence_trace": null,
+    "start_time": "00:00:30",
+    "end_time": "00:00:31",
+    "progress_percentage": 16,
+    "completion_timestamp": "00:00:31",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量1号电芯电压",
+    "evidence_trace": {
+        "kop_name": "1号电芯电压测量",
+        "ai_recognition_clues": "红表笔接1号正极，黑表笔接负极，万用表显示3.289V",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性连接正确，读数稳定",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:31",
+    "end_time": "00:00:39",
+    "progress_percentage": 20,
+    "completion_timestamp": "00:00:39",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量2号电芯电压",
+    "evidence_trace": {
+        "kop_name": "2号电芯电压测量",
+        "ai_recognition_clues": "红表笔接2号正极，黑表笔接负极，万用表显示3.287V",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性连接正确，顺序正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:40",
+    "end_time": "00:00:44",
+    "progress_percentage": 25,
+    "completion_timestamp": "00:00:44",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量3号电芯电压",
+    "evidence_trace": {
+        "kop_name": "3号电芯电压测量",
+        "ai_recognition_clues": "红表笔接3号正极，黑表笔接负极，万用表显示3.288V",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性连接正确，顺序正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:45",
+    "end_time": "00:00:48",
+    "progress_percentage": 30,
+    "completion_timestamp": "00:00:48",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量4号电芯电压",
+    "evidence_trace": {
+        "kop_name": "4号电芯电压测量",
+        "ai_recognition_clues": "红表笔接4号正极，黑表笔接负极，万用表显示3.286V",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性连接正确，顺序正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:49",
+    "end_time": "00:00:51",
+    "progress_percentage": 35,
+    "completion_timestamp": "00:00:51",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量5号电芯电压",
+    "evidence_trace": {
+        "kop_name": "5号电芯电压测量",
+        "ai_recognition_clues": "红表笔接5号正极，黑表笔接负极，万用表显示3.289V",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性连接正确，顺序正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:52",
+    "end_time": "00:00:55",
+    "progress_percentage": 40,
+    "completion_timestamp": "00:00:55",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量6号电芯电压",
+    "evidence_trace": {
+        "kop_name": "6号电芯电压测量",
+        "ai_recognition_clues": "红表笔接6号正极，黑表笔接负极，万用表显示3.288V",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性连接正确，顺序正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "00:00:56",
+    "end_time": "00:00:59",
+    "progress_percentage": 45,
+    "completion_timestamp": "00:00:59",
+    "summary": null
+}
+{
+    "step_id": "6",
+    "step_name": "六个电芯电压测量",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "六个电芯电压测量完毕",
+    "evidence_trace": null,
+    "start_time": "00:00:30",
+    "end_time": "00:00:59",
+    "progress_percentage": 50,
+    "completion_timestamp": "00:00:59",
+    "summary": null
+}
+{
+    "step_id": "4",
+    "step_name": "电池内阻测试仪线束连接",
+    "event_type": "PROCESSING",
+    "status": "warning",
+    "description": "学员回头补做内阻仪线束连接",
+    "evidence_trace": {
+        "kop_name": "内阻仪线束连接",
+        "ai_recognition_clues": "识别到学员将线束插入内阻测试仪并拧紧",
+        "is_deducted": true,
+        "scoring": {
+            "weight_total": 3,
+            "score_earned": 2,
+            "aiReasoning": "动作正确但发生乱序补做，触发扣分",
+            "deduction_reasons": [
+                "乱序/补做 (-1分)"
+            ]
+        },
+        "error_category": "sequence",
+        "error_severity": "low"
+    },
+    "start_time": "01:00:00",
+    "end_time": "01:12:00",
+    "progress_percentage": 55,
+    "completion_timestamp": "01:12:00",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "PROCESSING",
+    "status": "warning",
+    "description": "学员回头补做1号电芯内阻测量",
+    "evidence_trace": {
+        "kop_name": "1号电芯内阻测量",
+        "ai_recognition_clues": "红色夹子夹1号正极，黑色夹子夹负极",
+        "is_deducted": true,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 5,
+            "aiReasoning": "动作正确但整体步骤发生乱序，首个KOP触发乱序扣分",
+            "deduction_reasons": [
+                "乱序/补做 (-1分)"
+            ]
+        },
+        "error_category": "sequence",
+        "error_severity": "low"
+    },
+    "start_time": "01:13:00",
+    "end_time": "01:16:00",
+    "progress_percentage": 60,
+    "completion_timestamp": "01:16:00",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量2号电芯内阻",
+    "evidence_trace": {
+        "kop_name": "2号电芯内阻测量",
+        "ai_recognition_clues": "夹具移至2号电芯正负极进行测量",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性与位置正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "01:17:00",
+    "end_time": "01:21:00",
+    "progress_percentage": 65,
+    "completion_timestamp": "01:21:00",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量3号电芯内阻",
+    "evidence_trace": {
+        "kop_name": "3号电芯内阻测量",
+        "ai_recognition_clues": "夹具移至3号电芯正负极进行测量",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性与位置正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "01:22:00",
+    "end_time": "01:27:00",
+    "progress_percentage": 70,
+    "completion_timestamp": "01:27:00",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量4号电芯内阻",
+    "evidence_trace": {
+        "kop_name": "4号电芯内阻测量",
+        "ai_recognition_clues": "夹具移至4号电芯正负极进行测量",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性与位置正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "01:28:00",
+    "end_time": "01:33:00",
+    "progress_percentage": 75,
+    "completion_timestamp": "01:33:00",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量5号电芯内阻",
+    "evidence_trace": {
+        "kop_name": "5号电芯内阻测量",
+        "ai_recognition_clues": "夹具移至5号电芯正负极进行测量",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性与位置正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "01:34:00",
+    "end_time": "01:42:00",
+    "progress_percentage": 80,
+    "completion_timestamp": "01:42:00",
+    "summary": null
+}
+{
+    "step_id": "5",
+    "step_name": "六个电芯内阻测量",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "测量6号电芯内阻",
+    "evidence_trace": {
+        "kop_name": "6号电芯内阻测量",
+        "ai_recognition_clues": "夹具移至6号电芯正负极进行测量",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "极性与位置正确",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "01:43:00",
+    "end_time": "01:49:00",
+    "progress_percentage": 85,
+    "completion_timestamp": "01:49:00",
+    "summary": null
+}
+{
+    "step_id": "7",
+    "step_name": "恢复操作台（万用表关机）",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始恢复操作台",
+    "evidence_trace": null,
+    "start_time": "02:01:00",
+    "end_time": "02:01:00",
+    "progress_percentage": 86,
+    "completion_timestamp": "02:01:00",
+    "summary": null
+}
+{
+    "step_id": "7",
+    "step_name": "恢复操作台（万用表关机）",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "万用表关机",
+    "evidence_trace": {
+        "kop_name": "万用表关机",
+        "ai_recognition_clues": "识别到万用表旋钮被打到OFF挡位",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 4,
+            "score_earned": 4,
+            "aiReasoning": "正确执行关机操作",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "02:01:00",
+    "end_time": "02:03:00",
+    "progress_percentage": 88,
+    "completion_timestamp": "02:03:00",
+    "summary": null
+}
+{
+    "step_id": "7",
+    "step_name": "恢复操作台（万用表关机）",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "万用表关机完成",
+    "evidence_trace": null,
+    "start_time": "02:01:00",
+    "end_time": "02:03:00",
+    "progress_percentage": 90,
+    "completion_timestamp": "02:03:00",
+    "summary": null
+}
+{
+    "step_id": "8",
+    "step_name": "拔出万用表线束",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始拔出万用表线束",
+    "evidence_trace": null,
+    "start_time": "02:04:00",
+    "end_time": "02:04:00",
+    "progress_percentage": 91,
+    "completion_timestamp": "02:04:00",
+    "summary": null
+}
+{
+    "step_id": "8",
+    "step_name": "拔出万用表线束",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "拔出万用表红黑表笔",
+    "evidence_trace": {
+        "kop_name": "拔出万用表线束",
+        "ai_recognition_clues": "识别到红黑表笔插头自万用表端拔出并放置于旁边",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 4,
+            "score_earned": 4,
+            "aiReasoning": "规范拔出并收纳",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "02:04:00",
+    "end_time": "02:06:00",
+    "progress_percentage": 93,
+    "completion_timestamp": "02:06:00",
+    "summary": null
+}
+{
+    "step_id": "8",
+    "step_name": "拔出万用表线束",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "万用表线束拔出完成",
+    "evidence_trace": null,
+    "start_time": "02:04:00",
+    "end_time": "02:06:00",
+    "progress_percentage": 94,
+    "completion_timestamp": "02:06:00",
+    "summary": null
+}
+{
+    "step_id": "9",
+    "step_name": "拔出电池内阻测试仪线束",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始拔出内阻仪线束",
+    "evidence_trace": null,
+    "start_time": "02:07:00",
+    "end_time": "02:07:00",
+    "progress_percentage": 95,
+    "completion_timestamp": "02:07:00",
+    "summary": null
+}
+{
+    "step_id": "9",
+    "step_name": "拔出电池内阻测试仪线束",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "拔出内阻仪线束",
+    "evidence_trace": {
+        "kop_name": "拔出内阻仪线束",
+        "ai_recognition_clues": "识别到线束自内阻仪端拔出",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 4,
+            "score_earned": 4,
+            "aiReasoning": "规范拔出并整理",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "02:07:00",
+    "end_time": "02:09:00",
+    "progress_percentage": 96,
+    "completion_timestamp": "02:09:00",
+    "summary": null
+}
+{
+    "step_id": "9",
+    "step_name": "拔出电池内阻测试仪线束",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "内阻仪线束拔出完成",
+    "evidence_trace": null,
+    "start_time": "02:07:00",
+    "end_time": "02:09:00",
+    "progress_percentage": 97,
+    "completion_timestamp": "02:09:00",
+    "summary": null
+}
+{
+    "step_id": "10",
+    "step_name": "清理整理工作台面",
+    "event_type": "STEP_START",
+    "status": "info",
+    "description": "开始清理台面",
+    "evidence_trace": null,
+    "start_time": "02:10:00",
+    "end_time": "02:10:00",
+    "progress_percentage": 98,
+    "completion_timestamp": "02:10:00",
+    "summary": null
+}
+{
+    "step_id": "10",
+    "step_name": "清理整理工作台面",
+    "event_type": "PROCESSING",
+    "status": "succeed",
+    "description": "清理工具与线材",
+    "evidence_trace": {
+        "kop_name": "整理台面",
+        "ai_recognition_clues": "识别到表笔、夹具归位，台面无杂物",
+        "is_deducted": false,
+        "scoring": {
+            "weight_total": 6,
+            "score_earned": 6,
+            "aiReasoning": "符合实训室6S要求",
+            "deduction_reasons": []
+        },
+        "error_category": null,
+        "error_severity": null
+    },
+    "start_time": "02:10:00",
+    "end_time": "02:15:00",
+    "progress_percentage": 99,
+    "completion_timestamp": "02:15:00",
+    "summary": null
+}
+{
+    "step_id": "10",
+    "step_name": "清理整理工作台面",
+    "event_type": "STEP_COMPLETE",
+    "status": "succeed",
+    "description": "实训彻底结束，现场清理完毕",
+    "evidence_trace": null,
+    "start_time": "02:10:00",
+    "end_time": "02:15:00",
+    "progress_percentage": 100,
+    "completion_timestamp": "02:15:00",
+    "summary": {
+        "total_score": 98,
+        "total_max_score": 100,
+        "accuracy_rate": "98.00%",
+        "overall_comment": "操作动作基本规范，各测量点数据读取正确。但在流程执行中出现了先测电压后测内阻的跳步与乱序补做现象，导致顺序扣分。建议后续严格遵循SOP规定流程，避免漏项与乱序。"
+    }
+}

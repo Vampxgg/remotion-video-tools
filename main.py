@@ -12,7 +12,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
-    job_search, fish_asr, fenbi_gateway, video_compress
+    job_search, job_search_v2, fish_asr, fenbi_gateway, video_compress, gemini_live
 from fastapi.staticfiles import StaticFiles
 from db.database import engine, Base, get_db
 from utils.settings import settings
@@ -78,6 +78,8 @@ _LIFESPAN_MODULES = [
     cre_video,
     cre_image,
     fish_asr,
+    job_search_v2,
+    gemini_live,
 ]
 
 
@@ -131,6 +133,9 @@ app = FastAPI(
 static_dir = settings.static_dir_abs
 os.makedirs(static_dir, exist_ok=True)
 app.mount(f"/{settings.STATIC_DIR}", StaticFiles(directory=static_dir), name="static")
+frontend_dir = settings.project_root / settings.GEMINI_LIVE_FRONTEND_DIR
+os.makedirs(frontend_dir, exist_ok=True)
+app.mount("/frontend", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
 # 配置 CORS 中间件
 app.add_middleware(
     CORSMiddleware,
@@ -151,9 +156,11 @@ app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
 app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
 app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
+app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
 app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
 app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
 app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])
+app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])
 
 # app.include_router(auth.router)
 

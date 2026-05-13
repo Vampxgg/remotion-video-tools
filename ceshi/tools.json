@@ -1,303 +1,224 @@
 {
-  "openapi": "3.0.3",
-  "info": {
-    "title": "Nano Banana 2",
-    "description": "文生图 / 图生图：POST /api/generate_image。Dify 友好：整数/布尔常被当成字符串传入，服务端会自动转换；reference_images 可传 JSON 数组字符串；单张参考图可只填 reference_image_url（https）。成功时图片在 data.images[].public_url。",
-    "version": "v1.1.0"
-  },
-  "servers": [
-    {
-      "url": "http://35.232.154.66:2906"
-    }
-  ],
-  "paths": {
-    "/api/generate_image": {
-      "post": {
-        "summary": "文生图 / 图生图 (Vertex Gemini)",
-        "operationId": "generate_image",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GenerateImagePayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "业务成功或失败均可能为 200，请结合 code 与 message；图片在 data.images",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StandardResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "FastAPI / Pydantic 校验错误",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
+  "sop_name": "动力电池电芯性能核心参数测量",
+  "total_scoring_points": 100.0,
+  "steps": [
+      {
+          "id": 1,
+          "step_name": "安全防护",
+          "description": "佩戴耐磨手套。",
+          "scoring_criteria": "需佩戴耐磨手套，并规范佩戴，手套应完好，佩戴到位后方可接触万用表、内阻仪及电芯。",
+          "keywords_required": [
+              "手套",
+              "佩戴",
+              "防护"
+          ],
+          "deduction_rule": "未佩戴或未规范佩戴耐磨手套，本项2分全扣（该项不得分）。",
+          "ai_recognition_clues": "检测学员双手佩戴耐磨手套的状态，手套应完好且佩戴到位。监测手部与设备/电芯的接触区域，确保在佩戴手套后进行。",
+          "aiReasoning": "IF 视觉模型检测到学员双手规范佩戴耐磨手套，且手套完好，AND 在接触万用表/内阻仪/电芯前已完成佩戴 THEN Pass ELSE 扣2分。",
+          "forbidden_action": [
+              "开始操作设备/电芯前未佩戴手套",
+              "佩戴后仍裸手接触带电测量端（经认定）"
+          ],
+          "weight": 2.0,
+          "other": {}
+      },
+      {
+          "id": 2,
+          "step_name": "连接万用表线束",
+          "description": "1、红色线束连接最右边插孔；2、黑色线束连接右二插孔；",
+          "scoring_criteria": "红色线束需连接万用表最右侧插孔，黑色线束连接右数第二插孔，并插紧，轻拉确认不脱落。以本工位万用表丝印为准。",
+          "keywords_required": [
+              "红色",
+              "最右边",
+              "黑色",
+              "右二",
+              "插紧"
+          ],
+          "deduction_rule": "红色未插「最右侧」孔位，或黑色未插「右数第二」孔位，或未插紧导致松动，本项2分全扣。",
+          "ai_recognition_clues": "检测万用表插孔面板，识别红色表笔插头插入最右侧插孔，黑色表笔插头插入右数第二插孔。检测插头是否完全插入，并检测是否有轻拉确认的动作，同时监测口述内容是否包含关键词。",
+          "aiReasoning": "IF 视觉模型检测到红色插头在最右侧孔位且黑色插头在右二孔位，且插头插入深度足够，AND 语音模型检测到关键词 '红色', '最右边', '黑色', '右二', '插紧' THEN Pass ELSE 扣2分。",
+          "forbidden_action": [
+              "插孔与颜色规定不符",
+              "插头虚接经提示仍未纠正"
+          ],
+          "weight": 2.0,
+          "other": {}
+      },
+      {
+          "id": 3,
+          "step_name": "万用表校零",
+          "description": "打到蜂鸣挡，红黑表笔对接，万用表发出蜂鸣声；",
+          "scoring_criteria": "需将万用表旋钮旋至蜂鸣挡，红黑表笔金属笔尖对接，万用表发出蜂鸣声，口述校零结果。",
+          "keywords_required": [
+              "蜂鸣挡",
+              "对接",
+              "蜂鸣声"
+          ],
+          "deduction_rule": "未旋至蜂鸣挡完成短接校核；或短接后无声且未排查档位/表笔/线束即进入后续步骤，本项3分全扣。",
+          "ai_recognition_clues": "检测万用表旋钮位置是否在蜂鸣挡。检测红黑表笔金属笔尖的接触动作。检测是否有蜂鸣声事件发生。监测口述内容是否包含关键词。",
+          "aiReasoning": "IF 视觉模型检测到万用表旋钮在蜂鸣挡，且红黑表笔金属笔尖对接，AND 听觉模型检测到蜂鸣声，AND 语音模型检测到关键词 '蜂鸣正常' 或 '已排故' THEN Pass ELSE 扣3分。",
+          "forbidden_action": [
+              "未在蜂鸣挡对接",
+              "无声仍继续测量"
+          ],
+          "weight": 3.0,
+          "other": {}
+      },
+      {
+          "id": 4,
+          "step_name": "电池内阻测试仪线束连接",
+          "description": "线束插入内阻测试仪，拧紧；",
+          "scoring_criteria": "线束需完全插入内阻测试仪指定接口，并按规程拧紧防松。口述已插入并拧紧。",
+          "keywords_required": [
+              "内阻测试仪",
+              "插入",
+              "拧紧"
+          ],
+          "deduction_rule": "线束未完全插入指定接口，或未按规程拧紧防松，本项3分全扣。松动易导致读数跳变或误判为已完成测量。",
+          "ai_recognition_clues": "检测电池内阻测试仪的接口区域，识别测试线插头完全插入以及锁紧螺母的旋转拧紧动作。监测口述内容是否包含关键词。",
+          "aiReasoning": "IF 视觉模型检测到测试线插头完全插入内阻测试仪，且检测到拧紧动作，AND 语音模型检测到关键词 '已插入并拧紧' THEN Pass ELSE 扣3分。",
+          "forbidden_action": [
+              "未插入",
+              "未拧紧或反插（以仪器标识为准）"
+          ],
+          "weight": 3.0,
+          "other": {}
+      },
+      {
+          "id": 5,
+          "step_name": "六个电芯内阻测量",
+          "description": "将红色夹子夹住1号电芯正极；将黑色夹子夹住1号电芯负极；读取1号电芯内阻值并记录；将红色夹子夹住2号电芯正极；将黑色夹子夹住2号电芯负极；读取2号电芯内阻值并记录；将红色夹子夹住3号电芯正极；将黑色夹子夹住3号电芯负极；读取3号电芯内阻值并记录；将红色夹子夹住4号电芯正极；将黑色夹子夹住4号电芯负极；读取4号电芯内阻值并记录；将红色夹子夹住5号电芯正极；将黑色夹子夹住5号电芯负极；读取5号电芯内阻值并记录；将红色夹子夹住6号电芯正极；将黑色夹子夹住6号电芯负极；读取6号电芯内阻值并记录；",
+          "scoring_criteria": "每一只电芯（1～6号）均须完成：红夹接正极、黑夹接负极、读数稳定后记录。测量顺序须为1→2→3→4→5→6，禁止跳号漏测。逐号报读或确认测量完成。",
+          "keywords_required": [
+              "红色夹子",
+              "正极",
+              "黑色夹子",
+              "负极",
+              "内阻",
+              "记录"
+          ],
+          "deduction_rule": "【扣分累计细则】1）以「步骤操作否定项」及现场考评规则为准，每查实1处扣2分；2）本模块（六个电芯内阻测量）合计最高扣18分，不累加超出部分；3）与上述否定项等价的极性反接、应接未接、夹持明显不到位导致无法有效读数等，按考评认定计项；4）除否定项单列外，若存在漏测、未记录、顺序严重错乱等，由监考按实训细则另行计扣（若有）。",
+          "ai_recognition_clues": "检测红黑鳄鱼夹的颜色与电芯正负极的对应关系（红色夹正极，黑色夹负极）。识别1～6号电芯的编号区域。检测内阻测试仪的读数是否稳定停留，以及学员的记录动作。检测测量顺序是否为1→2→3→4→5→6。监测口述内容是否包含关键词。",
+          "aiReasoning": "FOR EACH 电芯 (1 to 6): IF 视觉模型检测到红色夹子夹住当前电芯正极，且黑色夹子夹住当前电芯负极，AND 内阻测试仪读数稳定停留，AND 检测到记录动作，AND 测量顺序正确，AND 语音模型检测到相关关键词 THEN Current_Cell_Pass ELSE Current_Cell_Fail. IF ALL Current_Cell_Pass THEN Pass ELSE 根据失败项每项扣2分，本模块最高扣18分。",
+          "forbidden_action": [
+              "未将红色夹子夹住电芯正极（任一电芯）",
+              "未将黑色夹子夹住电芯负极（任一电芯）",
+              "极性反接",
+              "应接未接",
+              "夹持明显不到位导致无法有效读数",
+              "漏测",
+              "未记录",
+              "测量顺序严重错乱",
+              "跳号"
+          ],
+          "weight": 36.0,
+          "other": {}
+      },
+      {
+          "id": 6,
+          "step_name": "六个电芯电压测量",
+          "description": "将红色表笔接1号电芯正极；将黑色表笔接1号电芯负极；读取1号电芯电压值并记录；将红色表笔接2号电芯正极；将黑色表笔接2号电芯负极；读取2号电芯电压值并记录；将红色表笔接3号电芯正极；将黑色表笔接3号电芯负极；读取3号电芯电压值并记录；将红色表笔接4号电芯正极；将黑色表笔接4号电芯负极；读取4号电芯电压值并记录；将红色表笔接5号电芯正极；将黑色表笔接5号电芯负极；读取5号电芯电压值并记录；将红色表笔接6号电芯正极；将黑色表笔接6号电芯负极；读取6号电芯电压值并记录；",
+          "scoring_criteria": "每一只电芯（1～6号）均须完成：红表笔接正极、黑表笔接负极、万用表置于直流电压合适量程、读数稳定后记录。测量顺序须为1→2→3→4→5→6。逐号报读或确认测量完成。",
+          "keywords_required": [
+              "红色表笔",
+              "正极",
+              "黑色表笔",
+              "负极",
+              "电压",
+              "记录"
+          ],
+          "deduction_rule": "【扣分累计细则】1）每查实1处扣2分；2）本模块（六个电芯电压测量）合计最高扣18分；3）与否定项等价的极性反接、表笔未有效接触等，按考评认定计项。",
+          "ai_recognition_clues": "检测万用表是否置于直流电压合适量程。检测红黑表笔的颜色与电芯正负极的对应关系（红色表笔接正极，黑色表笔接负极）。识别1～6号电芯的编号。检测万用表屏幕读数是否稳定停留，以及学员的记录动作。检测测量顺序是否为1→2→3→4→5→6。监测口述内容是否包含关键词。",
+          "aiReasoning": "FOR EACH 电芯 (1 to 6): IF 视觉模型检测到万用表在直流电压量程，且红色表笔接当前电芯正极，且黑色表笔接当前电芯负极，AND 万用表读数稳定停留，AND 检测到记录动作，AND 测量顺序正确，AND 语音模型检测到相关关键词 THEN Current_Cell_Pass ELSE Current_Cell_Fail. IF ALL Current_Cell_Pass THEN Pass ELSE 根据失败项每项扣2分，本模块最高扣18分。",
+          "forbidden_action": [
+              "未将红色表笔接电芯正极（任一电芯）",
+              "未将黑色表笔接电芯负极（任一电芯）",
+              "极性反接",
+              "表笔未有效接触",
+              "漏测",
+              "未记录",
+              "测量顺序严重错乱",
+              "跳号"
+          ],
+          "weight": 36.0,
+          "other": {}
+      },
+      {
+          "id": 7,
+          "step_name": "恢复操作台（万用表关机）",
+          "description": "万用表旋钮打到OFF挡位。",
+          "scoring_criteria": "测量结束后需将万用表旋钮旋至OFF挡位（或等效关机挡）。",
+          "keywords_required": [
+              "OFF",
+              "关机"
+          ],
+          "deduction_rule": "测量结束后未将万用表旋钮旋至 OFF（或等效关机挡），本小项4分全扣。",
+          "ai_recognition_clues": "检测万用表旋钮的位置，确保其指向OFF标识区域。监测口述内容是否包含关键词。",
+          "aiReasoning": "IF 视觉模型检测到万用表旋钮在OFF挡位，AND 语音模型检测到关键词 '已关机' 或 'OFF' THEN Pass ELSE 扣4分。",
+          "forbidden_action": [
+              "旋钮仍停留在电压/蜂鸣等测量挡即离开工位或进入下一考核单元"
+          ],
+          "weight": 4.0,
+          "other": {}
+      },
+      {
+          "id": 8,
+          "step_name": "拔出万用表线束",
+          "description": "自万用表端规范拔出红、黑表笔插头，并放置于指定收纳位。",
+          "scoring_criteria": "需自万用表端规范拔出红、黑表笔插头，并放置于指定收纳位。",
+          "keywords_required": [
+              "拔出",
+              "万用表线束"
+          ],
+          "deduction_rule": "未拔出万用表表笔线束或拔出不完整，本小项4分全扣。",
+          "ai_recognition_clues": "检测万用表插孔区域，识别红黑表笔插头被拔出的动作。检测表笔插头是否被放置于指定收纳位。监测口述内容是否包含关键词。",
+          "aiReasoning": "IF 视觉模型检测到红黑表笔插头已从万用表拔出，且放置于指定收纳位，AND 语音模型检测到关键词 '线束已拆除' THEN Pass ELSE 扣4分。",
+          "forbidden_action": [
+              "线束仍插在万用表上即离场"
+          ],
+          "weight": 4.0,
+          "other": {}
+      },
+      {
+          "id": 9,
+          "step_name": "拔出电池内阻测试仪线束",
+          "description": "自内阻测试仪端规范拔出测试线束，并整理放置。",
+          "scoring_criteria": "需自内阻测试仪端规范拔出测试线束，并整理放置。",
+          "keywords_required": [
+              "拔出",
+              "内阻测试仪"
+          ],
+          "deduction_rule": "未拔出内阻测试仪测试线束，本小项4分全扣。",
+          "ai_recognition_clues": "检测内阻测试仪的接口区域，识别测试线插头被拔出的动作。检测测试线束是否被整理放置。监测口述内容是否包含关键词。",
+          "aiReasoning": "IF 视觉模型检测到测试线束已从内阻测试仪拔出，且被整理放置，AND 语音模型检测到关键词 '内阻仪线束已拆除' THEN Pass ELSE 扣4分。",
+          "forbidden_action": [
+              "测试线仍插在仪器上即离场"
+          ],
+          "weight": 4.0,
+          "other": {}
+      },
+      {
+          "id": 10,
+          "step_name": "清理整理工作台面",
+          "description": "清理杂物与碎屑；表笔/夹具/线材归位；台面整洁、无工具遗落，符合实训室6S要求。",
+          "scoring_criteria": "工作台面需清理杂物与碎屑，表笔、夹具、线材归位，台面整洁，无工具遗落，符合实训室6S要求。口述现场已整理完毕。",
+          "keywords_required": [
+              "清理",
+              "整理",
+              "归位"
+          ],
+          "deduction_rule": "工位凌乱、工具或线材未归位、存在安全隐患（如金属导体裸露乱放），本项6分按细则扣减至不得分（以监考评定为准）。",
+          "ai_recognition_clues": "检测工位台面，识别杂物与碎屑是否被清理。检测表笔、夹具、线材是否归位至指定收纳区域。评估台面整体整洁度，识别是否有工具遗落或金属导体裸露乱放等安全隐患。监测口述内容是否包含关键词。",
+          "aiReasoning": "IF 视觉模型检测到工作台面整洁无杂物，所有工具和线材已归位，且无安全隐患，AND 语音模型检测到关键词 '现场已整理完毕' THEN Pass ELSE 根据扣分细则扣分，本项最高扣6分。",
+          "forbidden_action": [
+              "台面未整理即结束考核",
+              "关键器具未归位",
+              "工位凌乱",
+              "工具或线材未归位",
+              "存在安全隐患（如金属导体裸露乱放）"
+          ],
+          "weight": 6.0,
+          "other": {}
       }
-    }
-  },
-  "components": {
-    "schemas": {
-      "ImageSize": {
-        "type": "string",
-        "title": "ImageSize",
-        "description": "仅部分模型支持。3.1：512|1K|2K|4K；3 Pro：1K|2K|4K；2.5 勿传。",
-        "enum": ["512", "1K", "2K", "4K"]
-      },
-      "ReferenceImageInput": {
-        "type": "object",
-        "title": "ReferenceImageInput",
-        "description": "参考图一项：image_base64、image_url、gs_uri 三选一必填其一。",
-        "properties": {
-          "image_base64": {
-            "type": "string",
-            "nullable": true,
-            "description": "图片 Base64，可带 data:image/png;base64, 前缀"
-          },
-          "mime_type": {
-            "type": "string",
-            "nullable": true,
-            "description": "image/png 或 image/jpeg，建议填写"
-          },
-          "image_url": {
-            "type": "string",
-            "nullable": true,
-            "description": "https 可公网访问的图片 URL"
-          },
-          "gs_uri": {
-            "type": "string",
-            "nullable": true,
-            "description": "gs://bucket/object，须当前 GCP 项目可读"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ThinkingLevel": {
-        "type": "string",
-        "enum": ["HIGH", "MINIMAL", "LOW"],
-        "title": "ThinkingLevel",
-        "description": "仅 gemini-3-pro-image-preview / gemini-3.1-flash-image-preview"
-      },
-      "ProminentPeople": {
-        "type": "string",
-        "enum": ["BLOCK_PROMINENT_PEOPLE"],
-        "title": "ProminentPeople",
-        "description": "仅 gemini-3.1-flash-image-preview"
-      },
-      "GenerateImagePayload": {
-        "type": "object",
-        "title": "GenerateImagePayload",
-        "required": ["prompt"],
-        "properties": {
-          "prompt": {
-            "type": "string",
-            "minLength": 1,
-            "description": "文生图：画面描述。图生图：如何修改或如何融合参考图。"
-          },
-          "model_id": {
-            "default": "gemini-3.1-flash-image-preview",
-            "allOf": [{ "$ref": "#/components/schemas/ImageModelID" }]
-          },
-          "system_instruction": {
-            "type": "string",
-            "nullable": true,
-            "maxLength": 32000,
-            "description": "系统指令，映射 Vertex systemInstruction"
-          },
-          "aspect_ratio": {
-            "type": "string",
-            "default": "1:1",
-            "description": "宽高比。2.5/3 Pro：1:1,3:2,2:3,3:4,4:3,4:5,5:4,9:16,16:9,21:9。3.1 另支持 1:4,4:1,1:8,8:1",
-            "enum": [
-              "1:1",
-              "3:2",
-              "2:3",
-              "3:4",
-              "4:3",
-              "4:5",
-              "5:4",
-              "9:16",
-              "16:9",
-              "21:9",
-              "1:4",
-              "4:1",
-              "1:8",
-              "8:1"
-            ]
-          },
-          "image_size": {
-            "nullable": true,
-            "description": "输出分辨率档位，按模型选填",
-            "allOf": [{ "$ref": "#/components/schemas/ImageSize" }]
-          },
-          "response_mime_type": {
-            "nullable": true,
-            "description": "可选。期望输出 image/png 或 image/jpeg，映射 imageOutputOptions.mimeType；省略则由模型决定。若 Vertex 报未知字段请省略。",
-            "allOf": [{ "$ref": "#/components/schemas/ResponseMimeType" }]
-          },
-          "response_count": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 8,
-            "default": 1,
-            "description": "生成张数（Dify 传字符串数字如 \"2\" 亦可）；底层 candidateCount=1，服务端并行多次（多倍计费）"
-          },
-          "negative_prompt": {
-            "type": "string",
-            "nullable": true,
-            "description": "负向提示，拼入用户文本"
-          },
-          "person_generation": {
-            "default": "allow_adult",
-            "allOf": [{ "$ref": "#/components/schemas/PersonGeneration" }]
-          },
-          "reference_image_url": {
-            "type": "string",
-            "nullable": true,
-            "description": "单张参考图 https URL，与 reference_images 二选一（适合 Dify 仅支持字符串参数时）。勿与 reference_images 同传。"
-          },
-          "reference_images": {
-            "type": "array",
-            "nullable": true,
-            "items": { "$ref": "#/components/schemas/ReferenceImageInput" },
-            "description": "多参考图/图生图。Dify 若只能传字符串，可传整段 JSON 数组文本，例如 [{\"image_url\":\"https://...\"}]。2.5 最多10张，3 Pro 最多6张，3.1 最多14张"
-          },
-          "include_response_text": {
-            "type": "boolean",
-            "default": false,
-            "description": "true 时响应含 TEXT；Dify 可传字符串 true/false、1/0"
-          },
-          "include_thoughts": {
-            "type": "boolean",
-            "default": false,
-            "description": "true 时请求思考过程，仅 3.x；Dify 可传字符串 true/false、1/0"
-          },
-          "thinking_level": {
-            "nullable": true,
-            "allOf": [{ "$ref": "#/components/schemas/ThinkingLevel" }]
-          },
-          "prominent_people": {
-            "nullable": true,
-            "allOf": [{ "$ref": "#/components/schemas/ProminentPeople" }]
-          },
-          "location_override": {
-            "type": "string",
-            "nullable": true,
-            "description": "如 global，仅请求该 Vertex location"
-          },
-          "safety_filter_level": {
-            "default": "OFF",
-            "allOf": [{ "$ref": "#/components/schemas/SafetyThreshold" }]
-          }
-        }
-      },
-      "GenerateImageResponse": {
-        "type": "object",
-        "title": "GenerateImageResponse",
-        "properties": {
-          "images": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/ImageResult" },
-            "default": []
-          },
-          "text_parts": {
-            "type": "array",
-            "items": { "type": "string" },
-            "default": [],
-            "description": "include_response_text 为 true 时可能有配文"
-          }
-        }
-      },
-      "StandardResponse": {
-        "type": "object",
-        "title": "StandardResponse",
-        "required": ["code", "message", "timestamp"],
-        "properties": {
-          "code": {
-            "type": "integer",
-            "description": "HTTP 风格业务码，200 表成功，502/500 等见 message"
-          },
-          "message": { "type": "string" },
-          "data": {
-            "type": "object",
-            "nullable": true,
-            "description": "成功时含 images/text_parts；失败时可能为 null 或空对象",
-            "additionalProperties": true
-          },
-          "timestamp": { "type": "string", "format": "date-time" }
-        }
-      },
-      "ImageModelID": {
-        "type": "string",
-        "enum": [
-          "gemini-3-pro-image-preview",
-          "gemini-2.5-flash-image",
-          "gemini-3.1-flash-image-preview"
-        ],
-        "title": "ImageModelID"
-      },
-      "ImageResult": {
-        "type": "object",
-        "required": ["public_url", "mime_type"],
-        "properties": {
-          "public_url": { "type": "string" },
-          "local_path": { "type": "string", "nullable": true },
-          "mime_type": { "type": "string" }
-        }
-      },
-      "PersonGeneration": {
-        "type": "string",
-        "enum": ["allow_adult", "allow_all", "disallow"]
-      },
-      "ResponseMimeType": {
-        "type": "string",
-        "enum": ["image/png", "image/jpeg"]
-      },
-      "SafetyThreshold": {
-        "type": "string",
-        "enum": [
-          "OFF",
-          "BLOCK_NONE",
-          "BLOCK_LOW_AND_ABOVE",
-          "BLOCK_MEDIUM_AND_ABOVE",
-          "BLOCK_ONLY_HIGH"
-        ]
-      },
-      "HTTPValidationError": {
-        "type": "object",
-        "properties": {
-          "detail": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/ValidationError" }
-          }
-        }
-      },
-      "ValidationError": {
-        "type": "object",
-        "required": ["loc", "msg", "type"],
-        "properties": {
-          "loc": {
-            "type": "array",
-            "items": { "type": "string" }
-          },
-          "msg": { "type": "string" },
-          "type": { "type": "string" }
-        }
-      }
-    }
-  }
+  ]
 }

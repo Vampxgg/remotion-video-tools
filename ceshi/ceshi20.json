@@ -1,0 +1,284 @@
+{
+    "sop_name": "电池内阻与电压测量SOP",
+    "total_scoring_points": 100,
+    "steps": [
+        {
+            "id": 1,
+            "step_name": "佩戴耐磨手套",
+            "description": "佩戴耐磨手套",
+            "scoring_criteria": "需佩戴耐磨手套。",
+            "keywords_required": [],
+            "deduction_rule": "未佩戴耐磨手套扣2分。",
+            "ai_recognition_clues": "检测操作人员双手是否佩戴手套，手套外观符合耐磨特性。",
+            "aiReasoning": "IF 摄像头检测到操作人员双手佩戴耐磨手套 THEN Pass ELSE 扣2分。",
+            "forbidden_action": [],
+            "weight": 2,
+            "other": {}
+        },
+        {
+            "id": 2,
+            "step_name": "连接万用表线束",
+            "description": "1、红色线束连接最右边插孔；2黑色线束连接右二插孔；",
+            "scoring_criteria": "需将红色线束连接万用表最右边插孔，黑色线束连接万用表右二插孔。",
+            "keywords_required": [],
+            "deduction_rule": "红色线束连接错误扣1分；黑色线束连接错误扣1分。",
+            "ai_recognition_clues": "检测万用表红色线束连接到最右侧插孔，黑色线束连接到右侧第二个插孔。",
+            "aiReasoning": "IF 摄像头检测到红色线束连接正确 AND 黑色线束连接正确 THEN Pass ELSE 根据错误项扣分。",
+            "forbidden_action": [],
+            "weight": 2,
+            "other": {}
+        },
+        {
+            "id": 3,
+            "step_name": "万用表校零",
+            "description": "打到蜂鸣挡，红黑表笔对接，万用表发出蜂鸣声；",
+            "scoring_criteria": "需将万用表旋钮打到蜂鸣挡，红黑表笔对接，并听到万用表发出蜂鸣声。",
+            "keywords_required": [],
+            "deduction_rule": "万用表未打到蜂鸣挡扣1分；红黑表笔未对接扣1分；未发出蜂鸣声扣1分。",
+            "ai_recognition_clues": "检测万用表旋钮位置在蜂鸣挡，检测红黑表笔接触，检测到蜂鸣声音。",
+            "aiReasoning": "IF 摄像头检测到万用表旋钮在蜂鸣挡位 AND 红黑表笔对接 AND 麦克风检测到蜂鸣声 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [],
+            "weight": 3,
+            "other": {}
+        },
+        {
+            "id": 4,
+            "step_name": "电池内阻测试仪线束连接",
+            "description": "线束插入内阻测试仪，拧紧；",
+            "scoring_criteria": "需将线束正确插入电池内阻测试仪并拧紧。",
+            "keywords_required": [],
+            "deduction_rule": "线束未插入内阻测试仪扣2分；线束未拧紧扣1分。",
+            "ai_recognition_clues": "检测线束插入电池内阻测试仪的接口，检测手部拧紧动作。",
+            "aiReasoning": "IF 摄像头检测到线束正确连接到内阻测试仪 AND 检测到拧紧动作 THEN Pass ELSE 扣分。",
+            "forbidden_action": [],
+            "weight": 3,
+            "other": {}
+        },
+        {
+            "id": 5,
+            "step_name": "1号电芯内阻测量",
+            "description": "将红色夹子夹住1号电芯正极；将黑色夹子夹住1号电芯负极；读取1号电芯内阻值并记录；",
+            "scoring_criteria": "需将红色夹子夹住1号电芯正极，黑色夹子夹住1号电芯负极，并读取、记录1号电芯内阻值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色夹子夹住1号电芯正极扣2分；未将黑色夹子夹住1号电芯负极扣2分；未读取或记录内阻值扣2分。",
+            "ai_recognition_clues": "检测红色夹子夹住1号电芯正极，黑色夹子夹住1号电芯负极，检测操作员视线在仪表盘或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色夹子正确连接1号电芯正极 AND 黑色夹子正确连接1号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 6,
+            "step_name": "2号电芯内阻测量",
+            "description": "将红色夹子夹住2号电芯正极；将黑色夹子夹住2号电芯负极；读取2号电芯内阻值并记录；",
+            "scoring_criteria": "需将红色夹子夹住2号电芯正极，黑色夹子夹住2号电芯负极，并读取、记录2号电芯内阻值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色夹子夹住2号电芯正极扣2分；未将黑色夹子夹住2号电芯负极扣2分；未读取或记录内阻值扣2分。",
+            "ai_recognition_clues": "检测红色夹子夹住2号电芯正极，黑色夹子夹住2号电芯负极，检测操作员视线在仪表盘或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色夹子正确连接2号电芯正极 AND 黑色夹子正确连接2号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [
+                "未将红色夹子夹住当前电芯正极",
+                "未将黑色夹子夹住当前电芯负极"
+            ],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 7,
+            "step_name": "3号电芯内阻测量",
+            "description": "将红色夹子夹住3号电芯正极；将黑色夹子夹住3号电芯负极；读取3号电芯内阻值并记录；",
+            "scoring_criteria": "需将红色夹子夹住3号电芯正极，黑色夹子夹住3号电芯负极，并读取、记录3号电芯内阻值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色夹子夹住3号电芯正极扣2分；未将黑色夹子夹住3号电芯负极扣2分；未读取或记录内阻值扣2分。",
+            "ai_recognition_clues": "检测红色夹子夹住3号电芯正极，黑色夹子夹住3号电芯负极，检测操作员视线在仪表盘或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色夹子正确连接3号电芯正极 AND 黑色夹子正确连接3号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 8,
+            "step_name": "4号电芯内阻测量",
+            "description": "将红色夹子夹住4号电芯正极；将黑色夹子夹住4号电芯负极；读取4号电芯内阻值并记录；",
+            "scoring_criteria": "需将红色夹子夹住4号电芯正极，黑色夹子夹住4号电芯负极，并读取、记录4号电芯内阻值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色夹子夹住4号电芯正极扣2分；未将黑色夹子夹住4号电芯负极扣2分；未读取或记录内阻值扣2分。",
+            "ai_recognition_clues": "检测红色夹子夹住4号电芯正极，黑色夹子夹住4号电芯负极，检测操作员视线在仪表盘或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色夹子正确连接4号电芯正极 AND 黑色夹子正确连接4号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [
+                "未将红色夹子夹住当前电芯正极",
+                "未将黑色夹子夹住当前电芯负极"
+            ],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 9,
+            "step_name": "5号电芯内阻测量",
+            "description": "将红色夹子夹住5号电芯正极；将黑色夹子夹住5号电芯负极；读取5号电芯内阻值并记录；",
+            "scoring_criteria": "需将红色夹子夹住5号电芯正极，黑色夹子夹住5号电芯负极，并读取、记录5号电芯内阻值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色夹子夹住5号电芯正极扣2分；未将黑色夹子夹住5号电芯负极扣2分；未读取或记录内阻值扣2分。",
+            "ai_recognition_clues": "检测红色夹子夹住5号电芯正极，黑色夹子夹住5号电芯负极，检测操作员视线在仪表盘或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色夹子正确连接5号电芯正极 AND 黑色夹子正确连接5号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 10,
+            "step_name": "6号电芯内阻测量",
+            "description": "将红色夹子夹住6号电芯正极；将黑色夹子夹住6号电芯负极；读取6号电芯内阻值并记录；",
+            "scoring_criteria": "需将红色夹子夹住6号电芯正极，黑色夹子夹住6号电芯负极，并读取、记录6号电芯内阻值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色夹子夹住6号电芯正极扣2分；未将黑色夹子夹住6号电芯负极扣2分；未读取或记录内阻值扣2分。",
+            "ai_recognition_clues": "检测红色夹子夹住6号电芯正极，黑色夹子夹住6号电芯负极，检测操作员视线在仪表盘或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色夹子正确连接6号电芯正极 AND 黑色夹子正确连接6号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [
+                "未将红色夹子夹住当前电芯正极",
+                "未将黑色夹子夹住当前电芯负极"
+            ],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 11,
+            "step_name": "1号电芯电压测量",
+            "description": "将红色表笔接1号电芯正极；将黑色表笔接1号电芯负极；读取1号电芯电压值并记录；",
+            "scoring_criteria": "需将红色表笔接1号电芯正极，黑色表笔接1号电芯负极，并读取、记录1号电芯电压值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色表笔接1号电芯正极扣2分；未将黑色表笔接1号电芯负极扣2分；未读取或记录电压值扣2分。",
+            "ai_recognition_clues": "检测红色表笔连接1号电芯正极，黑色表笔连接1号电芯负极，检测操作员视线在万用表或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色表笔正确连接1号电芯正极 AND 黑色表笔正确连接1号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 12,
+            "step_name": "2号电芯电压测量",
+            "description": "将红色表笔接2号电芯正极；将黑色表笔接2号电芯负极；读取2号电芯电压值并记录；",
+            "scoring_criteria": "需将红色表笔接2号电芯正极，黑色表笔接2号电芯负极，并读取、记录2号电芯电压值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色表笔接2号电芯正极扣2分；未将黑色表笔接2号电芯负极扣2分；未读取或记录电压值扣2分。",
+            "ai_recognition_clues": "检测红色表笔连接2号电芯正极，黑色表笔连接2号电芯负极，检测操作员视线在万用表或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色表笔正确连接2号电芯正极 AND 黑色表笔正确连接2号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [
+                "未将红色表笔连接当前电芯正极",
+                "未将黑色表笔连接当前电芯负极"
+            ],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 13,
+            "step_name": "3号电芯电压测量",
+            "description": "将红色表笔接3号电芯正极；将黑色表笔接3号电芯负极；读取3号电芯电压值并记录；",
+            "scoring_criteria": "需将红色表笔接3号电芯正极，黑色表笔接3号电芯负极，并读取、记录3号电芯电压值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色表笔接3号电芯正极扣2分；未将黑色表笔接3号电芯负极扣2分；未读取或记录电压值扣2分。",
+            "ai_recognition_clues": "检测红色表笔连接3号电芯正极，黑色表笔连接3号电芯负极，检测操作员视线在万用表或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色表笔正确连接3号电芯正极 AND 黑色表笔正确连接3号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 14,
+            "step_name": "4号电芯电压测量",
+            "description": "将红色表笔接4号电芯正极；将黑色表笔接4号电芯负极；读取4号电芯电压值并记录；",
+            "scoring_criteria": "需将红色表笔接4号电芯正极，黑色表笔接4号电芯负极，并读取、记录4号电芯电压值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色表笔接4号电芯正极扣2分；未将黑色表笔接4号电芯负极扣2分；未读取或记录电压值扣2分。",
+            "ai_recognition_clues": "检测红色表笔连接4号电芯正极，黑色表笔连接4号电芯负极，检测操作员视线在万用表或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色表笔正确连接4号电芯正极 AND 黑色表笔正确连接4号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [
+                "未将红色表笔连接当前电芯正极",
+                "未将黑色表笔连接当前电芯负极"
+            ],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 15,
+            "step_name": "5号电芯电压测量",
+            "description": "将红色表笔接5号电芯正极；将黑色表笔接5号电芯负极；读取5号电芯电压值并记录；",
+            "scoring_criteria": "需将红色表笔接5号电芯正极，黑色表笔接5号电芯负极，并读取、记录5号电芯电压值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色表笔接5号电芯正极扣2分；未将黑色表笔接5号电芯负极扣2分；未读取或记录电压值扣2分。",
+            "ai_recognition_clues": "检测红色表笔连接5号电芯正极，黑色表笔连接5号电芯负极，检测操作员视线在万用表或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色表笔正确连接5号电芯正极 AND 黑色表笔正确连接5号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 16,
+            "step_name": "6号电芯电压测量",
+            "description": "将红色表笔接6号电芯正极；将黑色表笔接6号电芯负极；读取6号电芯电压值并记录；",
+            "scoring_criteria": "需将红色表笔接6号电芯正极，黑色表笔接6号电芯负极，并读取、记录6号电芯电压值。",
+            "keywords_required": [],
+            "deduction_rule": "未将红色表笔接6号电芯正极扣2分；未将黑色表笔接6号电芯负极扣2分；未读取或记录电压值扣2分。",
+            "ai_recognition_clues": "检测红色表笔连接6号电芯正极，黑色表笔连接6号电芯负极，检测操作员视线在万用表或记录动作。",
+            "aiReasoning": "IF 摄像头检测到红色表笔正确连接6号电芯正极 AND 黑色表笔正确连接6号电芯负极 AND 视线/手部有读取/记录动作 THEN Pass ELSE 根据缺失项扣分。",
+            "forbidden_action": [
+                "未将红色表笔连接当前电芯正极",
+                "未将黑色表笔连接当前电芯负极"
+            ],
+            "weight": 6,
+            "other": {}
+        },
+        {
+            "id": 17,
+            "step_name": "万用表旋钮打到OFF挡位",
+            "description": "万用表旋钮打到OFF挡位",
+            "scoring_criteria": "需将万用表旋钮打到OFF挡位。",
+            "keywords_required": [],
+            "deduction_rule": "万用表旋钮未打到OFF挡位扣4分。",
+            "ai_recognition_clues": "检测万用表旋钮指向OFF挡位。",
+            "aiReasoning": "IF 摄像头检测到万用表旋钮指向OFF挡位 THEN Pass ELSE 扣4分。",
+            "forbidden_action": [],
+            "weight": 4,
+            "other": {}
+        },
+        {
+            "id": 18,
+            "step_name": "拔出万用表线束",
+            "description": "拔出万用表线束",
+            "scoring_criteria": "需拔出万用表线束。",
+            "keywords_required": [],
+            "deduction_rule": "未拔出万用表线束扣4分。",
+            "ai_recognition_clues": "检测手部从万用表插孔拔出线束的动作。",
+            "aiReasoning": "IF 摄像头检测到万用表线束被拔出 THEN Pass ELSE 扣4分。",
+            "forbidden_action": [],
+            "weight": 4,
+            "other": {}
+        },
+        {
+            "id": 19,
+            "step_name": "拔出电池内阻测试仪线束",
+            "description": "拔出电池内阻测试仪线束",
+            "scoring_criteria": "需拔出电池内阻测试仪线束。",
+            "keywords_required": [],
+            "deduction_rule": "未拔出电池内阻测试仪线束扣4分。",
+            "ai_recognition_clues": "检测手部从电池内阻测试仪插孔拔出线束的动作。",
+            "aiReasoning": "IF 摄像头检测到电池内阻测试仪线束被拔出 THEN Pass ELSE 扣4分。",
+            "forbidden_action": [],
+            "weight": 4,
+            "other": {}
+        },
+        {
+            "id": 20,
+            "step_name": "清理整理工作台面",
+            "description": "清理整理工作台面",
+            "scoring_criteria": "需清理并整理工作台面，确保物品归位。",
+            "keywords_required": [],
+            "deduction_rule": "未清理整理工作台面扣6分。",
+            "ai_recognition_clues": "检测工作台面物品归位，无杂乱现象，操作人员进行整理动作。",
+            "aiReasoning": "IF 摄像头检测到工作台面整洁，物品归位 THEN Pass ELSE 扣6分。",
+            "forbidden_action": [],
+            "weight": 6,
+            "other": {}
+        }
+    ]
+}

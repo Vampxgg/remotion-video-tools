@@ -38,7 +38,7 @@ class _Base(BaseSettings):
 class AppSettings(_Base):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 2906
-    APP_WORKERS: int = 4
+    APP_WORKERS: int = 1
     APP_PUBLIC_BASE_URL: str = "http://127.0.0.1:2906"
     CORS_ALLOW_ORIGINS: List[str] = ["*"]
     # 当 CORS_ALLOW_ORIGINS=["*"] 时，CORS 规范要求 allow_credentials 必须为 False
@@ -302,6 +302,25 @@ class CreImageSettings(_Base):
     CRE_IMAGE_ALLOWED_URL_HOSTS: str = ""
 
 
+class GeminiLiveSettings(_Base):
+    """对应 api/gemini_live.py + services/gemini_live_client.py"""
+    GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"
+    GEMINI_LIVE_LANGUAGE_CODE: str = "zh-CN"
+    GEMINI_LIVE_RESPONSE_MODALITIES: List[str] = ["audio"]
+    GEMINI_LIVE_ENABLE_TRANSCRIPTION: bool = True
+    GEMINI_LIVE_ENABLE_AFFECTIVE_DIALOG: bool = True
+    GEMINI_LIVE_PROACTIVE_AUDIO: bool = False
+    GEMINI_LIVE_CONTEXT_TRIGGER_TOKENS: int = 10000
+    GEMINI_LIVE_CONTEXT_TARGET_TOKENS: int = 2048
+    GEMINI_LIVE_MAX_AUDIO_BYTES_PER_MESSAGE: int = 64 * 1024
+    GEMINI_LIVE_MAX_VIDEO_BYTES_PER_MESSAGE: int = 512 * 1024
+    GEMINI_LIVE_SESSION_TIMEOUT_SEC: int = 600
+    GEMINI_LIVE_DEFAULT_SYSTEM_INSTRUCTION: str = (
+        "你是一个实时语音助手。请使用简体中文自然、简洁地回答用户。"
+    )
+    GEMINI_LIVE_FRONTEND_DIR: str = "frontend"
+
+
 class CreVideoSettings(_Base):
     """对应 api/cre_video.py"""
     CRE_VIDEO_GCS_OUTPUT_URI: str = "gs://x-pilot-storage/veo_video/"
@@ -335,7 +354,7 @@ class ConverterSettings(_Base):
 
 
 class JobSearchSettings(_Base):
-    """对应 api/job_search.py（智联）。账号密码必须由 .env 提供，无默认。"""
+    """对应 api/job_search.py（智联 v1）。账号密码必须由 .env 提供，无默认。"""
     ZHILIAN_USERNAME: Optional[str] = None
     ZHILIAN_PASSWORD: Optional[str] = None
     JOB_SEARCH_BROWSER_HOST_PORT: str = "127.0.0.1:9527"
@@ -344,6 +363,20 @@ class JobSearchSettings(_Base):
         "https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number={number}"
     )
     ZHAOPIN_LIST_URL: str = "https://www.zhaopin.com/sou/jl779/kwB4JMAS33DO/p1"
+
+
+class JobSearchV2Settings(_Base):
+    """对应 api/job_search_v2.py + services/zhaopin_client.py（智联 v2 浏览器 JS 版）。"""
+    JOB_SEARCH_V2_API_KEY: Optional[str] = None
+    JOB_SEARCH_V2_HTTP_CONCURRENCY: int = 8
+    JOB_SEARCH_V2_HTTP_TIMEOUT: float = 10.0
+    JOB_SEARCH_V2_TASK_TTL_SECONDS: int = 1800
+    JOB_SEARCH_V2_MAX_COMBINATIONS: int = 50
+    JOB_SEARCH_V2_MAX_PAGE_SIZE: int = 10
+    JOB_SEARCH_V2_SYNC_TIMEOUT: float = 60.0
+    ZHAOPIN_CITY_API_TEMPLATE: str = (
+        "https://fe-api.zhaopin.com/c/i/city-page/user-city?ipCity={name}"
+    )
 
 
 class TuoyuSerpSettings(_Base):
@@ -383,8 +416,9 @@ class Settings(
     CreAudioSettings, CreAudioJsonSettings, CreAudioV2Settings,
     CreAudioRefactoredSettings, CreAudioOriginalSpeedSettings,
     TtsSettings, MurfTtsSettings, GoogleTtsSettings, FishAsrSettings,
-    CreImageSettings, CreVideoSettings, FenbiSettings,
+    CreImageSettings, GeminiLiveSettings, CreVideoSettings, FenbiSettings,
     VideoCompressSettings, ConverterSettings, JobSearchSettings,
+    JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings,
     ZhipinSettings,
 ):
