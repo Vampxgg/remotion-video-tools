@@ -73,12 +73,12 @@ logger.info("正在加载路由模块...")
 #     lifespan，即每个 router 的资源（线程池/AsyncClient/Session 池等）都会被
 #     ×N 倍创建。这一行为与历史的 @router.on_event 完全一致，没有变化。
 _LIFESPAN_MODULES = [
-    tts,
-    cre_audio,
-    cre_video,
-    cre_image,
-    fish_asr,
-    job_search_v2,
+    # tts,
+    # cre_audio,
+    # cre_video,
+    # cre_image,
+    # fish_asr,
+    # job_search_v2,
     gemini_live,
 ]
 
@@ -146,19 +146,19 @@ app.add_middleware(
 )
 
 # app.include_router(process_uploads.router)
-app.include_router(Online_search.router, prefix="/api", tags=["Source Parser"])
-app.include_router(block_generator.router, prefix="/api", tags=["block_generator"])
-app.include_router(tts.router, prefix="/api", tags=["tts"])
-app.include_router(cre_audio.router, prefix="/api", tags=["create_audio"])
-# app.include_router(google_tts.router, prefix="/api", tags=["create_audio"])
-app.include_router(converter.router, prefix="/api", tags=["Converter"])
-app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
-app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
-app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
-app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
-app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
-app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
-app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
+# app.include_router(Online_search.router, prefix="/api", tags=["Source Parser"])
+# app.include_router(block_generator.router, prefix="/api", tags=["block_generator"])
+# app.include_router(tts.router, prefix="/api", tags=["tts"])
+# app.include_router(cre_audio.router, prefix="/api", tags=["create_audio"])
+# # app.include_router(google_tts.router, prefix="/api", tags=["create_audio"])
+# app.include_router(converter.router, prefix="/api", tags=["Converter"])
+# app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
+# app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
+# app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
+# app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
+# app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
+# app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
+# app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
 app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])
 app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])
 

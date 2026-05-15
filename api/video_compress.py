@@ -33,18 +33,24 @@ from utils.settings import settings as _settings  # noqa: E402  (settings 单点
 STATIC_DIR_NAME = _settings.STATIC_DIR
 COMPRESS_UPLOAD_SUBDIR = _settings.VIDEO_COMPRESS_UPLOAD_SUBDIR
 COMPRESS_OUTPUT_SUBDIR = _settings.VIDEO_COMPRESS_OUTPUT_SUBDIR
+COMPRESS_TASK_STATE_SUBDIR = _settings.VIDEO_COMPRESS_TASK_STATE_SUBDIR
 
 _STATIC_ROOT = Path(_settings.static_dir_abs)
 UPLOAD_DIR = _STATIC_ROOT / COMPRESS_UPLOAD_SUBDIR
 OUTPUT_DIR = _STATIC_ROOT / COMPRESS_OUTPUT_SUBDIR
+TASK_STATE_DIR = _settings.project_root / COMPRESS_TASK_STATE_SUBDIR
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(TASK_STATE_DIR, exist_ok=True)
 
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".webm", ".m4v", ".ts", ".mts"}
 MAX_UPLOAD_SIZE_MB = _settings.VIDEO_COMPRESS_MAX_UPLOAD_MB
 
 # ──────────────────────────── 并发控制 ────────────────────────────
 MAX_CONCURRENT_FFMPEG = _settings.VIDEO_COMPRESS_MAX_CONCURRENT_FFMPEG
+FFMPEG_THREADS = _settings.VIDEO_COMPRESS_FFMPEG_THREADS
+FFMPEG_TIMEOUT_SEC = _settings.VIDEO_COMPRESS_TIMEOUT_SEC
+CLEANUP_DELAY_SEC = _settings.VIDEO_COMPRESS_CLEANUP_DELAY_SEC
 ffmpeg_semaphore: Optional[asyncio.Semaphore] = None
 
 # ──────────────────────────── 任务存储 ────────────────────────────
@@ -119,6 +125,53 @@ def _normalize_ffmpeg_max_bitrate(value: Optional[str]) -> Optional[str]:
     return None
 
 
+def _state_path(task_id: str) -> Path:
+    return TASK_STATE_DIR / f"{task_id}.json"
+
+
+def _write_task_state(task_id: str, payload: Dict[str, Any]) -> None:
+    path = _state_path(task_id)
+    tmp_path = path.with_suffix(".json.tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def _read_task_state(task_id: str) -> Optional[Dict[str, Any]]:
+    path = _state_path(task_id)
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning(f"[dify][{task_id}] 读取任务状态失败: {exc}")
+        return None
+
+
+def _public_task_payload(task: Dict[str, Any]) -> Dict[str, Any]:
+    hidden = {"input_path", "output_path", "state_path"}
+    return {k: v for k, v in task.items() if k not in hidden}
+
+
+def _elapsed_sec(task: Dict[str, Any]) -> Optional[float]:
+    submitted_at = task.get("submitted_at")
+    if not submitted_at:
+        return None
+    try:
+        start = datetime.fromisoformat(submitted_at)
+        end_raw = task.get("completed_at")
+        end = datetime.fromisoformat(end_raw) if end_raw else datetime.now()
+        return round((end - start).total_seconds(), 3)
+    except Exception:
+        return None
+
+
+def _task_urls(base_url: str, task_id: str) -> Tuple[str, str]:
+    base = base_url.rstrip("/")
+    status_url = f"{base}/api/compress_video/dify/tasks/{task_id}"
+    file_url = f"{base}/api/compress_video/dify/tasks/{task_id}/file"
+    return status_url, file_url
+
+
 def get_video_info(file_path: str) -> dict:
     cmd = [
         "ffprobe", "-v", "quiet",
@@ -143,6 +196,8 @@ def compress_video(
         resolution: Optional[str] = None,
         max_bitrate: Optional[str] = None,
         audio_bitrate: str = "128k",
+        threads: int = FFMPEG_THREADS,
+        timeout_sec: int = FFMPEG_TIMEOUT_SEC,
 ) -> dict:
     cmd = [
         "ffmpeg", "-y",
@@ -154,6 +209,9 @@ def compress_video(
         "-b:a", audio_bitrate,
         "-movflags", "+faststart",
     ]
+
+    if threads and threads > 0:
+        cmd.extend(["-threads", str(threads)])
 
     if resolution and "x" in resolution:
         parts = resolution.split("x")
@@ -167,7 +225,7 @@ def compress_video(
     cmd.append(output_path)
 
     logger.info(f"执行 FFmpeg 命令: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_sec)
 
     if result.returncode != 0:
         raise RuntimeError(f"FFmpeg 压缩失败: {result.stderr[-500:]}")
@@ -253,7 +311,83 @@ async def _run_compress_task(
         paths_to_clean = [input_path]
         if tasks[task_id]["status"] == TaskStatus.COMPLETED:
             paths_to_clean.append(output_path)
-        asyncio.create_task(cleanup_files(paths_to_clean, delay=600))
+        asyncio.create_task(cleanup_files(paths_to_clean, delay=CLEANUP_DELAY_SEC))
+
+
+async def _run_dify_async_task(
+        task_id: str,
+        input_path: Path,
+        output_path: Path,
+        crf: int,
+        preset: str,
+        resolution: Optional[str],
+        max_bitrate: Optional[str],
+        audio_bitrate: str,
+):
+    sem = _get_semaphore()
+    task = _read_task_state(task_id) or {}
+    task.update({
+        "status": TaskStatus.PENDING,
+        "updated_at": datetime.now().isoformat(),
+        "elapsed_sec": _elapsed_sec(task),
+    })
+    _write_task_state(task_id, task)
+    logger.info(f"[dify-async][{task_id}] 排队等待信号量 (并发限制 {MAX_CONCURRENT_FFMPEG})")
+
+    try:
+        async with sem:
+            task = _read_task_state(task_id) or task
+            task.update({
+                "status": TaskStatus.PROCESSING,
+                "started_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "elapsed_sec": _elapsed_sec(task),
+            })
+            _write_task_state(task_id, task)
+            logger.info(f"[dify-async][{task_id}] 开始压缩")
+
+            result = await asyncio.to_thread(
+                compress_video,
+                str(input_path),
+                str(output_path),
+                crf=crf,
+                preset=preset,
+                resolution=resolution,
+                max_bitrate=max_bitrate,
+                audio_bitrate=audio_bitrate,
+            )
+
+            task = _read_task_state(task_id) or task
+            task.update({
+                "status": TaskStatus.COMPLETED,
+                "completed_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                **result,
+            })
+            task["elapsed_sec"] = _elapsed_sec(task)
+            _write_task_state(task_id, task)
+            input_path.unlink(missing_ok=True)
+            asyncio.create_task(cleanup_files([output_path, _state_path(task_id)], delay=CLEANUP_DELAY_SEC))
+
+            logger.info(
+                f"[dify-async][{task_id}] 完成: "
+                f"{result['original_size_mb']}MB -> {result['compressed_size_mb']}MB "
+                f"(压缩率 {result['compression_ratio']}%)"
+            )
+
+    except Exception as e:
+        input_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
+        task = _read_task_state(task_id) or task
+        task.update({
+            "status": TaskStatus.FAILED,
+            "error": str(e),
+            "completed_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        })
+        task["elapsed_sec"] = _elapsed_sec(task)
+        _write_task_state(task_id, task)
+        logger.exception(f"[dify-async][{task_id}] 压缩失败: {e}")
 
 
 # ──────────────────────────── API 端点 ────────────────────────────
@@ -399,6 +533,127 @@ def _get_semaphore() -> asyncio.Semaphore:
     return ffmpeg_semaphore
 
 
+@router.post(
+    "/compress_video/dify/tasks",
+    summary="[Dify] 异步提交视频压缩任务",
+    description=(
+        "上传 multipart/form-data 字段 video 后立即返回 task_id。"
+        "压缩在后台执行，Dify 可轮询 status_url，完成后通过 file_url 获取 video/mp4。"
+    ),
+)
+async def submit_dify_compress_task(
+        request: Request,
+        video: UploadFile = File(..., description="唯一 body 字段：视频文件，字段名必须为 video"),
+        crf: int = Query(28, description="恒定质量因子 (0-51)", ge=0, le=51),
+        preset: CompressionPreset = Query(CompressionPreset.VERYFAST, description="编码速度预设"),
+        resolution: Optional[str] = Query(None, description="目标分辨率，如 1280x720"),
+        max_bitrate: Optional[str] = Query(None, description="最大码率限制，如 2M"),
+        audio_bitrate: str = Query("128k", description="音频码率"),
+):
+    resolution = resolution.strip() if resolution else None
+    max_bitrate = max_bitrate.strip() if max_bitrate else None
+
+    task_id = str(uuid.uuid4())
+    input_path: Optional[Path] = None
+    try:
+        input_path, original_name = await _dify_persist_upload(video, task_id)
+        output_path = OUTPUT_DIR / f"{task_id}_compressed.mp4"
+        status_url, file_url = _task_urls(str(request.base_url), task_id)
+
+        state = {
+            "task_id": task_id,
+            "status": TaskStatus.PENDING,
+            "original_filename": original_name,
+            "submitted_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "status_url": status_url,
+            "file_url": file_url,
+            "input_path": str(input_path),
+            "output_path": str(output_path),
+            "state_path": str(_state_path(task_id)),
+            "crf": crf,
+            "preset": preset.value,
+            "resolution": resolution,
+            "max_bitrate": max_bitrate,
+            "audio_bitrate": audio_bitrate,
+            "ffmpeg_threads": FFMPEG_THREADS,
+            "error": None,
+        }
+        _write_task_state(task_id, state)
+
+        asyncio.create_task(
+            _run_dify_async_task(
+                task_id=task_id,
+                input_path=input_path,
+                output_path=output_path,
+                crf=crf,
+                preset=preset.value,
+                resolution=resolution,
+                max_bitrate=max_bitrate,
+                audio_bitrate=audio_bitrate,
+            )
+        )
+
+        return create_standard_response(
+            data=_public_task_payload(state),
+            message="任务已提交，请轮询 status_url；完成后通过 file_url 下载压缩视频"
+        )
+
+    except DifyInputError as e:
+        if input_path:
+            input_path.unlink(missing_ok=True)
+        return create_standard_response(code=e.code, message=e.message)
+    except ValueError as e:
+        if input_path:
+            input_path.unlink(missing_ok=True)
+        return create_standard_response(code=413, message=str(e))
+    except Exception as e:
+        if input_path:
+            input_path.unlink(missing_ok=True)
+        logger.exception(f"[dify-async][{task_id}] 提交失败: {e}")
+        return create_standard_response(code=500, message=f"提交任务失败: {str(e)}")
+
+
+@router.get(
+    "/compress_video/dify/tasks/{task_id}",
+    summary="[Dify] 查询异步视频压缩任务状态",
+)
+async def query_dify_compress_task(task_id: str):
+    task = _read_task_state(task_id)
+    if not task:
+        return create_standard_response(code=404, message=f"任务 {task_id} 不存在或已清理")
+    task["elapsed_sec"] = _elapsed_sec(task)
+    return create_standard_response(data=_public_task_payload(task))
+
+
+@router.get(
+    "/compress_video/dify/tasks/{task_id}/file",
+    summary="[Dify] 下载异步压缩完成的视频文件",
+    response_class=FileResponse,
+)
+async def download_dify_compress_file(task_id: str):
+    task = _read_task_state(task_id)
+    if not task:
+        return create_standard_response(code=404, message=f"任务 {task_id} 不存在或已清理")
+    if task.get("status") != TaskStatus.COMPLETED:
+        return create_standard_response(
+            code=409,
+            message=f"任务尚未完成，当前状态: {task.get('status')}"
+        )
+
+    output_path = Path(task.get("output_path", ""))
+    if not output_path.is_file():
+        return create_standard_response(code=404, message="压缩文件不存在或已清理")
+
+    original_name = task.get("original_filename") or "upload.mp4"
+    compressed_name = f"compressed_{Path(original_name).stem}.mp4"
+    return FileResponse(
+        path=str(output_path),
+        media_type="video/mp4",
+        filename=compressed_name,
+    )
+
+
 # Swagger/OpenAPI：为二进制 200 声明 schema，减少「Undocumented」；并声明 JSON 类错误体
 _COMPRESS_DIFY_ERR_JSON = {
     "application/json": {
@@ -503,7 +758,7 @@ async def compress_video_for_dify(
         )
 
         input_path.unlink(missing_ok=True)
-        background_tasks.add_task(cleanup_files, [output_path], delay=600)
+        background_tasks.add_task(cleanup_files, [output_path], delay=CLEANUP_DELAY_SEC)
 
         compressed_name = f"compressed_{Path(original_name).stem}.mp4"
         return FileResponse(
