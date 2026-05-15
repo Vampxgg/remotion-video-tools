@@ -1,34 +1,49 @@
-2026-05-12 11:48:22,714 - INFO     - [__main__] [MainThread] - 主应用日志系统已启动。
-2026-05-12 11:48:22,726 - INFO     - [__main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
-2026-05-12 11:48:22,727 - INFO     - [__main__] [MainThread] - 正在加载路由模块...
-2026-05-12 11:48:23,390 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
-2026-05-12 11:48:23,390 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
-2026-05-12 11:48:23,390 - INFO     - [main] [MainThread] - 正在加载路由模块...
-2026-05-12 11:48:23,428 - INFO     - [main] [MainThread] - 应用启动...
-2026-05-12 11:48:23,560 - ERROR    - [main] [MainThread] - 数据库连接失败: password authentication failed for user "root"
-2026-05-12 11:48:23,561 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
-2026-05-12 11:48:23,561 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
-2026-05-12 11:48:24,254 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
-2026-05-12 11:48:24,985 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
-2026-05-12 11:48:25,649 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
-2026-05-12 11:48:33,255 - INFO     - [main] [MainThread] - router 资源就绪: api.job_search_v2
-2026-05-12 11:48:33,256 - INFO     - [main] [MainThread] - router 资源就绪: api.gemini_live
-2026-05-12 14:36:49,724 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
-2026-05-12 14:36:49,746 - INFO     - [main] [MainThread] - 应用关闭完成。
-2026-05-12 14:36:56,539 - INFO     - [__main__] [MainThread] - 主应用日志系统已启动。
-2026-05-12 14:36:56,539 - INFO     - [__main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
-2026-05-12 14:36:56,539 - INFO     - [__main__] [MainThread] - 正在加载路由模块...
-2026-05-12 14:36:56,624 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
-2026-05-12 14:36:56,624 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
-2026-05-12 14:36:56,624 - INFO     - [main] [MainThread] - 正在加载路由模块...
-2026-05-12 14:36:56,660 - INFO     - [main] [MainThread] - 应用启动...
-2026-05-12 14:36:56,733 - ERROR    - [main] [MainThread] - 数据库连接失败: password authentication failed for user "root"
-2026-05-12 14:36:56,734 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
-2026-05-12 14:36:56,735 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
-2026-05-12 14:36:57,449 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
-2026-05-12 14:36:58,099 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
-2026-05-12 14:36:58,782 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
-2026-05-12 14:37:08,143 - INFO     - [main] [MainThread] - router 资源就绪: api.job_search_v2
-2026-05-12 14:37:08,144 - INFO     - [main] [MainThread] - router 资源就绪: api.gemini_live
-2026-05-12 14:41:31,377 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
-2026-05-12 14:41:31,395 - INFO     - [main] [MainThread] - 应用关闭完成。
+2026-05-14 10:30:27,884 - INFO     - [__main__] [MainThread] - 主应用日志系统已启动。
+2026-05-14 10:30:27,889 - INFO     - [__main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-05-14 10:30:27,890 - INFO     - [__main__] [MainThread] - 正在加载路由模块...
+2026-05-14 10:30:28,612 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
+2026-05-14 10:30:28,613 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-05-14 10:30:28,613 - INFO     - [main] [MainThread] - 正在加载路由模块...
+2026-05-14 10:30:28,651 - INFO     - [main] [MainThread] - 应用启动...
+2026-05-14 10:30:28,756 - ERROR    - [main] [MainThread] - 数据库连接失败: password authentication failed for user "root"
+2026-05-14 10:30:28,762 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
+2026-05-14 10:30:28,762 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-05-14 10:30:29,485 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-05-14 10:30:30,131 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-05-14 10:30:30,811 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-05-14 10:30:41,831 - INFO     - [main] [MainThread] - router 资源就绪: api.job_search_v2
+2026-05-14 10:30:41,842 - INFO     - [main] [MainThread] - router 资源就绪: api.gemini_live
+2026-05-14 11:41:45,210 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
+2026-05-14 11:41:45,274 - INFO     - [main] [MainThread] - 应用关闭完成。
+2026-05-14 11:42:09,191 - INFO     - [__main__] [MainThread] - 主应用日志系统已启动。
+2026-05-14 11:42:09,192 - INFO     - [__main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-05-14 11:42:09,192 - INFO     - [__main__] [MainThread] - 正在加载路由模块...
+2026-05-14 11:42:09,616 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
+2026-05-14 11:42:09,617 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-05-14 11:42:09,617 - INFO     - [main] [MainThread] - 正在加载路由模块...
+2026-05-14 11:42:09,654 - INFO     - [main] [MainThread] - 应用启动...
+2026-05-14 11:42:09,727 - ERROR    - [main] [MainThread] - 数据库连接失败: password authentication failed for user "root"
+2026-05-14 11:42:09,727 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
+2026-05-14 11:42:09,728 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-05-14 11:42:10,451 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-05-14 11:42:11,161 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-05-14 11:42:11,788 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-05-14 11:42:20,018 - INFO     - [main] [MainThread] - router 资源就绪: api.job_search_v2
+2026-05-14 11:42:20,019 - INFO     - [main] [MainThread] - router 资源就绪: api.gemini_live
+2026-05-14 11:49:28,807 - INFO     - [main] [MainThread] - 应用关闭：开始释放各 router 资源...
+2026-05-14 11:49:28,863 - INFO     - [main] [MainThread] - 应用关闭完成。
+2026-05-14 11:49:34,114 - INFO     - [__main__] [MainThread] - 主应用日志系统已启动。
+2026-05-14 11:49:34,114 - INFO     - [__main__] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-05-14 11:49:34,115 - INFO     - [__main__] [MainThread] - 正在加载路由模块...
+2026-05-14 11:49:34,192 - INFO     - [main] [MainThread] - 主应用日志系统已启动。
+2026-05-14 11:49:34,192 - INFO     - [main] [MainThread] - 第三方库日志级别已设置为 WARNING，以减少噪音。
+2026-05-14 11:49:34,192 - INFO     - [main] [MainThread] - 正在加载路由模块...
+2026-05-14 11:49:34,227 - INFO     - [main] [MainThread] - 应用启动...
+2026-05-14 11:49:34,286 - ERROR    - [main] [MainThread] - 数据库连接失败: password authentication failed for user "root"
+2026-05-14 11:49:34,306 - INFO     - [main] [MainThread] - router 资源就绪: api.tts
+2026-05-14 11:49:34,307 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_audio
+2026-05-14 11:49:34,963 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_video
+2026-05-14 11:49:35,599 - INFO     - [main] [MainThread] - router 资源就绪: api.cre_image
+2026-05-14 11:49:36,226 - INFO     - [main] [MainThread] - router 资源就绪: api.fish_asr
+2026-05-14 11:49:53,712 - INFO     - [main] [MainThread] - router 资源就绪: api.job_search_v2
+2026-05-14 11:49:53,712 - INFO     - [main] [MainThread] - router 资源就绪: api.gemini_live

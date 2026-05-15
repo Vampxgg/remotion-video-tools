@@ -1,10 +1,13 @@
-2026-05-12 11:48:14,562 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
-2026-05-12 11:48:23,561 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
-2026-05-12 11:48:23,561 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
-2026-05-12 14:36:49,745 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
-2026-05-12 14:36:49,745 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
-2026-05-12 14:36:54,685 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
-2026-05-12 14:36:56,734 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
-2026-05-12 14:36:56,735 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
-2026-05-12 14:41:31,395 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
-2026-05-12 14:41:31,395 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
+2026-05-14 10:30:18,573 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-05-14 10:30:28,762 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-05-14 10:30:28,762 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
+2026-05-14 11:41:45,273 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
+2026-05-14 11:41:45,274 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
+2026-05-14 11:42:02,751 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-05-14 11:42:09,727 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-05-14 11:42:09,728 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50
+2026-05-14 11:49:28,862 - INFO     - [api.cre_audio] [MainThread] - 正在关闭全局共享TTS线程池...
+2026-05-14 11:49:28,862 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已成功关闭。
+2026-05-14 11:49:32,237 - INFO     - [api.cre_audio] [MainThread] - 未配置代理，将直接进行网络连接。
+2026-05-14 11:49:34,306 - INFO     - [api.cre_audio] [MainThread] - 全局共享TTS线程池已创建，最大工作线程数: 15
+2026-05-14 11:49:34,306 - INFO     - [api.cre_audio] [MainThread] - 全局信号量已创建，许可数: 50

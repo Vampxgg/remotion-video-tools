@@ -1,0 +1,53 @@
+# Web service
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+pydantic-settings
+
+# HTTP clients and scraping
+requests
+httpx
+aiohttp
+beautifulsoup4
+trafilatura
+lxml
+DrissionPage
+
+# Database and migrations
+sqlalchemy
+asyncpg
+alembic
+psycopg2-binary
+
+# Audio, video, and speech
+fish-audio-sdk
+pydub
+numpy
+pyrubberband
+librosa
+soundfile
+google-cloud-texttospeech
+murf
+
+# Google APIs and Gemini Live
+google-genai
+google-auth
+websockets
+
+# Document parsing and conversion
+pypandoc
+pdfplumber
+PyMuPDF
+markitdown
+python-docx
+python-pptx
+openpyxl
+xlrd
+Pillow
+pytesseract
+
+# Search/test utilities used by project scripts
+PyPDF2
+tavily-python
+json-repair
