@@ -51,3 +51,10 @@ static/meta-doc/
 
 # ===== Alembic 自动生成的 cache =====
 alembic/__pycache__/
+
+# ===== 本地临时 / 不入库 =====
+.tmp_chrome_login_test/
+.tmp_chrome_zhilian/
+patch_dify.py
+scripts/benchmark_video_compress.py
+scripts/viode实训/

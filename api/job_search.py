@@ -8,9 +8,12 @@
 import json
 import logging
 import random
+import smtplib
 import sys
 import time
 import asyncio
+import threading
+from email.message import EmailMessage
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -47,6 +50,8 @@ MAX_CONCURRENT_TASKS = _settings.JOB_SEARCH_MAX_CONCURRENT  # 合理的并发任
 # 智联招聘登录凭证：必须由 .env 提供（ZHILIAN_USERNAME / ZHILIAN_PASSWORD），不再保留代码内默认值
 ZHILIAN_USERNAME = _settings.ZHILIAN_USERNAME or ""
 ZHILIAN_PASSWORD = _settings.ZHILIAN_PASSWORD or ""
+_login_notify_lock = threading.Lock()
+_last_login_notify_ts = 0.0
 
 
 # ======================================================================================
@@ -61,35 +66,270 @@ from utils.responses import StandardResponse, create_standard_response  # noqa: 
 # --- 【重构】核心爬虫业务逻辑 ---
 # ======================================================================================
 
-def handle_login_if_needed(page):
-    """
-    【新增】
-    检查并处理登录弹窗的函数。
-    - 如果检测到登录弹窗，则自动输入预设的账号密码完成登录。
-    """
+def _element_is_visible(element) -> bool:
+    """兼容 DrissionPage 元素可见性判断。"""
+    if not element:
+        return False
     try:
-        # 检查登录弹窗是否存在 (使用一个足够独特的元素)
-        login_popup = page.ele('//div[@class="pass-login-container"]', timeout=3)
-        if login_popup and login_popup.is_displayed():
-            logger.info("检测到登录弹窗，正在尝试自动登录...")
-            # 点击“密码登录”
-            page.ele('//div[@class="pass-login-tab-item pass-login-tab-item__password"]').click()
-            time.sleep(0.5)
-            # 输入账号
-            page.ele('//input[@placeholder="请输入手机号或邮箱"]').input(ZHILIAN_USERNAME)
-            time.sleep(0.5)
-            # 输入密码
-            page.ele('//input[@placeholder="请输入密码"]').input(ZHILIAN_PASSWORD)
-            time.sleep(0.5)
-            # 点击登录按钮
-            page.ele('//button[contains(@class, "pass-login-submit")]').click()
-            logger.info("已提交登录信息，等待页面跳转...")
-            time.sleep(3)  # 等待登录完成
-            logger.info("自动登录完成。")
+        return bool(element.is_displayed())
     except Exception:
-        # 如果没有找到登录弹窗，或者登录过程中出错，则静默处理，因为可能页面已经处于登录状态
-        logger.info("未检测到登录弹窗或已登录，继续执行...")
+        return True
+
+
+def _find_visible_element(page, selectors, timeout: float = 0.8):
+    for selector in selectors:
+        try:
+            normalized_selector = selector
+            if isinstance(selector, str) and selector.lstrip().startswith(("/", "(")) and By:
+                normalized_selector = (By.XPATH, selector)
+            element = page.ele(normalized_selector, timeout=timeout)
+            if _element_is_visible(element):
+                return element
+        except Exception as exc:
+            logger.debug(f"查找登录元素失败 selector={selector}: {exc}")
+    return None
+
+
+def _click_first_visible(page, selectors, timeout: float = 0.8) -> bool:
+    element = _find_visible_element(page, selectors, timeout=timeout)
+    if not element:
+        return False
+    element.click()
+    return True
+
+
+def _clear_and_input(element, value: str) -> None:
+    try:
+        element.clear()
+    except Exception:
         pass
+    element.input(value)
+
+
+def _ensure_login_agreement_checked(page) -> None:
+    """智联登录框通常要求勾选用户协议；若能识别未勾选状态则自动勾选。"""
+    checkbox = _find_visible_element(
+        page,
+        [
+            '//span[contains(@class, "pass-checkbox")]',
+            '//span[contains(@class, "checkbox") and ancestor::*[contains(@class, "pass-login")]]',
+            '//input[@type="checkbox" and ancestor::*[contains(@class, "pass-login")]]',
+        ],
+        timeout=0.5,
+    )
+    if not checkbox:
+        return
+
+    try:
+        class_name = (checkbox.attr("class") or "").lower()
+        aria_checked = (checkbox.attr("aria-checked") or "").lower()
+        checked_attr = checkbox.attr("checked")
+        checked_attr_text = str(checked_attr).lower() if checked_attr is not None else ""
+        class_means_unchecked = "uncheck" in class_name or "unchecked" in class_name
+        if (
+            (not class_means_unchecked and ("checked" in class_name or "selected" in class_name))
+            or aria_checked == "true"
+            or checked_attr_text in {"true", "checked", "1"}
+        ):
+            return
+    except Exception:
+        pass
+
+    checkbox.click()
+    logger.info("已勾选智联登录协议。")
+
+
+def _notify_admin_scan_login_required(reason: str, page=None) -> bool:
+    """登录态失效时邮件提醒管理员到调试浏览器扫码/短信登录。"""
+    global _last_login_notify_ts
+
+    smtp_host = _settings.JOB_SEARCH_SMTP_HOST
+    smtp_username = _settings.JOB_SEARCH_SMTP_USERNAME
+    smtp_password = _settings.JOB_SEARCH_SMTP_PASSWORD
+    smtp_from = _settings.JOB_SEARCH_SMTP_FROM or smtp_username
+    admin_email = _settings.JOB_SEARCH_ADMIN_EMAIL
+    if not all([smtp_host, smtp_username, smtp_password, smtp_from, admin_email]):
+        logger.warning(
+            "智联登录提醒邮件未发送：缺少 JOB_SEARCH_SMTP_HOST / "
+            "JOB_SEARCH_SMTP_USERNAME / JOB_SEARCH_SMTP_PASSWORD / "
+            "JOB_SEARCH_SMTP_FROM / JOB_SEARCH_ADMIN_EMAIL 配置。"
+        )
+        return False
+
+    now = time.monotonic()
+    cooldown = max(0, _settings.JOB_SEARCH_LOGIN_NOTIFY_COOLDOWN_SEC)
+    with _login_notify_lock:
+        if cooldown and now - _last_login_notify_ts < cooldown:
+            logger.info("智联登录提醒邮件仍在冷却期内，本次不重复发送。")
+            return False
+        _last_login_notify_ts = now
+
+    current_url = ""
+    try:
+        current_url = page.url if page else ""
+    except Exception:
+        current_url = ""
+
+    subject = "【script_tools】智联爬虫需要管理员扫码登录"
+    body = (
+        "智联招聘爬虫检测到登录态失效，需要管理员处理。\n\n"
+        f"原因：{reason}\n"
+        f"浏览器调试端口：{BROWSER_HOST_PORT}\n"
+        f"当前页面：{current_url or '未知'}\n"
+        f"服务地址：{_settings.APP_PUBLIC_BASE_URL}\n"
+        f"触发时间：{datetime.now().isoformat(timespec='seconds')}\n\n"
+        "处理方式：\n"
+        "1. 打开正在运行的调试 Chrome 浏览器。\n"
+        "2. 在智联页面完成微信扫码或短信验证码登录。\n"
+        "3. 登录完成后重新调用爬虫接口。\n\n"
+        "说明：智联当前登录页未提供密码输入框，无法使用账号密码全自动登录。"
+    )
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = smtp_from
+    msg["To"] = admin_email
+    msg.set_content(body)
+
+    try:
+        if _settings.JOB_SEARCH_SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(
+                smtp_host,
+                _settings.JOB_SEARCH_SMTP_PORT,
+                timeout=15,
+            ) as smtp:
+                smtp.login(smtp_username, smtp_password)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(
+                smtp_host,
+                _settings.JOB_SEARCH_SMTP_PORT,
+                timeout=15,
+            ) as smtp:
+                if _settings.JOB_SEARCH_SMTP_STARTTLS:
+                    smtp.starttls()
+                smtp.login(smtp_username, smtp_password)
+                smtp.send_message(msg)
+        logger.info(f"已发送智联扫码登录提醒邮件至 {admin_email}。")
+        return True
+    except Exception as exc:
+        logger.error(f"发送智联扫码登录提醒邮件失败: {exc}", exc_info=True)
+        return False
+
+
+def handle_login_if_needed(page) -> bool:
+    """
+    检查并处理智联登录弹窗。
+
+    返回 True 表示本次执行了登录；False 表示未检测到登录弹窗。
+    如果检测到登录弹窗但无法完成登录，会抛出异常让调用方感知真实失败。
+    """
+    login_popup_selectors = [
+        '//div[contains(@class, "pass-login-container")]',
+        '//*[contains(@class, "pass-login") and (.//input or .//button)]',
+        '//*[contains(@class, "zppp-wrapper") or contains(@class, "zppp-container-login") or contains(@class, "login-box")]',
+    ]
+    login_popup = _find_visible_element(page, login_popup_selectors, timeout=3)
+    if not login_popup:
+        logger.info("未检测到登录弹窗或已登录，继续执行。")
+        return False
+
+    logger.info("检测到登录弹窗，正在尝试自动登录...")
+
+    # 登录框可能默认停在扫码/验证码页，优先切换到密码登录。
+    switched_to_password = _click_first_visible(
+        page,
+        [
+            '//*[contains(@class, "pass-login-tab-item") and contains(., "密码")]',
+            '//*[contains(text(), "密码登录")]',
+            '//*[contains(text(), "账号登录")]',
+        ],
+        timeout=1,
+    )
+    if switched_to_password:
+        time.sleep(0.5)
+
+    phone_input = _find_visible_element(
+        page,
+        [
+            '//input[contains(@placeholder, "手机号")]',
+            'css:input[placeholder="手机号"]',
+        ],
+        timeout=1,
+    )
+    sms_input = _find_visible_element(
+        page,
+        [
+            '//input[contains(@placeholder, "短信验证码") or contains(@placeholder, "验证码")]',
+            'css:input[placeholder="短信验证码"]',
+        ],
+        timeout=1,
+    )
+    username_input = _find_visible_element(
+        page,
+        [
+            '//input[contains(@placeholder, "手机号") or contains(@placeholder, "邮箱") or contains(@placeholder, "账号")]',
+            '//input[@name="username" or @name="account" or @type="text"]',
+        ],
+        timeout=3,
+    )
+    password_input = _find_visible_element(
+        page,
+        [
+            '//input[@type="password"]',
+            '//input[contains(@placeholder, "密码")]',
+        ],
+        timeout=3,
+    )
+    if not password_input and phone_input and sms_input:
+        if ZHILIAN_USERNAME:
+            _clear_and_input(phone_input, ZHILIAN_USERNAME)
+            _ensure_login_agreement_checked(page)
+        reason = "检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。"
+        email_sent = _notify_admin_scan_login_required(reason, page)
+        notify_message = (
+            f"已发送邮件通知管理员 {_settings.JOB_SEARCH_ADMIN_EMAIL} 扫码/验证码登录。"
+            if email_sent
+            else "登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。"
+        )
+        raise RuntimeError(
+            f"{reason}"
+            "无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。"
+            f"{notify_message}"
+        )
+
+    if not ZHILIAN_USERNAME or not ZHILIAN_PASSWORD:
+        raise RuntimeError("检测到智联登录弹窗，但未配置 ZHILIAN_USERNAME / ZHILIAN_PASSWORD。")
+
+    if not username_input or not password_input:
+        raise RuntimeError("检测到智联登录弹窗，但未找到账号或密码输入框。")
+
+    _clear_and_input(username_input, ZHILIAN_USERNAME)
+    time.sleep(0.3)
+    _clear_and_input(password_input, ZHILIAN_PASSWORD)
+    time.sleep(0.3)
+    _ensure_login_agreement_checked(page)
+    time.sleep(0.2)
+
+    if not _click_first_visible(
+        page,
+        [
+            '//button[contains(@class, "pass-login-submit")]',
+            '//button[contains(., "登录")]',
+            '//*[contains(@class, "submit") and contains(., "登录")]',
+        ],
+        timeout=2,
+    ):
+        raise RuntimeError("检测到智联登录弹窗，但未找到登录提交按钮。")
+
+    logger.info("已提交登录信息，等待页面跳转...")
+    time.sleep(4)
+
+    if _find_visible_element(page, login_popup_selectors, timeout=1):
+        raise RuntimeError("智联自动登录提交后登录弹窗仍存在，可能需要验证码或账号密码错误。")
+
+    logger.info("自动登录完成。")
+    return True
 
 
 # 不需要 re 模块了

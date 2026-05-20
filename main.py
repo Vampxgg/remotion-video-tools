@@ -12,7 +12,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
-    job_search, job_search_v2, fish_asr, fenbi_gateway, video_compress, gemini_live
+    job_search, job_search_v2, boss_zhipin, fish_asr, fenbi_gateway, video_compress, gemini_live
 from fastapi.staticfiles import StaticFiles
 from db.database import engine, Base, get_db
 from utils.settings import settings
@@ -78,7 +78,7 @@ _LIFESPAN_MODULES = [
     # cre_video,
     # cre_image,
     # fish_asr,
-    # job_search_v2,
+    job_search_v2,
     gemini_live,
 ]
 
@@ -155,8 +155,9 @@ app.add_middleware(
 # app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
 # app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
 # app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
-# app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
-# app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
+app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
+app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
+app.include_router(boss_zhipin.router, prefix="/api", tags=["boss_zhipin"])
 # app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
 # app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
 app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])

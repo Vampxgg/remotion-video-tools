@@ -363,6 +363,15 @@ class JobSearchSettings(_Base):
     ZHILIAN_PASSWORD: Optional[str] = None
     JOB_SEARCH_BROWSER_HOST_PORT: str = "127.0.0.1:9527"
     JOB_SEARCH_MAX_CONCURRENT: int = 10
+    JOB_SEARCH_ADMIN_EMAIL: str = "1561958968@qq.com"
+    JOB_SEARCH_LOGIN_NOTIFY_COOLDOWN_SEC: int = 600
+    JOB_SEARCH_SMTP_HOST: Optional[str] = None
+    JOB_SEARCH_SMTP_PORT: int = 465
+    JOB_SEARCH_SMTP_USERNAME: Optional[str] = None
+    JOB_SEARCH_SMTP_PASSWORD: Optional[str] = None
+    JOB_SEARCH_SMTP_FROM: Optional[str] = None
+    JOB_SEARCH_SMTP_USE_SSL: bool = True
+    JOB_SEARCH_SMTP_STARTTLS: bool = False
     ZHAOPIN_DETAIL_API_TEMPLATE: str = (
         "https://fe-api.zhaopin.com/c/i/jobs/position-detail-new?number={number}"
     )
@@ -372,6 +381,9 @@ class JobSearchSettings(_Base):
 class JobSearchV2Settings(_Base):
     """对应 api/job_search_v2.py + services/zhaopin_client.py（智联 v2 浏览器 JS 版）。"""
     JOB_SEARCH_V2_API_KEY: Optional[str] = None
+    JOB_SEARCH_V2_DIRECT_ENABLED: bool = True
+    JOB_SEARCH_V2_BROWSER_FALLBACK_ENABLED: bool = True
+    JOB_SEARCH_V2_LIST_PAGE_SIZE: int = 20
     JOB_SEARCH_V2_HTTP_CONCURRENCY: int = 8
     JOB_SEARCH_V2_HTTP_TIMEOUT: float = 10.0
     JOB_SEARCH_V2_TASK_TTL_SECONDS: int = 1800
@@ -411,6 +423,19 @@ class ZhipinSettings(_Base):
     ZHAOPIN_DICT_HTTP_TIMEOUT: float = 10.0
 
 
+class BossZhipinSettings(_Base):
+    """对应 api/boss_zhipin.py + services/boss_zhipin_client.py。"""
+    BOSS_ZHIPIN_API_KEY: Optional[str] = None
+    BOSS_ZHIPIN_BROWSER_HOST_PORT: str = "127.0.0.1:9527"
+    BOSS_ZHIPIN_MAX_COMBINATIONS: int = 10
+    BOSS_ZHIPIN_MAX_PAGES: int = 3
+    BOSS_ZHIPIN_MAX_ITEMS_PER_QUERY: int = 100
+    BOSS_ZHIPIN_LISTEN_TIMEOUT_SEC: float = 15.0
+    BOSS_ZHIPIN_SYNC_TIMEOUT_SEC: float = 90.0
+    BOSS_ZHIPIN_MIN_DELAY_SEC: float = 1.0
+    BOSS_ZHIPIN_MAX_DELAY_SEC: float = 2.5
+
+
 # =====================================================================
 # 合成最终 Settings
 # =====================================================================
@@ -424,7 +449,7 @@ class Settings(
     VideoCompressSettings, ConverterSettings, JobSearchSettings,
     JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings,
-    ZhipinSettings,
+    ZhipinSettings, BossZhipinSettings,
 ):
     """全局唯一的配置对象。模块中只需 ``from utils.settings import settings`` 后取值。"""
 

@@ -7,7 +7,7 @@
 2. 对每次搜索，直接导航到 ``www.zhaopin.com/sou/jl{cityId}/kw{keyword}/p{page}``
 3. 用 ``page.listen`` 拦截 ``/c/i/search/positions`` 的 API 响应
 4. 若页面加载未触发 API 调用，则通过在搜索框按回车强制触发
-5. 最终 fallback: 从页面 DOM 解析可见的职位卡片
+5. V2 优先用纯 HTTP 直连 ``/c/i/search/positions``，失败时再 fallback 到浏览器
 
 已验证结论:
 - ``/c/i/sou`` API 已废弃，始终返回空
@@ -21,7 +21,7 @@ import json
 import re
 import time
 from random import uniform
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 import httpx
@@ -30,6 +30,8 @@ from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
 
 logger = setup_module_logger(__name__, "logs/jobs/zhilian_v2.log")
+
+SEARCH_API_URL = "https://fe-api.zhaopin.com/c/i/search/positions"
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -447,27 +449,13 @@ class BrowserPool:
 def _handle_login_if_needed(page) -> None:
     """检测登录弹窗并自动登录（复用 v1 逻辑）。"""
     try:
-        login_popup = page.ele('//div[@class="pass-login-container"]', timeout=3)
-        if login_popup and login_popup.is_displayed():
-            logger.info("检测到登录弹窗，正在自动登录 …")
-            page.ele(
-                '//div[@class="pass-login-tab-item pass-login-tab-item__password"]'
-            ).click()
-            time.sleep(0.5)
-            page.ele('//input[@placeholder="请输入手机号或邮箱"]').input(
-                _settings.ZHILIAN_USERNAME or ""
-            )
-            time.sleep(0.5)
-            page.ele('//input[@placeholder="请输入密码"]').input(
-                _settings.ZHILIAN_PASSWORD or ""
-            )
-            time.sleep(0.5)
-            page.ele('//button[contains(@class, "pass-login-submit")]').click()
-            logger.info("已提交登录信息，等待跳转 …")
-            time.sleep(3)
-            logger.info("自动登录完成。")
-    except Exception:
-        logger.info("未检测到登录弹窗或已登录，继续。")
+        from api.job_search import handle_login_if_needed
+
+        handle_login_if_needed(page)
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        logger.info(f"未检测到登录弹窗或已登录，继续。detail={exc}")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -505,6 +493,77 @@ class CityResolver:
 
 
 # ══════════════════════════════════════════════════════════════════════
+#  ZhaopinDirectClient — 纯 HTTP 职位列表/详情
+# ══════════════════════════════════════════════════════════════════════
+
+class ZhaopinDirectClient:
+    """智联职位列表直连客户端。
+
+    新版搜索页前端会 POST 到 ``/c/i/search/positions``，核心字段来自
+    前端参数映射：关键词 ``S_SOU_FULL_INDEX``、城市 ``S_SOU_WORK_CITY``。
+    """
+
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self._client = client
+
+    async def search_positions(
+        self,
+        keyword: str,
+        city_id: str,
+        *,
+        page: int = 1,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        payload = {
+            "S_SOU_FULL_INDEX": keyword,
+            "S_SOU_WORK_CITY": str(city_id),
+            "actionid": f"direct-{int(time.time() * 1000)}",
+            "pageSize": _settings.JOB_SEARCH_V2_LIST_PAGE_SIZE,
+            "pageIndex": page,
+            "eventScenario": "pcSearchedSouSearch",
+            "anonymous": 1,
+            "clickFilterBlackCompany": False,
+            "platform": 13,
+            "version": "0.0.0",
+        }
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://www.zhaopin.com",
+            "Referer": (
+                f"https://www.zhaopin.com/sou/jl{city_id}/"
+                f"kw{quote(keyword, safe='')}/p{page}"
+            ),
+        }
+
+        started = time.monotonic()
+        resp = await self._client.post(
+            SEARCH_API_URL,
+            json=payload,
+            headers=headers,
+        )
+        cost = round(time.monotonic() - started, 2)
+        if resp.status_code != 200:
+            raise RuntimeError(f"直连列表 HTTP {resp.status_code}")
+
+        body = resp.json()
+        data = body.get("data") or {}
+        jobs = data.get("list") or []
+        if body.get("code") != 200 or not isinstance(jobs, list):
+            raise RuntimeError(
+                f"直连列表返回结构异常: code={body.get('code')}, "
+                f"keys={list(data.keys())[:8] if isinstance(data, dict) else type(data).__name__}"
+            )
+
+        meta = {
+            "count": data.get("count"),
+            "isEndPage": data.get("isEndPage"),
+            "isVerification": data.get("isVerification"),
+            "statusCode": data.get("statusCode", 200),
+            "cost": cost,
+        }
+        return jobs, meta
+
+
+# ══════════════════════════════════════════════════════════════════════
 #  ZhaopinSearchClient
 # ══════════════════════════════════════════════════════════════════════
 
@@ -519,14 +578,27 @@ class ZhaopinSearchClient:
     def __init__(self, browser_pool: BrowserPool) -> None:
         self._browser = browser_pool
         self._city = CityResolver()
+        self._http: Optional[httpx.AsyncClient] = None
+        self._direct: Optional[ZhaopinDirectClient] = None
         self._detail_semaphore = asyncio.Semaphore(
             _settings.JOB_SEARCH_V2_HTTP_CONCURRENCY
         )
 
     async def startup(self) -> None:
-        await self._browser.startup()
+        if self._http is None:
+            self._http = httpx.AsyncClient(
+                headers={"User-Agent": _settings.FETCH_USER_AGENT},
+                timeout=_settings.JOB_SEARCH_V2_HTTP_TIMEOUT,
+            )
+            self._direct = ZhaopinDirectClient(self._http)
+        if not _settings.JOB_SEARCH_V2_DIRECT_ENABLED:
+            await self._browser.startup()
 
     async def shutdown(self) -> None:
+        if self._http is not None:
+            await self._http.aclose()
+            self._http = None
+            self._direct = None
         await self._browser.shutdown()
 
     # ─────────────── 职位列表搜索 ───────────────
@@ -538,7 +610,35 @@ class ZhaopinSearchClient:
         *,
         page: int = 1,
     ) -> List[Dict[str, Any]]:
-        """单页列表搜索：导航到搜索 URL + listen 拦截 + DOM 解析 fallback。"""
+        """单页列表搜索：优先 HTTP 直连，失败时浏览器 listen fallback。"""
+        if self._direct is None:
+            await self.startup()
+
+        if _settings.JOB_SEARCH_V2_DIRECT_ENABLED and self._direct is not None:
+            try:
+                jobs, meta = await self._direct.search_positions(
+                    keyword, city_id, page=page
+                )
+                logger.info(
+                    f"直连列表: {keyword}/cityId={city_id} p{page} "
+                    f"→ {len(jobs)} 条 "
+                    f"(count={meta.get('count')}, verify={meta.get('isVerification')}, "
+                    f"{meta.get('cost')}s)"
+                )
+                if jobs:
+                    return jobs
+                logger.warning(
+                    f"直连列表为空: {keyword}/cityId={city_id} p{page}, meta={meta}"
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"直连列表失败，准备 fallback: "
+                    f"{keyword}/cityId={city_id} p{page}: {exc}"
+                )
+
+        if not _settings.JOB_SEARCH_V2_BROWSER_FALLBACK_ENABLED:
+            return []
+
         result = await self._browser.navigate_and_listen(keyword, city_id, page)
 
         source = result.get("_source", "listen")
@@ -577,13 +677,11 @@ class ZhaopinSearchClient:
         url = _settings.ZHAOPIN_DETAIL_API_TEMPLATE.format(
             number=position_number
         )
+        if self._http is None:
+            await self.startup()
         try:
             async with self._detail_semaphore:
-                async with httpx.AsyncClient(
-                    headers={"User-Agent": _settings.FETCH_USER_AGENT},
-                    timeout=_settings.JOB_SEARCH_V2_HTTP_TIMEOUT,
-                ) as client:
-                    resp = await client.get(url)
+                resp = await self._http.get(url)
             if resp.status_code == 200:
                 body = resp.json()
                 if body.get("code") == 200 and "data" in body:
@@ -691,7 +789,7 @@ class ZhaopinSearchClient:
                 or []
             )
             if skill_tags and isinstance(skill_tags[0], dict):
-                skill_tags = [t.get("name", "") for t in skill_tags]
+                skill_tags = [t.get("name") or t.get("value") or "" for t in skill_tags]
 
             result.append({
                 "name": data.get("name") or data.get("jobName"),
