@@ -445,6 +445,32 @@ class RegionJobsSettings(_Base):
     REGION_JOBS_MAX_RECORDS_PER_SOURCE: int = 50
 
 
+class TianyanchaSettings(_Base):
+    """对应 api/tianyancha.py + services/tianyancha_client.py。"""
+    TIANYANCHA_API_KEY: Optional[str] = None
+    TIANYANCHA_TOKEN: Optional[str] = None
+    TIANYANCHA_SEARCH_URL: str = "http://open.api.tianyancha.com/services/open/searchx"
+    TIANYANCHA_BASEINFO_URL: str = (
+        "http://open.api.tianyancha.com/services/open/ic/baseinfo/normal"
+    )
+    TIANYANCHA_AREA_CODE_URL: str = (
+        "https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/newAreaCodeV2024.json"
+    )
+    TIANYANCHA_CATEGORY_URL: str = (
+        "https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/category.json"
+    )
+    TIANYANCHA_HTTP_TIMEOUT: float = 15.0
+    TIANYANCHA_SEARCH_CACHE_TTL_SECONDS: int = 86400
+    TIANYANCHA_BASEINFO_TTL_DAYS: int = 30
+    TIANYANCHA_MAX_PAGE_SIZE: int = 20
+    TIANYANCHA_MAX_PAGES_PER_REQUEST: int = 5
+    TIANYANCHA_MAX_DETAIL_CALLS_PER_REQUEST: int = 5
+    TIANYANCHA_ENABLE_REMOTE: bool = True
+    TIANYANCHA_ENABLE_AUTO_DETAIL: bool = False
+    TIANYANCHA_DIFY_DEFAULT_LIMIT: int = 20
+    TIANYANCHA_DIFY_MAX_LIMIT: int = 50
+
+
 # =====================================================================
 # 合成最终 Settings
 # =====================================================================
@@ -459,6 +485,7 @@ class Settings(
     JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings,
     ZhipinSettings, BossZhipinSettings, RegionJobsSettings,
+    TianyanchaSettings,
 ):
     """全局唯一的配置对象。模块中只需 ``from utils.settings import settings`` 后取值。"""
 
