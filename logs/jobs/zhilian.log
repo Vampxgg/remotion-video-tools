@@ -1,257 +1,516 @@
-2026-04-28 01:27:02,394 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
-2026-04-28 01:27:02,421 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
-2026-04-28 01:27:11,313 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 开始处理组合: '大数据' - '北京'
-2026-04-28 01:27:12,195 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 开始处理组合: 'Java工程师' - '北京'
-2026-04-28 01:27:12,224 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 开始处理组合: '大数据' - '深圳'
-2026-04-28 01:27:12,302 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 开始处理组合: 'Java工程师' - '深圳'
-2026-04-28 01:27:13,671 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 等待采集 -> 大数据 | 北京 | 第 1 页
-2026-04-28 01:27:14,554 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
-2026-04-28 01:27:14,633 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 等待采集 -> Java工程师 | 北京 | 第 1 页
-2026-04-28 01:27:14,779 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
-2026-04-28 01:27:16,077 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 01:27:16,150 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:16,891 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 01:27:16,892 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:16,965 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:17,351 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:17,370 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 01:27:17,371 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 01:27:17,372 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:17,377 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:17,884 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:18,090 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:18,164 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 等待采集 -> 大数据 | 北京 | 第 2 页
-2026-04-28 01:27:18,653 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 等待采集 -> Java工程师 | 北京 | 第 2 页
-2026-04-28 01:27:19,067 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
-2026-04-28 01:27:19,191 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
-2026-04-28 01:27:20,436 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 01:27:20,437 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:20,819 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:21,061 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 01:27:21,063 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:21,652 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:21,750 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 等待采集 -> 大数据 | 北京 | 第 3 页
-2026-04-28 01:27:21,864 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 01:27:21,864 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 01:27:21,865 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:21,865 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 准备并发获取 20 个职位详情...
-2026-04-28 01:27:22,519 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:22,670 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 01:27:22,752 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 等待采集 -> Java工程师 | 北京 | 第 3 页
-2026-04-28 01:27:23,709 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
-2026-04-28 01:27:23,863 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
-2026-04-28 01:27:39,164 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_1] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 01:27:39,164 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
-2026-04-28 01:27:39,195 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
-2026-04-28 01:27:39,195 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 40 条数据。
-2026-04-28 01:27:39,995 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_3] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 01:27:39,995 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
-2026-04-28 01:27:40,027 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
-2026-04-28 01:27:40,027 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 40 条数据。
-2026-04-28 01:27:40,802 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_0] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 01:27:40,802 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
-2026-04-28 01:27:40,817 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
-2026-04-28 01:27:40,818 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 40 条数据。
-2026-04-28 01:27:40,848 - WARNING  - [api.job_search] [ThreadPoolExecutor-0_2] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 01:27:40,848 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
-2026-04-28 01:27:40,879 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
-2026-04-28 01:27:40,879 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 40 条数据。
-2026-04-28 01:27:40,880 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 160 条数据。
-2026-04-28 01:27:40,880 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 160 个岗位。
-2026-04-28 02:02:47,339 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
-2026-04-28 02:02:47,340 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
-2026-04-28 02:02:52,856 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 开始处理组合: '大数据' - '深圳'
-2026-04-28 02:02:53,105 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 开始处理组合: 'Java工程师' - '深圳'
-2026-04-28 02:02:53,673 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 开始处理组合: 'Java工程师' - '北京'
-2026-04-28 02:02:53,749 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 开始处理组合: '大数据' - '北京'
-2026-04-28 02:02:55,103 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
-2026-04-28 02:02:55,836 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
-2026-04-28 02:02:56,098 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 等待采集 -> 大数据 | 北京 | 第 1 页
-2026-04-28 02:02:56,278 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 等待采集 -> Java工程师 | 北京 | 第 1 页
-2026-04-28 02:02:57,949 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 02:02:57,950 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 准备并发获取 20 个职位详情...
-2026-04-28 02:02:58,391 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 02:02:58,489 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 02:02:58,491 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 准备并发获取 20 个职位详情...
-2026-04-28 02:02:58,881 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 02:02:58,881 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 02:02:58,882 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 准备并发获取 20 个职位详情...
-2026-04-28 02:02:58,882 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 准备并发获取 20 个职位详情...
-2026-04-28 02:02:59,054 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 02:02:59,282 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 02:02:59,343 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 02:02:59,661 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
-2026-04-28 02:03:00,094 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
-2026-04-28 02:03:00,473 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 等待采集 -> Java工程师 | 北京 | 第 2 页
-2026-04-28 02:03:00,597 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 等待采集 -> 大数据 | 北京 | 第 2 页
-2026-04-28 02:03:01,917 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 02:03:01,918 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 准备并发获取 20 个职位详情...
-2026-04-28 02:03:02,452 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 02:03:02,561 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 02:03:02,561 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 准备并发获取 20 个职位详情...
-2026-04-28 02:03:03,187 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 02:03:03,187 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 02:03:03,188 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 准备并发获取 20 个职位详情...
-2026-04-28 02:03:03,188 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 准备并发获取 20 个职位详情...
-2026-04-28 02:03:03,303 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 02:03:03,358 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
-2026-04-28 02:03:03,573 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 02:03:03,650 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - [大数据 | 北京] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 02:03:04,539 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 等待采集 -> 大数据 | 北京 | 第 3 页
-2026-04-28 02:03:04,554 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
-2026-04-28 02:03:04,806 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 等待采集 -> Java工程师 | 北京 | 第 3 页
-2026-04-28 02:03:05,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 02:03:05,982 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 准备并发获取 20 个职位详情...
-2026-04-28 02:03:06,372 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - [大数据 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
-2026-04-28 02:03:06,372 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
-2026-04-28 02:03:06,372 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
-2026-04-28 02:03:06,394 - INFO     - [api.job_search] [ThreadPoolExecutor-1_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
-2026-04-28 02:03:06,394 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 60 条数据。
-2026-04-28 02:03:07,522 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 02:03:07,522 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 准备并发获取 20 个职位详情...
-2026-04-28 02:03:07,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - [Java工程师 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
-2026-04-28 02:03:07,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
-2026-04-28 02:03:07,981 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
-2026-04-28 02:03:08,000 - INFO     - [api.job_search] [ThreadPoolExecutor-1_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
-2026-04-28 02:03:08,000 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 60 条数据。
-2026-04-28 02:03:21,999 - WARNING  - [api.job_search] [ThreadPoolExecutor-1_1] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 02:03:22,000 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
-2026-04-28 02:03:22,015 - INFO     - [api.job_search] [ThreadPoolExecutor-1_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
-2026-04-28 02:03:22,015 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 40 条数据。
-2026-04-28 02:03:22,338 - WARNING  - [api.job_search] [ThreadPoolExecutor-1_3] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 02:03:22,338 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
-2026-04-28 02:03:22,353 - INFO     - [api.job_search] [ThreadPoolExecutor-1_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
-2026-04-28 02:03:22,353 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 40 条数据。
-2026-04-28 02:03:22,354 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 200 条数据。
-2026-04-28 02:03:22,354 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 200 个岗位。
-2026-04-28 10:08:05,104 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
-2026-04-28 10:08:05,105 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
-2026-04-28 10:08:14,473 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 开始处理组合: 'Java工程师' - '深圳'
-2026-04-28 10:08:14,862 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 开始处理组合: 'Java工程师' - '北京'
-2026-04-28 10:08:14,986 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 开始处理组合: '大数据' - '深圳'
-2026-04-28 10:08:15,093 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 开始处理组合: '大数据' - '北京'
-2026-04-28 10:08:17,234 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
-2026-04-28 10:08:17,295 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 等待采集 -> 大数据 | 北京 | 第 1 页
-2026-04-28 10:08:17,442 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
-2026-04-28 10:08:17,531 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 等待采集 -> Java工程师 | 北京 | 第 1 页
-2026-04-28 10:08:20,169 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 10:08:20,176 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 10:08:20,178 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 10:08:20,179 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:20,179 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:20,185 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:20,279 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 10:08:20,280 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:20,796 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:20,939 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:20,964 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:21,135 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:21,888 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 等待采集 -> 大数据 | 北京 | 第 2 页
-2026-04-28 10:08:21,891 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
-2026-04-28 10:08:22,190 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
-2026-04-28 10:08:22,374 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 等待采集 -> Java工程师 | 北京 | 第 2 页
-2026-04-28 10:08:24,072 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 10:08:24,072 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:24,556 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 10:08:24,557 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:24,589 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - [大数据 | 北京] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:24,789 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 10:08:24,789 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:25,014 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 10:08:25,015 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:25,139 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:25,407 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:25,483 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:25,800 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 等待采集 -> 大数据 | 北京 | 第 3 页
-2026-04-28 10:08:26,189 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
-2026-04-28 10:08:26,284 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
-2026-04-28 10:08:26,674 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 等待采集 -> Java工程师 | 北京 | 第 3 页
-2026-04-28 10:08:28,080 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 10:08:28,081 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:28,661 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - [大数据 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:28,661 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
-2026-04-28 10:08:28,661 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
-2026-04-28 10:08:28,682 - INFO     - [api.job_search] [ThreadPoolExecutor-2_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
-2026-04-28 10:08:28,682 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 60 条数据。
-2026-04-28 10:08:28,990 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 10:08:28,991 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 准备并发获取 20 个职位详情...
-2026-04-28 10:08:29,395 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - [Java工程师 | 北京] 第 3 页详情获取完成，成功 20 / 20。
-2026-04-28 10:08:29,395 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
-2026-04-28 10:08:29,395 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
-2026-04-28 10:08:29,409 - INFO     - [api.job_search] [ThreadPoolExecutor-2_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
-2026-04-28 10:08:29,409 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 60 条数据。
-2026-04-28 10:08:42,692 - WARNING  - [api.job_search] [ThreadPoolExecutor-2_1] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 10:08:42,692 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
-2026-04-28 10:08:42,707 - INFO     - [api.job_search] [ThreadPoolExecutor-2_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
-2026-04-28 10:08:42,708 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 40 条数据。
-2026-04-28 10:08:43,460 - WARNING  - [api.job_search] [ThreadPoolExecutor-2_2] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 10:08:43,460 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
-2026-04-28 10:08:43,491 - INFO     - [api.job_search] [ThreadPoolExecutor-2_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
-2026-04-28 10:08:43,491 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 40 条数据。
-2026-04-28 10:08:43,492 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 200 条数据。
-2026-04-28 10:08:43,492 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 200 个岗位。
-2026-04-28 11:07:08,730 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=3
-2026-04-28 11:07:08,731 - INFO     - [api.job_search] [asyncio_0] - 智联爬虫浏览器: DrissionPage=4.1.1.2, 调试地址=127.0.0.1:9527, 预检 GET /json/version …
-2026-04-28 11:07:08,747 - INFO     - [api.job_search] [asyncio_0] - 智联爬虫浏览器预检成功: http://127.0.0.1:9527/json/version
-2026-04-28 11:07:08,799 - INFO     - [api.job_search] [asyncio_0] - 准备执行 4 个智联组合（单浏览器串行；配置项 JOB_SEARCH_MAX_CONCURRENT=10 对本接口不再启用线程池）。
-2026-04-28 11:07:14,618 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: '大数据' - '深圳'
-2026-04-28 11:07:16,976 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
-2026-04-28 11:07:19,522 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 11:07:19,523 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:07:19,880 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 11:07:20,706 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 深圳 | 第 2 页
-2026-04-28 11:07:22,972 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 11:07:22,972 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:07:23,346 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 11:07:24,418 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 深圳 | 第 3 页
-2026-04-28 11:07:41,871 - WARNING  - [api.job_search] [asyncio_0] - 在第 3 页等待数据超时，可能已无更多内容。
-2026-04-28 11:07:41,871 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
-2026-04-28 11:07:41,902 - INFO     - [api.job_search] [asyncio_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
-2026-04-28 11:07:41,902 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 40 条数据。
-2026-04-28 11:07:47,885 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: '大数据' - '北京'
-2026-04-28 11:07:50,143 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 北京 | 第 1 页
-2026-04-28 11:07:52,734 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 11:07:52,735 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:07:53,216 - INFO     - [api.job_search] [asyncio_0] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 11:07:54,401 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> 大数据 | 北京 | 第 2 页
-2026-04-28 11:08:11,785 - WARNING  - [api.job_search] [asyncio_0] - 在第 2 页等待数据超时，可能已无更多内容。
-2026-04-28 11:08:11,785 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
-2026-04-28 11:08:11,816 - INFO     - [api.job_search] [asyncio_0] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
-2026-04-28 11:08:11,816 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 20 条数据。
-2026-04-28 11:08:17,937 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: 'Java工程师' - '深圳'
-2026-04-28 11:08:20,219 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
-2026-04-28 11:08:22,870 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 11:08:22,871 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:08:23,535 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 11:08:24,407 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 深圳 | 第 2 页
-2026-04-28 11:08:27,021 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 11:08:27,021 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:08:27,462 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 11:08:28,716 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 深圳 | 第 3 页
-2026-04-28 11:08:31,440 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
-2026-04-28 11:08:31,441 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:08:31,834 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 深圳] 第 3 页详情获取完成，成功 20 / 20。
-2026-04-28 11:08:31,835 - INFO     - [api.job_search] [asyncio_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
-2026-04-28 11:08:31,835 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
-2026-04-28 11:08:31,867 - INFO     - [api.job_search] [asyncio_0] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
-2026-04-28 11:08:31,867 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 60 条数据。
-2026-04-28 11:08:37,833 - INFO     - [api.job_search] [asyncio_0] - 开始处理组合: 'Java工程师' - '北京'
-2026-04-28 11:08:40,038 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 北京 | 第 1 页
-2026-04-28 11:08:42,673 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 11:08:42,673 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:08:43,125 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
-2026-04-28 11:08:44,114 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 北京 | 第 2 页
-2026-04-28 11:08:46,967 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 11:08:46,967 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:08:47,554 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 第 2 页详情获取完成，成功 20 / 20。
-2026-04-28 11:08:48,604 - INFO     - [api.job_search] [asyncio_0] - 等待采集 -> Java工程师 | 北京 | 第 3 页
-2026-04-28 11:08:51,376 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
-2026-04-28 11:08:51,377 - INFO     - [api.job_search] [asyncio_0] - 准备并发获取 20 个职位详情...
-2026-04-28 11:08:51,889 - INFO     - [api.job_search] [asyncio_0] - [Java工程师 | 北京] 第 3 页详情获取完成，成功 20 / 20。
-2026-04-28 11:08:51,889 - INFO     - [api.job_search] [asyncio_0] - 已达到设定的爬取页数限制 (3)，停止采集当前组合。
-2026-04-28 11:08:51,889 - INFO     - [api.job_search] [asyncio_0] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
-2026-04-28 11:08:51,921 - INFO     - [api.job_search] [asyncio_0] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
-2026-04-28 11:08:51,921 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 60 条数据。
-2026-04-28 11:08:51,924 - INFO     - [api.job_search] [asyncio_0] - 已断开与调试浏览器的 DrissionPage 连接（未关闭 Chrome 进程）。
-2026-04-28 11:08:51,924 - INFO     - [api.job_search] [asyncio_0] - 所有智联组合完成，共采集到 180 条数据。
-2026-04-28 11:08:51,924 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 180 个岗位。
+2026-05-20 16:34:42,128 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['Python'], provinces=['北京'], page_size=1
+2026-05-20 16:34:42,145 - INFO     - [api.job_search] [asyncio_0] - 准备启动 1 个并发爬虫任务，最大并发数: 10...
+2026-05-20 16:34:51,635 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 开始处理组合: 'Python' - '北京'
+2026-05-20 16:34:54,013 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> Python | 北京 | 第 1 页
+2026-05-20 16:34:56,412 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [Python | 北京] 成功解析 20 条岗位数据。
+2026-05-20 16:34:56,413 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 准备并发获取 20 个职位详情...
+2026-05-20 16:34:57,066 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [Python | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-05-20 16:34:57,066 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 已达到设定的爬取页数限制 (1)，停止采集当前组合。
+2026-05-20 16:34:57,066 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 'Python'-'北京' 的浏览器页面...
+2026-05-20 16:34:57,096 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 'Python'-'北京' 的浏览器页面已关闭。
+2026-05-20 16:34:57,096 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Python', '北京') 成功完成，获得 20 条数据。
+2026-05-20 16:34:57,096 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 20 条数据。
+2026-05-20 16:34:57,097 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 20 个岗位。
+2026-05-20 16:43:13,310 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=1
+2026-05-20 16:43:13,311 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-05-20 16:43:23,709 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:43:23,709 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 开始处理组合: '大数据' - '深圳'
+2026-05-20 16:43:23,893 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:43:23,893 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 开始处理组合: 'Java工程师' - '北京'
+2026-05-20 16:43:24,586 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:43:24,586 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 开始处理组合: '大数据' - '北京'
+2026-05-20 16:43:24,654 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:43:24,654 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 开始处理组合: 'Java工程师' - '深圳'
+2026-05-20 16:43:25,968 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 等待采集 -> Java工程师 | 北京 | 第 1 页
+2026-05-20 16:43:26,388 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 等待采集 -> 大数据 | 深圳 | 第 1 页
+2026-05-20 16:43:27,261 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 等待采集 -> Java工程师 | 深圳 | 第 1 页
+2026-05-20 16:43:27,274 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 等待采集 -> 大数据 | 北京 | 第 1 页
+2026-05-20 16:43:28,606 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 成功解析 20 条岗位数据。
+2026-05-20 16:43:28,607 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 准备并发获取 20 个职位详情...
+2026-05-20 16:43:28,790 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 成功解析 20 条岗位数据。
+2026-05-20 16:43:28,791 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 准备并发获取 20 个职位详情...
+2026-05-20 16:43:29,157 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - [Java工程师 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-05-20 16:43:29,157 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 已达到设定的爬取页数限制 (1)，停止采集当前组合。
+2026-05-20 16:43:29,157 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-05-20 16:43:29,169 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-05-20 16:43:29,169 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 成功完成，获得 20 条数据。
+2026-05-20 16:43:29,221 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 成功解析 20 条岗位数据。
+2026-05-20 16:43:29,221 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 准备并发获取 20 个职位详情...
+2026-05-20 16:43:29,481 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 成功解析 20 条岗位数据。
+2026-05-20 16:43:29,482 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 准备并发获取 20 个职位详情...
+2026-05-20 16:43:29,778 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - [大数据 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-05-20 16:43:29,778 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 已达到设定的爬取页数限制 (1)，停止采集当前组合。
+2026-05-20 16:43:29,778 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-05-20 16:43:29,798 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-05-20 16:43:29,798 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 成功完成，获得 20 条数据。
+2026-05-20 16:43:29,952 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - [大数据 | 北京] 第 1 页详情获取完成，成功 20 / 20。
+2026-05-20 16:43:29,952 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 已达到设定的爬取页数限制 (1)，停止采集当前组合。
+2026-05-20 16:43:29,953 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-05-20 16:43:29,970 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-05-20 16:43:29,970 - INFO     - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 成功完成，获得 20 条数据。
+2026-05-20 16:43:30,102 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - [Java工程师 | 深圳] 第 1 页详情获取完成，成功 20 / 20。
+2026-05-20 16:43:30,103 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 已达到设定的爬取页数限制 (1)，停止采集当前组合。
+2026-05-20 16:43:30,103 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-05-20 16:43:30,143 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-05-20 16:43:30,145 - INFO     - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 成功完成，获得 20 条数据。
+2026-05-20 16:43:30,149 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 80 条数据。
+2026-05-20 16:43:30,149 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 80 个岗位。
+2026-05-20 16:46:41,085 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:46:58,446 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:47:14,847 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:47:54,998 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:48:14,339 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:48:33,573 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:49:28,328 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:49:47,692 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:50:07,130 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:51:01,037 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:51:20,379 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:51:42,650 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 16:52:53,978 - INFO     - [api.job_search] [MainThread] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 16:53:22,598 - INFO     - [api.job_search] [MainThread] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 16:53:56,895 - INFO     - [api.job_search] [MainThread] - 未检测到登录弹窗或已登录，继续执行。
+2026-05-20 17:05:52,725 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=1
+2026-05-20 17:05:52,725 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-05-20 17:06:03,376 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:06:03,796 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:06:03,872 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:06:04,040 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:06:12,529 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_0] - 爬虫任务 '大数据'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:12,530 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-05-20 17:06:12,550 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:06:12,550 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 489, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:12,928 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_1] - 爬虫任务 '大数据'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:12,929 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-05-20 17:06:12,949 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:06:12,949 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 489, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:12,990 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_3] - 爬虫任务 'Java工程师'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:12,990 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-05-20 17:06:13,010 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:06:13,010 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 489, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:13,182 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_2] - 爬虫任务 'Java工程师'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:13,182 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-05-20 17:06:13,211 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:06:13,212 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 489, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 402, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 205, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框；无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。请先在调试浏览器中手动登录并复用登录态，或改造为可人工输入短信验证码的登录流程。
+2026-05-20 17:06:13,216 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 0 条数据。
+2026-05-20 17:06:13,216 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 0 个岗位。
+2026-05-20 17:32:51,977 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=1
+2026-05-20 17:32:51,978 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-05-20 17:33:03,654 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:33:03,673 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:33:03,903 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:33:05,195 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:33:12,902 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:33:12,902 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_2] - 爬虫任务 'Java工程师'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:12,902 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-05-20 17:33:12,924 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:33:12,924 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:13,027 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:33:13,027 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_3] - 爬虫任务 'Java工程师'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:13,027 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-05-20 17:33:13,047 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:33:13,048 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:14,068 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_1] - 发送智联扫码登录提醒邮件失败: 'ascii' codec can't encode characters in position 19-21: ordinal not in range(128)
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 201, in _notify_admin_scan_login_required
+    smtp.login(smtp_username, smtp_password)
+  File "D:\miniconda\envs\Virtual_Simulation\lib\smtplib.py", line 739, in login
+    (code, resp) = self.auth(
+  File "D:\miniconda\envs\Virtual_Simulation\lib\smtplib.py", line 641, in auth
+    response = encode_base64(initial_response.encode('ascii'), eol='')
+UnicodeEncodeError: 'ascii' codec can't encode characters in position 19-21: ordinal not in range(128)
+2026-05-20 17:33:14,094 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_1] - 爬虫任务 '大数据'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:14,094 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-05-20 17:33:14,126 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:33:14,126 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:14,303 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:33:14,304 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_0] - 爬虫任务 '大数据'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:14,304 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-05-20 17:33:14,325 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:33:14,325 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:33:14,326 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 0 条数据。
+2026-05-20 17:33:14,326 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 0 个岗位。
+2026-05-20 17:34:03,732 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=1
+2026-05-20 17:34:03,732 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-05-20 17:34:13,946 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:34:14,129 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:34:14,838 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:34:14,902 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:34:23,281 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:34:23,281 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_3] - 爬虫任务 'Java工程师'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:23,282 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-05-20 17:34:23,304 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:34:23,304 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:23,978 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:34:23,978 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_2] - 爬虫任务 'Java工程师'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:23,978 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-05-20 17:34:23,981 - ERROR    - [api.job_search] [ThreadPoolExecutor-0_1] - 发送智联扫码登录提醒邮件失败: 'ascii' codec can't encode characters in position 19-21: ordinal not in range(128)
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 201, in _notify_admin_scan_login_required
+    smtp.login(smtp_username, smtp_password)
+  File "D:\miniconda\envs\Virtual_Simulation\lib\smtplib.py", line 739, in login
+    (code, resp) = self.auth(
+  File "D:\miniconda\envs\Virtual_Simulation\lib\smtplib.py", line 641, in auth
+    response = encode_base64(initial_response.encode('ascii'), eol='')
+UnicodeEncodeError: 'ascii' codec can't encode characters in position 19-21: ordinal not in range(128)
+2026-05-20 17:34:23,982 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_1] - 爬虫任务 '大数据'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:23,984 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-05-20 17:34:23,999 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:34:23,999 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:24,012 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:34:24,012 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_0] - 爬虫任务 '大数据'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:24,012 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-05-20 17:34:24,015 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:34:24,015 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:24,030 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:34:24,030 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:34:24,031 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 0 条数据。
+2026-05-20 17:34:24,031 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 0 个岗位。
+2026-05-20 17:35:56,948 - INFO     - [api.job_search] [MainThread] - 接收到并发爬虫请求: keywords=['大数据', 'Java工程师'], provinces=['深圳', '北京'], page_size=1
+2026-05-20 17:35:56,948 - INFO     - [api.job_search] [asyncio_0] - 准备启动 4 个并发爬虫任务，最大并发数: 10...
+2026-05-20 17:36:07,636 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:36:07,807 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:36:07,917 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:36:07,964 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 检测到登录弹窗，正在尝试自动登录...
+2026-05-20 17:36:16,950 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:36:16,950 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_1] - 爬虫任务 '大数据'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:36:16,951 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 正在关闭任务 '大数据'-'北京' 的浏览器页面...
+2026-05-20 17:36:16,971 - INFO     - [api.job_search] [ThreadPoolExecutor-0_1] - 任务 '大数据'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:36:16,972 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:36:17,136 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:36:17,137 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_3] - 爬虫任务 'Java工程师'-'北京' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:36:17,137 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 智联登录提醒邮件仍在冷却期内，本次不重复发送。
+2026-05-20 17:36:17,137 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 正在关闭任务 'Java工程师'-'北京' 的浏览器页面...
+2026-05-20 17:36:17,137 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_0] - 爬虫任务 '大数据'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:36:17,137 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 正在关闭任务 '大数据'-'深圳' 的浏览器页面...
+2026-05-20 17:36:17,158 - INFO     - [api.job_search] [ThreadPoolExecutor-0_3] - 任务 'Java工程师'-'北京' 的浏览器页面已关闭。
+2026-05-20 17:36:17,158 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '北京') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:36:17,173 - INFO     - [api.job_search] [ThreadPoolExecutor-0_0] - 任务 '大数据'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:36:17,174 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('大数据', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。登录提醒邮件未发送，请检查 JOB_SEARCH_SMTP_* 邮件配置和日志。
+2026-05-20 17:36:18,518 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 已发送智联扫码登录提醒邮件至 1561958968@qq.com。
+2026-05-20 17:36:18,518 - CRITICAL - [api.job_search] [ThreadPoolExecutor-0_2] - 爬虫任务 'Java工程师'-'深圳' 执行期间发生严重错误: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。已发送邮件通知管理员 1561958968@qq.com 扫码/验证码登录。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。已发送邮件通知管理员 1561958968@qq.com 扫码/验证码登录。
+2026-05-20 17:36:18,518 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 正在关闭任务 'Java工程师'-'深圳' 的浏览器页面...
+2026-05-20 17:36:18,545 - INFO     - [api.job_search] [ThreadPoolExecutor-0_2] - 任务 'Java工程师'-'深圳' 的浏览器页面已关闭。
+2026-05-20 17:36:18,545 - ERROR    - [api.job_search] [asyncio_0] - 任务 ('Java工程师', '深圳') 执行失败: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。已发送邮件通知管理员 1561958968@qq.com 扫码/验证码登录。
+Traceback (most recent call last):
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 579, in run_zhilian_scraper_concurrent
+    result_data = future.result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 451, in result
+    return self.__get_result()
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\_base.py", line 403, in __get_result
+    raise self._exception
+  File "D:\miniconda\envs\Virtual_Simulation\lib\concurrent\futures\thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 492, in scrape_single_combination
+    handle_login_if_needed(page)
+  File "d:\pythonprojects\script_tools\api\job_search.py", line 295, in handle_login_if_needed
+    raise RuntimeError(
+RuntimeError: 检测到智联当前为短信验证码/微信扫码登录页，未提供密码输入框。无法使用 ZHILIAN_USERNAME / ZHILIAN_PASSWORD 自动登录。已发送邮件通知管理员 1561958968@qq.com 扫码/验证码登录。
+2026-05-20 17:36:18,548 - INFO     - [api.job_search] [asyncio_0] - 所有并发任务完成，共采集到 0 条数据。
+2026-05-20 17:36:18,548 - INFO     - [api.job_search] [MainThread] - 并发爬虫任务成功完成，共找到 0 个岗位。

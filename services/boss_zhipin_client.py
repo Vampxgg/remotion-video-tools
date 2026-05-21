@@ -38,6 +38,7 @@ class BossZhipinClient:
         max_pages: int,
         max_items_per_query: Optional[int],
         include_raw: bool,
+        include_description: bool,
     ) -> Dict[str, Any]:
         """串行采集多个关键词和城市组合。"""
         async with self._lock:
@@ -48,6 +49,7 @@ class BossZhipinClient:
                 max_pages,
                 max_items_per_query,
                 include_raw,
+                include_description,
             )
 
     def _scrape_many_sync(
@@ -57,6 +59,7 @@ class BossZhipinClient:
         max_pages: int,
         max_items_per_query: Optional[int],
         include_raw: bool,
+        include_description: bool,
     ) -> Dict[str, Any]:
         from DrissionPage import ChromiumPage
 
@@ -95,6 +98,8 @@ class BossZhipinClient:
                             key = self._job_key(job)
                             if key in seen_keys:
                                 continue
+                            if include_description:
+                                self._enrich_job_description(page, job)
                             seen_keys.add(key)
                             jobs.append(job)
                             query_count += 1
@@ -125,6 +130,7 @@ class BossZhipinClient:
                 "max_pages": max_pages,
                 "max_items_per_query": max_items_per_query,
                 "include_raw": include_raw,
+                "include_description": include_description,
                 "combinations": combos,
                 "pages_fetched": pages_fetched,
                 "total_jobs": len(jobs),
@@ -171,6 +177,99 @@ class BossZhipinClient:
             raise RuntimeError(f"BOSS 接口返回错误: code={code}, message={message}")
 
         return body
+
+    def _enrich_job_description(self, page, job: Dict[str, Any]) -> None:
+        detail_url = job.get("detail_url")
+        if not detail_url:
+            job["description_status"] = "missing_detail_url"
+            return
+
+        try:
+            logger.info(f"BOSS 详情: {detail_url}")
+            page.get(detail_url)
+            time.sleep(uniform(
+                _settings.BOSS_ZHIPIN_DETAIL_MIN_DELAY_SEC,
+                _settings.BOSS_ZHIPIN_DETAIL_MAX_DELAY_SEC,
+            ))
+            description = self._extract_detail_text(page)
+            job["job_description"] = description
+            parts = self._split_description(description)
+            job["responsibilities"] = parts.get("responsibilities")
+            job["requirements"] = parts.get("requirements")
+            job["description_status"] = "success" if description else "empty"
+        except Exception as exc:
+            logger.warning(f"BOSS 详情提取失败 [{detail_url}]: {exc}")
+            job["job_description"] = ""
+            job["responsibilities"] = ""
+            job["requirements"] = ""
+            job["description_status"] = f"failed: {exc}"
+
+    @staticmethod
+    def _extract_detail_text(page) -> str:
+        selectors = [
+            "css:.job-detail-section .job-sec-text",
+            "css:.job-sec-text",
+        ]
+        for selector in selectors:
+            try:
+                element = page.ele(selector, timeout=3)
+                if element:
+                    text = (element.text or "").strip()
+                    if text:
+                        return text
+            except Exception:
+                continue
+        return ""
+
+    @staticmethod
+    def _split_description(description: str) -> Dict[str, str]:
+        """按常见中文小标题粗略拆分职责和要求，保留完整描述作为主字段。"""
+        if not description:
+            return {"responsibilities": "", "requirements": ""}
+
+        markers = {
+            "responsibilities": ("岗位职责", "工作职责", "职位职责", "岗位描述", "工作内容"),
+            "requirements": ("任职要求", "岗位要求", "职位要求", "任职资格", "能力要求"),
+        }
+        stop_markers = (
+            "任职要求", "岗位要求", "职位要求", "任职资格", "能力要求",
+            "加分项", "福利待遇", "薪资福利", "工作时间",
+        )
+
+        responsibilities = BossZhipinClient._slice_section(
+            description,
+            markers["responsibilities"],
+            stop_markers,
+        )
+        requirements = BossZhipinClient._slice_section(
+            description,
+            markers["requirements"],
+            ("加分项", "福利待遇", "薪资福利", "工作时间"),
+        )
+        return {
+            "responsibilities": responsibilities,
+            "requirements": requirements,
+        }
+
+    @staticmethod
+    def _slice_section(text: str, starts: tuple, stops: tuple) -> str:
+        start_pos = -1
+        start_len = 0
+        for marker in starts:
+            pos = text.find(marker)
+            if pos >= 0 and (start_pos < 0 or pos < start_pos):
+                start_pos = pos
+                start_len = len(marker)
+        if start_pos < 0:
+            return ""
+
+        section_start = start_pos + start_len
+        section_end = len(text)
+        for marker in stops:
+            pos = text.find(marker, section_start)
+            if pos >= 0 and pos < section_end:
+                section_end = pos
+        return text[section_start:section_end].strip(" ：:\n\t")
 
     @staticmethod
     def _build_search_url(keyword: str, city_code: int, page_num: int) -> str:

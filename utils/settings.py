@@ -434,6 +434,15 @@ class BossZhipinSettings(_Base):
     BOSS_ZHIPIN_SYNC_TIMEOUT_SEC: float = 90.0
     BOSS_ZHIPIN_MIN_DELAY_SEC: float = 1.0
     BOSS_ZHIPIN_MAX_DELAY_SEC: float = 2.5
+    BOSS_ZHIPIN_DETAIL_MIN_DELAY_SEC: float = 1.0
+    BOSS_ZHIPIN_DETAIL_MAX_DELAY_SEC: float = 2.0
+
+
+class RegionJobsSettings(_Base):
+    """对应 api/jobs_region.py（区域岗位统一搜索）。"""
+    REGION_JOBS_API_KEY: Optional[str] = None
+    REGION_JOBS_MAX_PAGES_PER_SOURCE: int = 3
+    REGION_JOBS_MAX_RECORDS_PER_SOURCE: int = 50
 
 
 # =====================================================================
@@ -449,7 +458,7 @@ class Settings(
     VideoCompressSettings, ConverterSettings, JobSearchSettings,
     JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings,
-    ZhipinSettings, BossZhipinSettings,
+    ZhipinSettings, BossZhipinSettings, RegionJobsSettings,
 ):
     """全局唯一的配置对象。模块中只需 ``from utils.settings import settings`` 后取值。"""
 

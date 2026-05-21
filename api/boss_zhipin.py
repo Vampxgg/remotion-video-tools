@@ -56,6 +56,10 @@ class BossZhipinSearchPayload(BaseModel):
         False,
         description="是否返回 BOSS 原始字段；对外接口默认关闭",
     )
+    include_description: bool = Field(
+        False,
+        description="是否逐条打开详情页补取岗位描述/职责；会显著增加耗时",
+    )
 
     @model_validator(mode="after")
     def _check_limits(self):
@@ -99,6 +103,10 @@ class BossZhipinBatchPayload(BaseModel):
         False,
         description="是否返回 BOSS 原始字段；对外接口默认关闭",
     )
+    include_description: bool = Field(
+        False,
+        description="是否逐条打开详情页补取岗位描述/职责；会显著增加耗时",
+    )
 
     @model_validator(mode="after")
     def _check_limits(self):
@@ -131,12 +139,13 @@ async def _run_boss_search(
     max_pages: int,
     max_items_per_query: Optional[int],
     include_raw: bool,
+    include_description: bool,
     log_scope: str,
 ):
     logger.info(
         f"[{log_scope}] keywords={keywords}, city_codes={city_codes}, "
         f"max_pages={max_pages}, max_items_per_query={max_items_per_query}, "
-        f"include_raw={include_raw}"
+        f"include_raw={include_raw}, include_description={include_description}"
     )
 
     try:
@@ -147,6 +156,7 @@ async def _run_boss_search(
                 max_pages,
                 max_items_per_query,
                 include_raw,
+                include_description,
             ),
             timeout=_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC,
         )
@@ -182,6 +192,7 @@ async def search_boss_jobs(payload: BossZhipinSearchPayload):
         max_pages=payload.max_pages,
         max_items_per_query=payload.max_items,
         include_raw=payload.include_raw,
+        include_description=payload.include_description,
         log_scope="boss/search",
     )
 
@@ -202,5 +213,6 @@ async def batch_search_boss_jobs(payload: BossZhipinBatchPayload):
         max_pages=payload.max_pages,
         max_items_per_query=payload.max_items_per_query,
         include_raw=payload.include_raw,
+        include_description=payload.include_description,
         log_scope="boss/batch-search",
     )
