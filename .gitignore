@@ -56,5 +56,8 @@ alembic/__pycache__/
 .tmp_chrome_login_test/
 .tmp_chrome_zhilian/
 patch_dify.py
-scripts/benchmark_video_compress.py
-scripts/viode实训/
+head1.txt
+head2.txt
+resp1.txt
+resp2.txt
+scripts/
