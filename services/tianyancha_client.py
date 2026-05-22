@@ -5,7 +5,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import httpx
 from sqlalchemy import or_, select
@@ -74,6 +74,23 @@ def parse_remote_datetime(value: Any) -> Optional[datetime]:
     return None
 
 
+def parse_remote_int(value: Any) -> Optional[int]:
+    if value in (None, "", "-"):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def join_remote_text(value: Any) -> Optional[str]:
+    if value in (None, "", "-", [], {}):
+        return None
+    if isinstance(value, list):
+        return ";".join(str(item) for item in value if item not in (None, "", "-"))
+    return str(value)
+
+
 def _non_empty(value: Any) -> bool:
     return value not in (None, "", "-", [], {})
 
@@ -103,6 +120,7 @@ class TianyanchaClient:
         force_remote: bool = False,
         refresh_detail: bool = False,
         max_detail_calls: Optional[int] = None,
+        max_allowed_detail_calls: Optional[int] = None,
     ) -> Dict[str, Any]:
         page_size = min(page_size, _settings.TIANYANCHA_MAX_PAGE_SIZE)
         params = {
@@ -118,15 +136,25 @@ class TianyanchaClient:
         cached_query = await self._get_cached_query(db, fingerprint)
         if cached_query and not force_remote:
             companies = await self._load_companies_by_ids(db, cached_query.company_ids or [])
+            detail_calls, warnings = await self._enrich_company_details(
+                db,
+                companies,
+                enrich_detail=enrich_detail,
+                refresh_detail=refresh_detail,
+                max_detail_calls=max_detail_calls,
+                max_allowed_detail_calls=max_allowed_detail_calls,
+            )
+            if detail_calls:
+                await db.commit()
             return {
                 "source": "cache",
                 "cache_hit": True,
                 "remote_called": False,
-                "detail_remote_calls": 0,
+                "detail_remote_calls": detail_calls,
                 "total": cached_query.total,
                 "companies": [self.company_to_dict(company) for company in companies],
                 "query": self._query_to_dict(cached_query),
-                "warnings": [],
+                "warnings": warnings,
             }
 
         payload = await self._request(_settings.TIANYANCHA_SEARCH_URL, params)
@@ -139,6 +167,7 @@ class TianyanchaClient:
         items = result.get("items") or []
         now = datetime.now(timezone.utc)
         companies: List[TianyanchaCompany] = []
+        created_company_ids: Set[int] = set()
         created_count = 0
         updated_count = 0
 
@@ -147,25 +176,26 @@ class TianyanchaClient:
             companies.append(company)
             if created:
                 created_count += 1
+                if company.id is not None:
+                    created_company_ids.add(company.id)
             else:
                 updated_count += 1
 
-        detail_calls = 0
-        if enrich_detail and companies:
-            limit = (
-                _settings.TIANYANCHA_MAX_DETAIL_CALLS_PER_REQUEST
-                if max_detail_calls is None
-                else max_detail_calls
-            )
-            for company in companies:
-                if detail_calls >= limit:
-                    break
-                if not refresh_detail and not self._needs_baseinfo_refresh(company):
-                    continue
-                keyword = str(company.tianyancha_id or company.credit_code or company.name)
-                detail = await self.fetch_baseinfo(keyword)
-                company, _ = await self.upsert_company_from_baseinfo(db, detail, fetched_at=now)
-                detail_calls += 1
+        should_enrich_detail = enrich_detail or (
+            _settings.TIANYANCHA_ENRICH_NEW_COMPANIES
+            and bool(created_company_ids)
+            and max_detail_calls != 0
+        )
+        detail_calls, detail_warnings = await self._enrich_company_details(
+            db,
+            companies,
+            enrich_detail=should_enrich_detail,
+            refresh_detail=refresh_detail,
+            max_detail_calls=max_detail_calls,
+            fetched_at=now,
+            max_allowed_detail_calls=max_allowed_detail_calls,
+            priority_company_ids=created_company_ids,
+        )
 
         company_ids = [company.id for company in companies if company.id is not None]
         query = await self._upsert_search_query(
@@ -190,7 +220,7 @@ class TianyanchaClient:
             "total": result.get("total", 0),
             "companies": [self.company_to_dict(company) for company in companies],
             "query": self._query_to_dict(query),
-            "warnings": [] if error_code == 0 else [reason],
+            "warnings": ([] if error_code == 0 else [reason]) + detail_warnings,
         }
 
     async def get_company(
@@ -234,7 +264,10 @@ class TianyanchaClient:
         reg_status: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> List[Dict[str, Any]]:
+        enrich_detail: bool = False,
+        refresh_detail: bool = False,
+        max_detail_calls: Optional[int] = None,
+    ) -> Dict[str, Any]:
         query = select(TianyanchaCompany).order_by(TianyanchaCompany.updated_at.desc())
         if keyword:
             normalized = normalize_company_name(keyword)
@@ -262,7 +295,23 @@ class TianyanchaClient:
         if reg_status:
             query = query.where(TianyanchaCompany.reg_status == reg_status)
         result = await db.execute(query.offset(skip).limit(limit))
-        return [self.company_to_dict(company) for company in result.scalars().all()]
+        companies = list(result.scalars().all())
+        detail_calls, warnings = await self._enrich_company_details(
+            db,
+            companies,
+            enrich_detail=enrich_detail,
+            refresh_detail=refresh_detail,
+            max_detail_calls=max_detail_calls,
+        )
+        if detail_calls:
+            await db.commit()
+        return {
+            "companies": [self.company_to_dict(company) for company in companies],
+            "skip": skip,
+            "limit": limit,
+            "detail_remote_calls": detail_calls,
+            "warnings": warnings,
+        }
 
     async def research_region_companies(
         self,
@@ -293,7 +342,7 @@ class TianyanchaClient:
         )
         enrich_detail = detail_level == "baseinfo"
         max_detail_calls = min(
-            _settings.TIANYANCHA_MAX_DETAIL_CALLS_PER_REQUEST,
+            _settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
             safe_limit,
         )
 
@@ -316,6 +365,7 @@ class TianyanchaClient:
                     enrich_detail=enrich_detail,
                     force_remote=force_remote,
                     max_detail_calls=max_detail_calls - detail_calls,
+                    max_allowed_detail_calls=_settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
                 )
                 query_results.append({
                     "word": word,
@@ -339,6 +389,14 @@ class TianyanchaClient:
                 break
 
         companies = list(collected.values())[:safe_limit]
+        detail_complete_count = sum(
+            1 for company in companies if company.get("baseinfo_fetched_at")
+        )
+        missing_detail_count = len(companies) - detail_complete_count
+        if enrich_detail and missing_detail_count:
+            warnings.append(
+                f"仍有 {missing_detail_count} 条企业未取得详情，可稍后重试或提高详情额度"
+            )
         return {
             "need_clarification": False,
             "summary": {
@@ -357,6 +415,11 @@ class TianyanchaClient:
             "cost_control": {
                 "remote_search_calls": remote_search_calls,
                 "remote_detail_calls": detail_calls,
+                "detail_budget": max_detail_calls,
+                "detail_required": enrich_detail,
+                "detail_complete_count": detail_complete_count,
+                "missing_detail_count": missing_detail_count,
+                "detail_complete": (not enrich_detail) or missing_detail_count == 0,
                 "detail_level": detail_level,
                 "force_remote": force_remote,
             },
@@ -394,6 +457,77 @@ class TianyanchaClient:
         data["raw_baseinfo"] = raw
         data["baseinfo_fetched_at"] = fetched_at
         return await self._upsert_company(db, data, prefer_existing_detail=False)
+
+    async def _enrich_company_details(
+        self,
+        db: AsyncSession,
+        companies: List[TianyanchaCompany],
+        *,
+        enrich_detail: bool,
+        refresh_detail: bool,
+        max_detail_calls: Optional[int],
+        fetched_at: Optional[datetime] = None,
+        max_allowed_detail_calls: Optional[int] = None,
+        priority_company_ids: Optional[Set[int]] = None,
+    ) -> Tuple[int, List[str]]:
+        if not enrich_detail or not companies:
+            return 0, []
+
+        allowed_detail_calls = (
+            _settings.TIANYANCHA_MAX_DETAIL_CALLS_PER_REQUEST
+            if max_allowed_detail_calls is None
+            else max_allowed_detail_calls
+        )
+        limit = (
+            allowed_detail_calls
+            if max_detail_calls is None
+            else max_detail_calls
+        )
+        limit = max(0, min(limit, allowed_detail_calls))
+        if limit == 0:
+            return 0, []
+
+        detail_calls = 0
+        warnings: List[str] = []
+        now = fetched_at or datetime.now(timezone.utc)
+        priority_company_ids = priority_company_ids or set()
+        indexed_companies = list(enumerate(companies))
+        indexed_companies.sort(
+            key=lambda item: (
+                0 if item[1].id in priority_company_ids else 1,
+                item[0],
+            )
+        )
+        detail_candidates = [
+            (index, company)
+            for index, company in indexed_companies
+            if refresh_detail or self._needs_baseinfo_refresh(company)
+        ]
+        if len(detail_candidates) > limit:
+            warnings.append(
+                f"详情补拉额度不足，本次需补 {len(detail_candidates)} 条，实际最多补 {limit} 条"
+            )
+
+        for index, company in detail_candidates:
+            if detail_calls >= limit:
+                break
+
+            keyword = str(company.tianyancha_id or company.credit_code or company.name)
+            try:
+                detail = await self.fetch_baseinfo(keyword)
+            except TianyanchaAPIError as exc:
+                warnings.append(f"{company.name} 详情补拉失败: {exc.reason}")
+                continue
+
+            enriched_company, _ = await self.upsert_company_from_baseinfo(
+                db,
+                detail,
+                fetched_at=now,
+            )
+            companies[index] = enriched_company
+            detail_calls += 1
+
+        return detail_calls, warnings
 
     async def find_local_company(self, db: AsyncSession, keyword: str) -> Optional[TianyanchaCompany]:
         normalized = normalize_company_name(keyword)
@@ -647,7 +781,7 @@ class TianyanchaClient:
     def _map_search_company(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         name = raw.get("name") or ""
         return {
-            "tianyancha_id": raw.get("id"),
+            "tianyancha_id": parse_remote_int(raw.get("id")),
             "name": name,
             "normalized_name": normalize_company_name(name),
             "credit_code": raw.get("creditCode"),
@@ -656,8 +790,8 @@ class TianyanchaClient:
             "reg_status": raw.get("regStatus"),
             "reg_capital": raw.get("regCapital"),
             "legal_person_name": raw.get("legalPersonName"),
-            "company_type": raw.get("companyType"),
-            "legal_type": raw.get("type"),
+            "company_type": parse_remote_int(raw.get("companyType")),
+            "legal_type": parse_remote_int(raw.get("type")),
             "base": raw.get("base"),
             "established_at": parse_remote_datetime(raw.get("estiblishTime")),
         }
@@ -665,11 +799,9 @@ class TianyanchaClient:
     def _map_baseinfo_company(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         name = raw.get("name") or ""
         industry_all = raw.get("industryAll") or {}
-        history_names = raw.get("historyNameList") or raw.get("historyNames")
-        if isinstance(history_names, list):
-            history_names = ";".join(str(item) for item in history_names if item)
+        history_names = join_remote_text(raw.get("historyNameList") or raw.get("historyNames"))
         return {
-            "tianyancha_id": raw.get("id"),
+            "tianyancha_id": parse_remote_int(raw.get("id")),
             "name": name,
             "normalized_name": normalize_company_name(name),
             "credit_code": raw.get("creditCode"),
@@ -681,7 +813,7 @@ class TianyanchaClient:
             "actual_capital": raw.get("actualCapital"),
             "legal_person_name": raw.get("legalPersonName"),
             "company_org_type": raw.get("companyOrgType"),
-            "legal_type": raw.get("type"),
+            "legal_type": parse_remote_int(raw.get("type")),
             "base": raw.get("base"),
             "city": raw.get("city"),
             "district": raw.get("district"),
@@ -701,11 +833,11 @@ class TianyanchaClient:
             "reg_location": raw.get("regLocation"),
             "business_scope": raw.get("businessScope"),
             "staff_num_range": raw.get("staffNumRange"),
-            "social_staff_num": raw.get("socialStaffNum"),
-            "tags": raw.get("tags"),
+            "social_staff_num": parse_remote_int(raw.get("socialStaffNum")),
+            "tags": join_remote_text(raw.get("tags")),
             "history_names": history_names,
-            "percentile_score": raw.get("percentileScore"),
-            "is_micro_ent": raw.get("isMicroEnt"),
+            "percentile_score": parse_remote_int(raw.get("percentileScore")),
+            "is_micro_ent": parse_remote_int(raw.get("isMicroEnt")),
         }
 
     def _needs_baseinfo_refresh(self, company: TianyanchaCompany) -> bool:
@@ -731,19 +863,40 @@ class TianyanchaClient:
             "credit_code": company.credit_code,
             "reg_number": company.reg_number,
             "org_number": company.org_number,
+            "tax_number": company.tax_number,
             "reg_status": company.reg_status,
             "reg_capital": company.reg_capital,
+            "actual_capital": company.actual_capital,
             "legal_person_name": company.legal_person_name,
+            "company_type": company.company_type,
+            "company_org_type": company.company_org_type,
+            "legal_type": company.legal_type,
             "base": company.base,
             "city": company.city,
             "district": company.district,
             "district_code": company.district_code,
             "industry": company.industry,
             "category": company.category,
+            "category_code_first": company.category_code_first,
+            "category_code_second": company.category_code_second,
+            "category_code_third": company.category_code_third,
+            "category_code_fourth": company.category_code_fourth,
+            "established_at": company.established_at.isoformat() if company.established_at else None,
+            "approved_at": company.approved_at.isoformat() if company.approved_at else None,
+            "from_time": company.from_time.isoformat() if company.from_time else None,
+            "to_time": company.to_time.isoformat() if company.to_time else None,
+            "updated_remote_at": (
+                company.updated_remote_at.isoformat() if company.updated_remote_at else None
+            ),
+            "reg_institute": company.reg_institute,
             "business_scope": company.business_scope,
             "reg_location": company.reg_location,
             "staff_num_range": company.staff_num_range,
+            "social_staff_num": company.social_staff_num,
             "tags": company.tags,
+            "history_names": company.history_names,
+            "percentile_score": company.percentile_score,
+            "is_micro_ent": company.is_micro_ent,
             "search_seen_at": company.search_seen_at.isoformat() if company.search_seen_at else None,
             "baseinfo_fetched_at": (
                 company.baseinfo_fetched_at.isoformat() if company.baseinfo_fetched_at else None

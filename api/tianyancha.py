@@ -43,7 +43,7 @@ class TianyanchaSearchPayload(BaseModel):
     area_code: Optional[str] = Field(None, description="天眼查地区代码")
     page_num: int = Field(1, ge=1, description="页码")
     page_size: int = Field(20, ge=1, description="每页条数，天眼查最大 20")
-    enrich_detail: bool = Field(False, description="是否对本页企业补拉基本信息")
+    enrich_detail: bool = Field(False, description="是否对本页企业补拉缺失或过期的基本信息")
     force_remote: bool = Field(False, description="是否跳过本地搜索缓存")
     refresh_detail: bool = Field(False, description="是否忽略详情 TTL 强制刷新详情")
     max_detail_calls: Optional[int] = Field(None, ge=0, description="本次最多补详情条数")
@@ -82,7 +82,7 @@ class RegionCompanyResearchPayload(BaseModel):
     )
     detail_level: DetailLevel = Field(
         DetailLevel.SUMMARY,
-        description="summary 只查列表；baseinfo 会按上限补企业基本信息",
+        description="summary 返回搜索摘要；baseinfo 会尽量补齐企业基本信息",
     )
     force_remote: bool = Field(False, description="是否跳过搜索缓存并强制远程搜索")
 
@@ -90,9 +90,6 @@ class RegionCompanyResearchPayload(BaseModel):
     def _check_limits(self):
         if self.limit > _settings.TIANYANCHA_DIFY_MAX_LIMIT:
             raise ValueError(f"limit 超过上限 {_settings.TIANYANCHA_DIFY_MAX_LIMIT}")
-        if self.detail_level == DetailLevel.BASEINFO and not _settings.TIANYANCHA_ENABLE_AUTO_DETAIL:
-            # 允许显式 detail_level，但通过响应中的成本字段体现受控调用；这里不拒绝。
-            return self
         return self
 
 
@@ -180,8 +177,22 @@ async def list_companies(
     reg_status: Optional[str] = Query(None, description="经营状态"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
+    enrich_detail: bool = Query(False, description="是否为返回企业补拉缺失或过期的基本信息"),
+    refresh_detail: bool = Query(False, description="补详情时是否忽略详情 TTL"),
+    max_detail_calls: Optional[int] = Query(None, ge=0, description="本次最多补详情条数"),
     db: AsyncSession = Depends(get_db),
 ):
+    if (
+        max_detail_calls is not None
+        and max_detail_calls > _settings.TIANYANCHA_MAX_DETAIL_CALLS_PER_REQUEST
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "max_detail_calls 超过上限 "
+                f"{_settings.TIANYANCHA_MAX_DETAIL_CALLS_PER_REQUEST}"
+            ),
+        )
     try:
         data = await _client.list_local_companies(
             db,
@@ -191,12 +202,19 @@ async def list_companies(
             reg_status=reg_status,
             skip=skip,
             limit=limit,
+            enrich_detail=enrich_detail,
+            refresh_detail=refresh_detail,
+            max_detail_calls=max_detail_calls,
         )
     except Exception as exc:
         return _error_response(exc)
+    companies = data["companies"]
+    message = f"本地企业库查询完成，共返回 {len(companies)} 条"
+    if data["detail_remote_calls"]:
+        message += f"，补拉详情 {data['detail_remote_calls']} 次"
     return create_standard_response(
-        data={"companies": data, "skip": skip, "limit": limit},
-        message=f"本地企业库查询完成，共返回 {len(data)} 条",
+        data=data,
+        message=message,
     )
 
 
