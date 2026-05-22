@@ -55,16 +55,22 @@ class BrowserPool:
 
     async def startup(self) -> None:
         async with self._lock:
-            if self._ready:
-                return
-            logger.info("BrowserPool 启动: 初始化浏览器 tab …")
-            try:
-                self._page = await asyncio.to_thread(self._init_browser)
-                self._ready = True
-                logger.info("BrowserPool 就绪")
-            except Exception as exc:
-                logger.error(f"BrowserPool 初始化失败: {exc}", exc_info=True)
-                raise
+            await self._startup_unlocked()
+
+    async def _startup_unlocked(self) -> None:
+        """初始化浏览器 tab；调用方必须已经持有 self._lock。"""
+        if self._ready:
+            return
+        logger.info("BrowserPool 启动: 初始化浏览器 tab …")
+        try:
+            self._page = await asyncio.to_thread(self._init_browser)
+            self._ready = True
+            logger.info("BrowserPool 就绪")
+        except Exception as exc:
+            self._page = None
+            self._ready = False
+            logger.error(f"BrowserPool 初始化失败: {exc}", exc_info=True)
+            raise
 
     @staticmethod
     def _init_browser():
@@ -86,7 +92,7 @@ class BrowserPool:
         """导航到搜索 URL 并拦截 ``/c/i/search/positions`` 的 API 响应。"""
         async with self._lock:
             if not self._ready:
-                await self.startup()
+                await self._startup_unlocked()
             return await asyncio.to_thread(
                 self._do_navigate_and_listen, keyword, city_id, page_num
             )
@@ -580,6 +586,8 @@ class ZhaopinSearchClient:
         self._city = CityResolver()
         self._http: Optional[httpx.AsyncClient] = None
         self._direct: Optional[ZhaopinDirectClient] = None
+        self._last_scrape_summary: Dict[str, Any] = {}
+        self._last_combination_pages: int = 0
         self._detail_semaphore = asyncio.Semaphore(
             _settings.JOB_SEARCH_V2_HTTP_CONCURRENCY
         )
@@ -702,20 +710,25 @@ class ZhaopinSearchClient:
         keyword: str,
         province: str,
         max_pages: int,
+        *,
+        include_detail: bool = True,
+        city_id_override: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """一个"关键词 × 省份"组合，按页拉列表 + 并发拉详情。"""
-        city_id = await self._city.resolve(province)
+        """一个"关键词 × 省份"组合，按页拉列表，可选并发拉详情。"""
+        city_id = city_id_override or await self._city.resolve(province)
         if not city_id:
             logger.warning(f"[v2] 无法解析城市 '{province}'，跳过")
             return []
 
         all_jobs: List[Dict[str, Any]] = []
+        pages_fetched = 0
 
         for page_num in range(1, max_pages + 1):
             t0 = time.monotonic()
             raw_list = await self.search_positions(
                 keyword, city_id, page=page_num
             )
+            pages_fetched += 1
             cost = round(time.monotonic() - t0, 2)
             logger.info(
                 f"[v2] {keyword}|{province}(cityId={city_id}) "
@@ -727,30 +740,32 @@ class ZhaopinSearchClient:
 
             page_jobs = self._normalize_list(raw_list, province)
 
-            position_numbers = [
-                j.get("positionNumber")
-                for j in page_jobs
-                if j.get("positionNumber")
-            ]
-            if position_numbers:
-                details = await asyncio.gather(
-                    *(self.fetch_detail(pn) for pn in position_numbers)
-                )
-                detail_map = dict(zip(position_numbers, details))
-                for job in page_jobs:
-                    pn = job.get("positionNumber")
-                    job["job_details"] = detail_map.get(pn)
-                ok = sum(1 for d in details if d)
-                logger.info(
-                    f"[v2] {keyword}|{province} p{page_num} "
-                    f"详情 {ok}/{len(position_numbers)}"
-                )
+            if include_detail:
+                position_numbers = [
+                    j.get("positionNumber")
+                    for j in page_jobs
+                    if j.get("positionNumber")
+                ]
+                if position_numbers:
+                    details = await asyncio.gather(
+                        *(self.fetch_detail(pn) for pn in position_numbers)
+                    )
+                    detail_map = dict(zip(position_numbers, details))
+                    for job in page_jobs:
+                        pn = job.get("positionNumber")
+                        job["job_details"] = detail_map.get(pn)
+                    ok = sum(1 for d in details if d)
+                    logger.info(
+                        f"[v2] {keyword}|{province} p{page_num} "
+                        f"详情 {ok}/{len(position_numbers)}"
+                    )
 
             all_jobs.extend(page_jobs)
 
             if page_num < max_pages:
                 await asyncio.sleep(uniform(0.3, 0.8))
 
+        self._last_combination_pages = pages_fetched
         return all_jobs
 
     @staticmethod
@@ -822,18 +837,57 @@ class ZhaopinSearchClient:
         keywords: List[str],
         provinces: List[str],
         page_size: int,
+        *,
+        include_detail: bool = True,
+        city_id_overrides: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
         """顺序执行多个组合（浏览器操作由 Lock 串行化），汇总结果。"""
         all_data: List[Dict[str, Any]] = []
+        combinations = 0
+        failed_combinations = 0
+        pages_fetched = 0
+        self._last_scrape_summary = {
+            "keywords": keywords,
+            "provinces": provinces,
+            "max_pages": page_size,
+            "include_detail": include_detail,
+            "combinations": 0,
+            "failed_combinations": 0,
+            "pages_fetched": 0,
+            "pages_requested": 0,
+            "total_jobs": 0,
+        }
         for kw in keywords:
             for prov in provinces:
+                combinations += 1
+                city_id_override = (city_id_overrides or {}).get(prov)
                 try:
                     result = await self.scrape_combination(
-                        kw, prov, page_size
+                        kw,
+                        prov,
+                        page_size,
+                        include_detail=include_detail,
+                        city_id_override=city_id_override,
                     )
+                    for item in result:
+                        item["_query_keyword"] = kw
+                        item["_query_region"] = prov
                     all_data.extend(result)
+                    pages_fetched += self._last_combination_pages
                 except Exception as exc:
+                    failed_combinations += 1
                     logger.error(
                         f"[v2] {kw}|{prov} 失败: {exc}", exc_info=True
                     )
+        self._last_scrape_summary = {
+            "keywords": keywords,
+            "provinces": provinces,
+            "max_pages": page_size,
+            "include_detail": include_detail,
+            "combinations": combinations,
+            "failed_combinations": failed_combinations,
+            "pages_fetched": pages_fetched,
+            "pages_requested": combinations * page_size,
+            "total_jobs": len(all_data),
+        }
         return all_data

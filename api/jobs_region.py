@@ -150,12 +150,24 @@ class RegionJobSearchPayload(BaseModel):
     collection: CollectionOptions = Field(default_factory=CollectionOptions)
     output: OutputOptions = Field(default_factory=OutputOptions)
 
+    @model_validator(mode="after")
+    def _check_combinations(self):
+        combinations = len(self.query.keywords) * len(self.sources)
+        limit = _settings.REGION_JOBS_MAX_COMBINATIONS
+        if combinations > limit:
+            raise ValueError(
+                f"keywords × sources = {combinations}，超过上限 {limit}"
+            )
+        return self
+
 
 class SourceRunResult(BaseModel):
     source: SourceName
     ok: bool
     jobs: List[Dict[str, Any]] = Field(default_factory=list)
     pages_fetched: int = 0
+    queries_attempted: int = 0
+    pages_requested: int = 0
     region_code: Optional[Any] = None
     error: Optional[str] = None
     warnings: List[str] = Field(default_factory=list)
@@ -233,7 +245,7 @@ async def search_region_jobs(payload: RegionJobSearchPayload):
             return create_standard_response(
                 code=503,
                 message="区域岗位来源采集失败",
-                data={"source_status": _build_source_status(results, payload)},
+                data=_build_response_data(results, payload),
             )
 
     succeeded = [r for r in results if r.ok]
@@ -241,39 +253,11 @@ async def search_region_jobs(payload: RegionJobSearchPayload):
         return create_standard_response(
             code=503,
             message="所有区域岗位来源均采集失败",
-            data={"source_status": _build_source_status(results, payload)},
+            data=_build_response_data(results, payload),
         )
 
-    all_jobs = []
-    for result in results:
-        all_jobs.extend(result.jobs)
-
-    total_before_dedup = len(all_jobs)
-    if payload.output.deduplicate:
-        all_jobs = _deduplicate_jobs(all_jobs)
-
-    data = {
-        "request": {
-            "region": _region_to_dict(payload.region),
-            "keywords": payload.query.keywords,
-            "keyword_mode": payload.query.keyword_mode.value,
-            "sources": [source.value for source in payload.sources],
-            "detail_level": payload.collection.detail_level.value,
-        },
-        "summary": {
-            "total": len(all_jobs),
-            "total_before_dedup": total_before_dedup,
-            "deduplicated_count": total_before_dedup - len(all_jobs),
-            "sources_succeeded": [r.source.value for r in results if r.ok],
-            "sources_failed": [r.source.value for r in results if not r.ok],
-        },
-        "source_status": _build_source_status(results, payload),
-        "jobs": all_jobs,
-    }
-    if not payload.output.include_source_metadata:
-        data.pop("source_status", None)
-
-    return create_standard_response(data=data, message=f"区域岗位搜索完成，共 {len(all_jobs)} 条")
+    data = _build_response_data(results, payload)
+    return create_standard_response(data=data, message=f"区域岗位搜索完成，共 {len(data['jobs'])} 条")
 
 
 async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
@@ -281,18 +265,28 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
     city_id = payload.region.platform_hints.zhilian_city_id
     try:
         client = get_zhilian_client()
+        include_detail = payload.collection.detail_level == DetailLevel.DESCRIPTION
+        city_id_overrides = {city_name: city_id} if city_id else None
         raw_jobs = await asyncio.wait_for(
             client.scrape_many(
                 payload.query.keywords,
                 [city_name],
                 payload.collection.max_pages_per_source,
+                include_detail=include_detail,
+                city_id_overrides=city_id_overrides,
             ),
             timeout=payload.collection.timeout_seconds,
         )
         if city_id is None:
             city_id = await _resolve_zhilian_city_id(client, city_name)
 
-        limited = raw_jobs[:payload.collection.max_records_per_source]
+        summary = getattr(client, "_last_scrape_summary", {}) or {}
+        limited = _limit_jobs_by_keyword(
+            raw_jobs,
+            payload.collection.max_records_per_source,
+            payload.query.keywords,
+            keyword_key="_query_keyword",
+        )
         jobs = [
             _normalize_zhilian_job(
                 raw,
@@ -305,16 +299,33 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
             source=SourceName.ZHILIAN,
             ok=True,
             jobs=jobs,
-            pages_fetched=payload.collection.max_pages_per_source,
+            pages_fetched=int(summary.get("pages_fetched") or 0),
+            queries_attempted=int(summary.get("combinations") or len(payload.query.keywords)),
+            pages_requested=int(summary.get("pages_requested") or 0),
             region_code=city_id,
+            warnings=_empty_result_warnings(SourceName.ZHILIAN, jobs),
         )
-    except Exception as exc:
-        logger.warning(f"[region-search][zhilian] 失败: {exc}", exc_info=True)
+    except asyncio.TimeoutError:
+        error = f"智联采集超时: {payload.collection.timeout_seconds:g}s"
+        logger.warning(f"[region-search][zhilian] 失败: {error}", exc_info=True)
         return SourceRunResult(
             source=SourceName.ZHILIAN,
             ok=False,
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
             region_code=city_id,
-            error=str(exc),
+            error=error,
+        )
+    except Exception as exc:
+        error = _source_error_message(exc, "智联采集异常")
+        logger.warning(f"[region-search][zhilian] 失败: {error}", exc_info=True)
+        return SourceRunResult(
+            source=SourceName.ZHILIAN,
+            ok=False,
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
+            region_code=city_id,
+            error=error,
         )
 
 
@@ -329,39 +340,67 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
 
     try:
         include_description = payload.collection.detail_level == DetailLevel.DESCRIPTION
+        max_items_per_query = _per_keyword_record_budget(
+            payload.collection.max_records_per_source,
+            payload.query.keywords,
+        )
         raw_result = await asyncio.wait_for(
             _boss_client.scrape_many(
                 payload.query.keywords,
                 [city_code],
                 payload.collection.max_pages_per_source,
-                payload.collection.max_records_per_source,
+                max_items_per_query,
                 payload.output.include_raw,
                 include_description,
             ),
             timeout=payload.collection.timeout_seconds,
         )
         raw_jobs = (raw_result or {}).get("jobs") or []
-        limited = raw_jobs[:payload.collection.max_records_per_source]
+        limited = _limit_jobs_by_keyword(
+            raw_jobs,
+            payload.collection.max_records_per_source,
+            payload.query.keywords,
+            keyword_key="keyword",
+        )
         jobs = [
             _normalize_boss_job(raw, payload=payload)
             for raw in limited
         ]
         summary = (raw_result or {}).get("summary") or {}
+        warnings = (raw_result or {}).get("warnings") or []
+        warnings.extend(_multi_keyword_page_warnings(summary, payload))
+        warnings.extend(_empty_result_warnings(SourceName.BOSS_ZHIPIN, jobs))
         return SourceRunResult(
             source=SourceName.BOSS_ZHIPIN,
             ok=True,
             jobs=jobs,
             pages_fetched=int(summary.get("pages_fetched") or 0),
+            queries_attempted=int(summary.get("combinations") or len(payload.query.keywords)),
+            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
             region_code=city_code,
-            warnings=(raw_result or {}).get("warnings") or [],
+            warnings=warnings,
         )
-    except Exception as exc:
-        logger.warning(f"[region-search][boss_zhipin] 失败: {exc}", exc_info=True)
+    except asyncio.TimeoutError:
+        error = f"BOSS 采集超时: {payload.collection.timeout_seconds:g}s"
+        logger.warning(f"[region-search][boss_zhipin] 失败: {error}", exc_info=True)
         return SourceRunResult(
             source=SourceName.BOSS_ZHIPIN,
             ok=False,
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
             region_code=city_code,
-            error=str(exc),
+            error=error,
+        )
+    except Exception as exc:
+        error = _source_error_message(exc, "BOSS 采集异常")
+        logger.warning(f"[region-search][boss_zhipin] 失败: {error}", exc_info=True)
+        return SourceRunResult(
+            source=SourceName.BOSS_ZHIPIN,
+            ok=False,
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
+            region_code=city_code,
+            error=error,
         )
 
 
@@ -434,6 +473,7 @@ def _normalize_zhilian_job(
         },
         "metadata": {
             **job["metadata"],
+            "query_keyword": raw.get("_query_keyword"),
             "raw_available": payload.output.include_raw,
         },
     })
@@ -447,7 +487,7 @@ def _normalize_boss_job(raw: Dict[str, Any], *, payload: RegionJobSearchPayload)
     job = _base_job(
         source=SourceName.BOSS_ZHIPIN.value,
         source_job_id=str(source_job_id),
-        matched_keyword=raw.get("keyword") or _guess_matched_keyword(raw, payload.query.keywords),
+        matched_keyword=_guess_matched_keyword(raw, payload.query.keywords),
         payload=payload,
     )
     job.update({
@@ -488,6 +528,7 @@ def _normalize_boss_job(raw: Dict[str, Any], *, payload: RegionJobSearchPayload)
         "metadata": {
             **job["metadata"],
             "page": raw.get("page"),
+            "query_keyword": raw.get("keyword"),
             "raw_available": payload.output.include_raw,
         },
     })
@@ -610,11 +651,16 @@ def _guess_matched_keyword(raw: Dict[str, Any], keywords: List[str]) -> Optional
         raw.get("name"),
         raw.get("jobName"),
         raw.get("job_name"),
+        raw.get("company_industry"),
+        raw.get("companyIndustry"),
+        " ".join(str(v or "") for v in _as_list(raw.get("skills"))),
+        " ".join(str(v or "") for v in _as_list(raw.get("labels"))),
+        " ".join(str(v or "") for v in _as_list(raw.get("jobSkillTags"))),
     ))
     for keyword in keywords:
         if keyword and keyword in text:
             return keyword
-    return keywords[0] if keywords else None
+    return None
 
 
 def _fallback_job_id(job: Dict[str, Any]) -> str:
@@ -636,6 +682,8 @@ def _build_source_status(
             "ok": False,
             "count": 0,
             "pages_fetched": 0,
+            "queries_attempted": 0,
+            "pages_requested": 0,
             "region_code": None,
             "detail_level_applied": payload.collection.detail_level.value,
             "error": "not_requested",
@@ -648,12 +696,112 @@ def _build_source_status(
             "ok": result.ok,
             "count": len(result.jobs),
             "pages_fetched": result.pages_fetched,
+            "queries_attempted": result.queries_attempted,
+            "pages_requested": result.pages_requested,
             "region_code": result.region_code,
             "detail_level_applied": payload.collection.detail_level.value,
             "error": result.error,
             "warnings": result.warnings,
         }
     return status_map
+
+
+def _build_response_data(
+    results: List[SourceRunResult],
+    payload: RegionJobSearchPayload,
+) -> Dict[str, Any]:
+    all_jobs = []
+    for result in results:
+        all_jobs.extend(result.jobs)
+
+    total_before_dedup = len(all_jobs)
+    if payload.output.deduplicate:
+        all_jobs = _deduplicate_jobs(all_jobs)
+
+    data = {
+        "request": {
+            "region": _region_to_dict(payload.region),
+            "keywords": payload.query.keywords,
+            "keyword_mode": payload.query.keyword_mode.value,
+            "sources": [source.value for source in payload.sources],
+            "detail_level": payload.collection.detail_level.value,
+        },
+        "summary": {
+            "total": len(all_jobs),
+            "total_before_dedup": total_before_dedup,
+            "deduplicated_count": total_before_dedup - len(all_jobs),
+            "sources_succeeded": [r.source.value for r in results if r.ok],
+            "sources_failed": [r.source.value for r in results if not r.ok],
+        },
+        "source_status": _build_source_status(results, payload),
+        "jobs": all_jobs,
+    }
+    if not payload.output.include_source_metadata:
+        data.pop("source_status", None)
+    return data
+
+
+def _source_error_message(exc: Exception, fallback: str) -> str:
+    message = str(exc).strip()
+    return message or fallback
+
+
+def _empty_result_warnings(source: SourceName, jobs: List[Dict[str, Any]]) -> List[str]:
+    if jobs:
+        return []
+    return [f"{source.value} 成功响应但没有返回职位结果"]
+
+
+def _multi_keyword_page_warnings(
+    summary: Dict[str, Any],
+    payload: RegionJobSearchPayload,
+) -> List[str]:
+    combinations = int(summary.get("combinations") or len(payload.query.keywords))
+    if combinations <= 1:
+        return []
+    pages = int(summary.get("pages_fetched") or 0)
+    return [
+        f"pages_fetched={pages} 为所有关键词查询累计页数，不是单个关键词页数"
+    ]
+
+
+def _per_keyword_record_budget(max_records: int, keywords: List[str]) -> int:
+    keyword_count = max(1, len(keywords))
+    return max(1, (max_records + keyword_count - 1) // keyword_count)
+
+
+def _limit_jobs_by_keyword(
+    jobs: List[Dict[str, Any]],
+    max_records: int,
+    keywords: List[str],
+    *,
+    keyword_key: str,
+) -> List[Dict[str, Any]]:
+    """按查询关键词轮转取数，避免第一个关键词占满来源配额。"""
+    if len(jobs) <= max_records:
+        return jobs
+
+    buckets: Dict[Optional[str], List[Dict[str, Any]]] = {}
+    for job in jobs:
+        buckets.setdefault(job.get(keyword_key), []).append(job)
+
+    ordered_keys: List[Optional[str]] = list(keywords)
+    ordered_keys.extend(k for k in buckets if k not in ordered_keys)
+
+    limited: List[Dict[str, Any]] = []
+    while len(limited) < max_records:
+        progressed = False
+        for key in ordered_keys:
+            bucket = buckets.get(key) or []
+            if not bucket:
+                continue
+            limited.append(bucket.pop(0))
+            progressed = True
+            if len(limited) >= max_records:
+                break
+        if not progressed:
+            break
+    return limited
 
 
 def _deduplicate_jobs(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

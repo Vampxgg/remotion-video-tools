@@ -158,23 +158,52 @@ class BossZhipinClient:
 
         if not packet or not getattr(packet, "response", None):
             raise RuntimeError(
-                f"BOSS 职位接口未触发或超时: keyword={keyword}, city={city_code}, page={page_num}"
+                "BOSS 职位接口未触发或超时: "
+                f"keyword={keyword}, city={city_code}, page={page_num}, url={url}"
             )
 
-        body = packet.response.body
+        response = packet.response
+        body = response.body
         if isinstance(body, str):
             try:
                 body = json.loads(body)
             except json.JSONDecodeError as exc:
-                raise RuntimeError(f"BOSS 接口返回非 JSON 内容: {body[:120]}") from exc
+                preview = body[:300].replace("\n", "\\n").replace("\r", "\\r")
+                if not preview:
+                    preview = "<empty>"
+                status_code = getattr(response, "status", None) or getattr(response, "status_code", None)
+                logger.warning(
+                    "BOSS 接口返回非 JSON: keyword=%s city=%s page=%s url=%s "
+                    "status=%s len=%s preview=%s",
+                    keyword,
+                    city_code,
+                    page_num,
+                    url,
+                    status_code,
+                    len(body),
+                    preview,
+                )
+                raise RuntimeError(
+                    "BOSS 接口返回非 JSON 内容: "
+                    f"keyword={keyword}, city={city_code}, page={page_num}, "
+                    f"status={status_code}, len={len(body)}, preview={preview}"
+                ) from exc
 
         if not isinstance(body, dict):
-            raise RuntimeError(f"BOSS 接口返回格式异常: {type(body).__name__}")
+            raise RuntimeError(
+                "BOSS 接口返回格式异常: "
+                f"type={type(body).__name__}, keyword={keyword}, city={city_code}, "
+                f"page={page_num}, url={url}"
+            )
 
         code = body.get("code")
         if code != 0:
             message = body.get("message") or "未知错误"
-            raise RuntimeError(f"BOSS 接口返回错误: code={code}, message={message}")
+            raise RuntimeError(
+                "BOSS 接口返回错误: "
+                f"code={code}, message={message}, keyword={keyword}, "
+                f"city={city_code}, page={page_num}, url={url}"
+            )
 
         return body
 

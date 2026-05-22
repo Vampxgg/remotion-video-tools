@@ -14,7 +14,7 @@ POST /api/jobs/region-search
 
 - 对外以 `region`、`query`、`collection`、`output` 建模，不暴露某个平台的历史请求格式。
 - 区域主输入使用业务语义，例如 `国家 / 省份 / 城市 / 区县`。
-- 平台编码只作为 `platform_hints`，用于提高解析稳定性，不作为主输入。
+- 平台编码作为 `platform_hints`，用于提高解析稳定性；已传编码时优先用于对应平台查询。
 - 每个来源独立成功或失败，默认一个来源失败不影响另一个来源返回。
 - BOSS 与智联字段差异通过统一字段结构承接，源平台特有字段仅在 `include_raw=true` 时返回。
 
@@ -115,9 +115,9 @@ POST /api/jobs/region-search
 
 说明：
 
-- 智联招聘更适合通过中文城市名解析 cityId。
+- 智联招聘支持通过中文城市名解析 cityId；如果调用方已知 cityId，可传 `zhilian_city_id` 跳过解析。
 - BOSS 直聘更依赖平台城市编码；如果调用方已知编码，建议传 `boss_city_code`。
-- 如果不传平台编码，服务端会尝试自动解析或使用内置常用城市映射。
+- 如果不传平台编码，智联会尝试自动解析；BOSS 使用内置常用城市映射，未覆盖城市会导致 BOSS 来源失败。
 
 ### 3.2 `query`
 
@@ -192,7 +192,7 @@ POST /api/jobs/region-search
 
 | 值 | 说明 |
 | --- | --- |
-| `summary` | 只返回列表字段，速度较快，默认 |
+| `summary` | 只返回列表字段，默认；智联和 BOSS 均不逐条打开详情 |
 | `description` | 额外补岗位描述/职责，耗时更长 |
 
 `on_source_error` 可选值：
@@ -208,6 +208,7 @@ POST /api/jobs/region-search
 | --- | --- |
 | `REGION_JOBS_MAX_PAGES_PER_SOURCE` | `3` |
 | `REGION_JOBS_MAX_RECORDS_PER_SOURCE` | `50` |
+| `REGION_JOBS_MAX_COMBINATIONS` | `10` |
 
 ### 3.5 `output`
 
@@ -270,6 +271,8 @@ POST /api/jobs/region-search
       "ok": true,
       "count": 20,
       "pages_fetched": 1,
+      "queries_attempted": 1,
+      "pages_requested": 1,
       "region_code": "765",
       "detail_level_applied": "summary",
       "error": null,
@@ -279,6 +282,8 @@ POST /api/jobs/region-search
       "ok": true,
       "count": 15,
       "pages_fetched": 1,
+      "queries_attempted": 1,
+      "pages_requested": 1,
       "region_code": 101280600,
       "detail_level_applied": "summary",
       "error": null,
@@ -307,7 +312,9 @@ POST /api/jobs/region-search
 | --- | --- |
 | `ok` | 来源是否成功 |
 | `count` | 该来源返回职位数量 |
-| `pages_fetched` | 该来源实际采集页数 |
+| `pages_fetched` | 该来源实际累计采集页数；多关键词时为所有关键词页数之和 |
+| `queries_attempted` | 该来源实际执行的关键词/区域查询组合数 |
+| `pages_requested` | 该来源计划请求的累计页数 |
 | `region_code` | 该来源使用的平台区域编码 |
 | `detail_level_applied` | 该来源应用的数据深度 |
 | `error` | 错误信息，成功时为 `null` |
@@ -370,6 +377,7 @@ POST /api/jobs/region-search
   "metadata": {
     "collected_at": "2026-05-21T10:45:00",
     "page": 1,
+    "query_keyword": "前端开发工程师",
     "raw_available": false
   }
 }
@@ -382,7 +390,7 @@ POST /api/jobs/region-search
 | `job_id` | 统一职位 ID，格式为 `{source}:{source_job_id}` |
 | `source` | 来源平台 |
 | `source_job_id` | 平台原始职位 ID |
-| `matched_keyword` | 匹配关键词 |
+| `matched_keyword` | 在职位名、技能、标签或行业等字段中明确命中的关键词；无明确命中时为 `null` |
 | `job_name` | 职位名称 |
 | `company` | 公司信息 |
 | `salary` | 薪资信息 |
@@ -392,6 +400,8 @@ POST /api/jobs/region-search
 | `description` | 岗位描述和职责 |
 | `links` | 详情页/公司页链接 |
 | `metadata` | 采集元数据 |
+
+说明：`metadata.query_keyword` 表示本条记录来自哪个查询关键词；它不等同于字段级命中。需要判断相关性时优先看 `matched_keyword`。
 
 ### 5.2 `description.status`
 
@@ -587,7 +597,7 @@ curl -X POST "http://127.0.0.1:2906/api/jobs/region-search" \
 - 区域输入更适合使用中文城市名，例如 `深圳`。
 - 服务端会通过智联城市接口解析 cityId。
 - 智联列表接口可返回职位编号、公司、薪资、经验、学历、技能等字段。
-- 智联详情可通过职位编号补取，适合 `detail_level=description`。
+- `detail_level=summary` 不补拉职位详情；智联详情只在 `detail_level=description` 时通过职位编号补取。
 
 ### 9.2 BOSS 直聘
 
@@ -596,7 +606,7 @@ curl -X POST "http://127.0.0.1:2906/api/jobs/region-search" \
 - BOSS 列表接口不包含完整岗位职责。
 - 当 `detail_level=description` 时，服务端会逐条打开详情页提取 `.job-sec-text`。
 - BOSS 依赖已登录 Chrome 调试端口和页面正常加载。
-- 遇到登录失效、验证码、环境异常或风控时，该来源可能失败。
+- 遇到登录失效、验证码、环境异常、空响应或风控时，该来源可能失败；错误信息会包含关键词、城市编码、页码和响应摘要。
 
 ### 9.3 区县筛选
 
@@ -611,7 +621,8 @@ curl -X POST "http://127.0.0.1:2906/api/jobs/region-search" \
 
 - `max_pages_per_source` 是最多采集页数，不代表每页返回多少条。
 - 每页条数由平台控制。
-- 对外调用方应该用 `max_records_per_source` 控制最终返回规模。
+- 多关键词时，每个关键词都会按 `max_pages_per_source` 发起查询，`source_status.pages_fetched` 是累计页数。
+- 对外调用方应该用 `max_records_per_source` 控制最终返回规模；服务端会按关键词轮转取数，避免第一个关键词占满配额。
 
 ### 9.5 岗位职责
 
@@ -628,7 +639,7 @@ curl -X POST "http://127.0.0.1:2906/api/jobs/region-search" \
 注意：
 
 - 会显著增加耗时。
-- BOSS 需要逐条打开详情页。
+- 智联会额外拉职位详情接口，BOSS 会逐条打开详情页。
 - 不保证每条岗位都有职责文本。
 
 ## 10. 推荐默认值

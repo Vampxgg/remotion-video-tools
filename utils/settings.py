@@ -443,6 +443,7 @@ class RegionJobsSettings(_Base):
     REGION_JOBS_API_KEY: Optional[str] = None
     REGION_JOBS_MAX_PAGES_PER_SOURCE: int = 3
     REGION_JOBS_MAX_RECORDS_PER_SOURCE: int = 50
+    REGION_JOBS_MAX_COMBINATIONS: int = 10
 
 
 class TianyanchaSettings(_Base):
