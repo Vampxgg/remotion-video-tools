@@ -345,6 +345,7 @@ class BossZhipinClient:
             "company_stage": raw.get("brandStageName"),
             "company_industry": raw.get("brandIndustry"),
             "company_scale": raw.get("brandScaleName"),
+            "brand_logo": BossZhipinClient._absolutize_logo(raw.get("brandLogo")),
             "boss_title": raw.get("bossTitle"),
             "boss_online": raw.get("bossOnline"),
             "encrypt_job_id": encrypt_job_id,
@@ -356,6 +357,28 @@ class BossZhipinClient:
         if include_raw:
             job["raw"] = raw
         return job
+
+    @staticmethod
+    def _absolutize_logo(value: Optional[str]) -> Optional[str]:
+        """BOSS brandLogo 兜底为绝对 URL。
+
+        - 空值 → None
+        - 已是 http(s) 绝对地址 → 原样返回
+        - 协议相对 ``//host/...`` → 补 https:
+        - 站内相对路径 ``/...`` → 拼 BOSS 图片 host
+        """
+        if not value or not isinstance(value, str):
+            return None
+        url = value.strip()
+        if not url:
+            return None
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+        if url.startswith("//"):
+            return f"https:{url}"
+        if url.startswith("/"):
+            return f"https://img.bosszhipin.com{url}"
+        return url
 
     @staticmethod
     def _job_key(job: Dict[str, Any]) -> str:

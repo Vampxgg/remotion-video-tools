@@ -472,7 +472,25 @@ curl -X POST "http://127.0.0.1:2906/api/tianyancha/research/region-companies" \
       }
     ],
     "category_candidates": [],
-    "message": "区域或行业匹配不唯一，请选择候选项后重试。"
+    "clarification": {
+      "area": {
+        "input": "深圳",
+        "total": 3,
+        "returned": 3,
+        "truncated": false,
+        "retry_field": "region",
+        "retry_with": "候选项 code，例如 110105，或更完整名称，例如 北京市朝阳区"
+      },
+      "category": {
+        "input": null,
+        "total": 0,
+        "returned": 0,
+        "truncated": false,
+        "retry_field": "industry",
+        "retry_with": "候选项 code，例如 65，或更完整行业名称"
+      }
+    },
+    "message": "区域或行业匹配不唯一，请选择候选项 code 后重试；若未看到目标项，请输入更完整名称。"
   }
 }
 ```
@@ -481,6 +499,9 @@ curl -X POST "http://127.0.0.1:2906/api/tianyancha/research/region-companies" \
 
 - 如果 `area_candidates` 不为空，取目标项的 `code` 作为下次请求的 `region`。
 - 如果 `category_candidates` 不为空，取目标项的 `code` 作为下次请求的 `industry`。
+- `area_candidates` 与 `category_candidates` 默认只返回前 10 个候选，避免 Dify / 智能体上下文过大。
+- `clarification.area.total` / `clarification.category.total` 表示完整候选数量。
+- `clarification.*.truncated=true` 表示候选已被截断；如果目标项不在当前候选中，请输入更完整的区域/行业名称，或先调用解析接口查询候选。
 
 ---
 

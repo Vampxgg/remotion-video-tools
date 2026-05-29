@@ -58,6 +58,10 @@ export class GeminiLiveClient extends EventTarget {
     this.send({ type: "audio_stream_end" });
   }
 
+  sendToolResponse(functionResponses) {
+    this.send({ type: "tool_response", functionResponses });
+  }
+
   send(payload) {
     if (!this.connected) {
       this.emit("error", { message: "WebSocket 未连接" });

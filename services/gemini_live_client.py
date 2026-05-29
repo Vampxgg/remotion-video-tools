@@ -29,7 +29,10 @@ class GeminiLiveConfig:
     max_audio_bytes_per_message: int = 64 * 1024
     max_video_bytes_per_message: int = 512 * 1024
     session_timeout_sec: int = 600
-    tools: Optional[Dict[str, Any]] = None
+    # 形如 [{"function_declarations": [{...}, ...]}]，Live API 要求是列表
+    tools: Optional[List[Dict[str, Any]]] = None
+    # "low" | "medium" | "high"；None 表示不在配置里显式设置
+    media_resolution: Optional[str] = None
     extra_config: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -108,7 +111,32 @@ def _extract_events(message: Any) -> List[Dict[str, Any]]:
 
     tool_call = _get(message, "tool_call", "toolCall")
     if tool_call:
-        events.append({"type": "tool_call", "toolCall": _to_plain(tool_call)})
+        function_calls = _get(tool_call, "function_calls", "functionCalls", default=[]) or []
+        parsed_calls: List[Dict[str, Any]] = []
+        for fc in function_calls:
+            parsed_calls.append(
+                {
+                    "id": _get(fc, "id"),
+                    "name": _get(fc, "name"),
+                    "args": _to_plain(_get(fc, "args", default={})) or {},
+                }
+            )
+        events.append(
+            {
+                "type": "tool_call",
+                "functionCalls": parsed_calls,
+                "toolCall": _to_plain(tool_call),
+            }
+        )
+
+    tool_call_cancellation = _get(message, "tool_call_cancellation", "toolCallCancellation")
+    if tool_call_cancellation:
+        events.append(
+            {
+                "type": "tool_call_cancellation",
+                "ids": _to_plain(_get(tool_call_cancellation, "ids", default=[])) or [],
+            }
+        )
 
     go_away = _get(message, "go_away", "goAway")
     if go_away:
@@ -179,6 +207,12 @@ class GeminiLiveSession:
     async def audio_stream_end(self) -> None:
         await self._input_queue.put({"type": "audio_stream_end"})
 
+    async def send_tool_response(self, function_responses: List[Dict[str, Any]]) -> None:
+        """提交工具调用结果，function_responses 形如 [{"id","name","response",...}]。"""
+        await self._input_queue.put(
+            {"type": "tool_response", "functionResponses": list(function_responses or [])}
+        )
+
     async def events(self) -> AsyncIterator[Dict[str, Any]]:
         while not self._closed.is_set():
             event = await self._event_queue.get()
@@ -232,6 +266,35 @@ class GeminiLiveSession:
             ) from exc
         return genai, types
 
+    @staticmethod
+    def _resolve_media_resolution(types: Any, value: str) -> Any:
+        """把 'low/medium/high' 友好值转成 SDK / Vertex 接受的枚举形式。
+
+        - google-genai 提供 ``types.MediaResolution`` 枚举时优先用枚举对象；
+        - 否则退化为 Vertex API 期望的 ``MEDIA_RESOLUTION_<LEVEL>`` 字符串。
+        """
+        key = str(value or "").strip().lower()
+        if not key:
+            return None
+        level_map = {
+            "low": "LOW",
+            "medium": "MEDIUM",
+            "high": "HIGH",
+            "media_resolution_low": "LOW",
+            "media_resolution_medium": "MEDIUM",
+            "media_resolution_high": "HIGH",
+        }
+        level = level_map.get(key)
+        if level is None:
+            return None
+        enum_cls = getattr(types, "MediaResolution", None)
+        if enum_cls is not None:
+            with contextlib.suppress(Exception):
+                return getattr(enum_cls, f"MEDIA_RESOLUTION_{level}")
+            with contextlib.suppress(Exception):
+                return getattr(enum_cls, level)
+        return f"MEDIA_RESOLUTION_{level}"
+
     def _build_connect_config(self, types: Any) -> Any:
         config: Dict[str, Any] = {
             "response_modalities": self.config.response_modalities,
@@ -254,6 +317,10 @@ class GeminiLiveSession:
             config["proactivity"] = {"proactive_audio": True}
         if self.config.tools:
             config["tools"] = self.config.tools
+        if self.config.media_resolution:
+            resolved = self._resolve_media_resolution(types, self.config.media_resolution)
+            if resolved is not None:
+                config["media_resolution"] = resolved
 
         if hasattr(types, "LiveConnectConfig"):
             with contextlib.suppress(Exception):
@@ -278,6 +345,38 @@ class GeminiLiveSession:
                 )
             elif item_type == "audio_stream_end":
                 await self._send_audio_stream_end(sdk_session)
+            elif item_type == "tool_response":
+                await self._send_tool_response_to_sdk(
+                    sdk_session, types, item.get("functionResponses") or []
+                )
+
+    @staticmethod
+    async def _send_tool_response_to_sdk(
+        sdk_session: Any,
+        types: Any,
+        function_responses: List[Dict[str, Any]],
+    ) -> None:
+        if not function_responses:
+            return
+        built: List[Any] = []
+        for fr in function_responses:
+            kwargs = {
+                "id": fr.get("id"),
+                "name": fr.get("name"),
+                "response": fr.get("response") or {"result": "ok"},
+            }
+            scheduling = fr.get("scheduling")
+            if scheduling:
+                kwargs["scheduling"] = scheduling
+            # 优先用 SDK 类型；不可用则退化为原始 dict
+            try:
+                built.append(types.FunctionResponse(**kwargs))
+            except Exception:
+                built.append(kwargs)
+        try:
+            await sdk_session.send_tool_response(function_responses=built)
+        except TypeError:
+            await sdk_session.send_tool_response(built)
 
     @staticmethod
     async def _send_text_to_sdk(sdk_session: Any, types: Any, text: str) -> None:
@@ -358,11 +457,38 @@ class MockGeminiLiveSession(GeminiLiveSession):
                         {"type": "transcription", "source": "input", "text": "mock audio"}
                     )
                 elif item_type == "video":
-                    await self._event_queue.put(
-                        {"type": "text", "text": "Mock received one video frame."}
-                    )
+                    # 模拟一次动作识别：每收到 5 帧就上报一次挥手动作，便于联调
+                    self._mock_frame_count = getattr(self, "_mock_frame_count", 0) + 1
+                    if self._mock_frame_count % 5 == 0:
+                        await self._event_queue.put(
+                            {
+                                "type": "tool_call",
+                                "functionCalls": [
+                                    {
+                                        "id": f"mock-{self._mock_frame_count}",
+                                        "name": "report_user_action",
+                                        "args": {
+                                            "action": "wave_hand",
+                                            "description": "Mock 模式下的挥手动作",
+                                            "confidence": 0.9,
+                                        },
+                                    }
+                                ],
+                            }
+                        )
+                    else:
+                        await self._event_queue.put(
+                            {"type": "text", "text": "Mock received one video frame."}
+                        )
                 elif item_type == "audio_stream_end":
                     await self._event_queue.put({"type": "interrupted"})
+                elif item_type == "tool_response":
+                    await self._event_queue.put(
+                        {
+                            "type": "text",
+                            "text": f"Mock 已收到 {len(item.get('functionResponses') or [])} 条工具回执。",
+                        }
+                    )
         finally:
             self._closed.set()
             await self._event_queue.put({"type": "closed"})

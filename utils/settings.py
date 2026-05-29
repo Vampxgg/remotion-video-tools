@@ -83,6 +83,25 @@ class RabbitSettings(_Base):
     RABBITMQ_VHOST: str = "/"
 
 
+class RedisSettings(_Base):
+    """Redis（当前仅 web_search 在用，作为搜索/抓取缓存层）。
+
+    生产部署：docker-compose 自带 redis:7-alpine，仅绑 127.0.0.1:6379。
+    应用启动会 PING 一次，失败仅 WARN 不阻断；调用方拿到 None 视作"缓存未就绪"
+    自动降级为直连 provider。
+    """
+    REDIS_HOST: str = "127.0.0.1"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: Optional[str] = None
+    REDIS_KEY_PREFIX: str = "script_tools"
+
+    @property
+    def redis_url(self) -> str:
+        auth = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
+        return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+
 class CommonSettings(_Base):
     OUTBOUND_PROXY_URL: Optional[str] = None
     FETCH_USER_AGENT: str = (
@@ -303,22 +322,38 @@ class CreImageSettings(_Base):
 
 
 class GeminiLiveSettings(_Base):
-    """对应 api/gemini_live.py + services/gemini_live_client.py"""
+    """对应 api/gemini_live.py + services/gemini_live_client.py + services/sop_assessor.py。
+
+    本模块当前承载"SOP 实训实时评估"场景：用户上传/粘贴 SOP，AI 通过摄像头+麦克风
+    实时对照 SOP 评估学员行为，仅通过 function calling 上报评估事件。
+    """
+
     GEMINI_LIVE_MODEL: str = "gemini-live-2.5-flash-native-audio"
     GEMINI_LIVE_LANGUAGE_CODE: str = "zh-CN"
-    GEMINI_LIVE_RESPONSE_MODALITIES: List[str] = ["audio"]
+    # 默认仅文本回执——评估事件靠 function calling，不需要模型说话
+    GEMINI_LIVE_RESPONSE_MODALITIES: List[str] = ["text"]
     GEMINI_LIVE_ENABLE_TRANSCRIPTION: bool = True
-    GEMINI_LIVE_ENABLE_AFFECTIVE_DIALOG: bool = True
+    # SOP 评估场景：默认关闭共情对话与主动音频，避免模型自由发声
+    GEMINI_LIVE_ENABLE_AFFECTIVE_DIALOG: bool = False
     GEMINI_LIVE_PROACTIVE_AUDIO: bool = False
     GEMINI_LIVE_CONTEXT_TRIGGER_TOKENS: int = 10000
     GEMINI_LIVE_CONTEXT_TARGET_TOKENS: int = 2048
     GEMINI_LIVE_MAX_AUDIO_BYTES_PER_MESSAGE: int = 64 * 1024
     GEMINI_LIVE_MAX_VIDEO_BYTES_PER_MESSAGE: int = 512 * 1024
-    GEMINI_LIVE_SESSION_TIMEOUT_SEC: int = 600
-    GEMINI_LIVE_DEFAULT_SYSTEM_INSTRUCTION: str = (
-        "你是一个实时语音助手。请使用简体中文自然、简洁地回答用户。"
-    )
+    GEMINI_LIVE_SESSION_TIMEOUT_SEC: int = 1800
     GEMINI_LIVE_FRONTEND_DIR: str = "frontend"
+    # Live API 视频输入分辨率：实训场景建议 medium，平衡识别精度与 token 成本
+    GEMINI_LIVE_MEDIA_RESOLUTION: str = "medium"
+
+    # ===== SOP 实训评估配置 =====
+    # 是否默认启用"语音教练"模式：critical/high 级错误时让模型短促语音提醒
+    GEMINI_LIVE_SOP_VOICE_COACH_DEFAULT: bool = False
+    # 评估事件 NDJSON 落盘目录（相对项目根）
+    GEMINI_LIVE_SOP_LOG_SUBDIR: str = "logs/live/sessions"
+    # 服务端周期性把 [STATUS] 摘要回灌给模型的间隔（毫秒，0 表示关闭）
+    GEMINI_LIVE_SOP_STATUS_HEARTBEAT_MS: int = 20000
+    # 单条 SOP 文本最大字节数（防止误传巨大 markdown）
+    GEMINI_LIVE_SOP_MAX_PAYLOAD_BYTES: int = 256 * 1024
 
 
 class CreVideoSettings(_Base):
@@ -362,7 +397,16 @@ class JobSearchSettings(_Base):
     ZHILIAN_USERNAME: Optional[str] = None
     ZHILIAN_PASSWORD: Optional[str] = None
     JOB_SEARCH_BROWSER_HOST_PORT: str = "127.0.0.1:9527"
-    JOB_SEARCH_MAX_CONCURRENT: int = 10
+    JOB_SEARCH_MAX_CONCURRENT: int = 3
+    JOB_SEARCH_REQUEST_CONCURRENCY: int = 1
+    JOB_SEARCH_EXECUTOR_WORKERS: int = 1
+    JOB_SEARCH_MAX_KEYWORDS: int = 10
+    JOB_SEARCH_MAX_PROVINCES: int = 10
+    JOB_SEARCH_MAX_COMBINATIONS: int = 20
+    JOB_SEARCH_MAX_PAGE_SIZE: int = 5
+    JOB_SEARCH_SCRAPE_TIMEOUT_SEC: float = 300.0
+    JOB_SEARCH_DETAIL_HTTP_CONCURRENCY: int = 8
+    JOB_SEARCH_DETAIL_HTTP_TIMEOUT: float = 10.0
     JOB_SEARCH_ADMIN_EMAIL: str = "1561958968@qq.com"
     JOB_SEARCH_LOGIN_NOTIFY_COOLDOWN_SEC: int = 600
     JOB_SEARCH_SMTP_HOST: Optional[str] = None
@@ -443,7 +487,49 @@ class RegionJobsSettings(_Base):
     REGION_JOBS_API_KEY: Optional[str] = None
     REGION_JOBS_MAX_PAGES_PER_SOURCE: int = 3
     REGION_JOBS_MAX_RECORDS_PER_SOURCE: int = 50
-    REGION_JOBS_MAX_COMBINATIONS: int = 10
+    REGION_JOBS_MAX_COMBINATIONS: int = 20
+
+
+class WebSearchSettings(_Base):
+    """对应 api/web_search.py + services/web_search/*。
+
+    统一 Web 搜索/抓取后端：
+    - 下沉 Tavily / SearchAPI Google 两家 provider，密钥仅在后端持有
+    - 复用 api/url_content_fetch.fetch_url_content 做正文抓取
+    - 缓存层走 Redis（不可用时静默降级为不缓存）
+    """
+    # 守卫本服务对外端点的 x-api-key；留空 = 不启用鉴权（行为对齐 REGION_JOBS_API_KEY）
+    WEB_SEARCH_API_KEY: Optional[str] = None
+    # 两家 provider 的密钥；任一为空时该 provider 视为未配置，自动跳过
+    TAVILY_API_KEY: Optional[str] = None
+    SEARCHAPI_IO_API_KEY: Optional[str] = None
+    # auto 模式下的回退链；按顺序尝试，前者无结果/失败才走下一个
+    WEB_SEARCH_DEFAULT_PROVIDERS: List[str] = ["tavily", "searchapi_google"]
+    # top_k 默认/上限；取两家 provider 的下界，SearchAPI Google 自 2025-09 起锁 num=10
+    WEB_SEARCH_DEFAULT_TOP_K: int = 5
+    WEB_SEARCH_MAX_TOP_K: int = 10
+    # 单 provider 调用超时（秒）
+    WEB_SEARCH_PROVIDER_TIMEOUT_SEC: float = 30.0
+    # 正文抓取（HTML/文档）超时
+    WEB_SEARCH_FETCH_HTML_TIMEOUT_SEC: float = 15.0
+    WEB_SEARCH_DOC_DOWNLOAD_TIMEOUT_SEC: float = 60.0
+    # 并发：单次请求内允许的最大并发抓取条数
+    WEB_SEARCH_DEFAULT_CONCURRENCY: int = 5
+    WEB_SEARCH_MAX_CONCURRENCY: int = 10
+    # 单条正文最大字符数
+    WEB_SEARCH_DEFAULT_CONTENT_CHARS: int = 8000
+    WEB_SEARCH_MAX_CONTENT_CHARS: int = 50000
+    # Provider HTTP 基地址（联调/灰度可指向 mock）
+    WEB_SEARCH_TAVILY_BASE_URL: str = "https://api.tavily.com"
+    WEB_SEARCH_SEARCHAPI_BASE_URL: str = "https://www.searchapi.io/api/v1/search"
+    # 缓存开关与 TTL
+    WEB_SEARCH_CACHE_ENABLED: bool = True
+    WEB_SEARCH_CACHE_TTL_SEARCH_SEC: int = 300
+    WEB_SEARCH_CACHE_TTL_FETCH_SEC: int = 1800
+    # 顶层请求超时（端到端，包裹 asyncio.wait_for）
+    WEB_SEARCH_REQUEST_TIMEOUT_SEARCH_SEC: float = 35.0
+    WEB_SEARCH_REQUEST_TIMEOUT_SEARCH_AND_FETCH_SEC: float = 90.0
+    WEB_SEARCH_REQUEST_TIMEOUT_FETCH_SEC: float = 120.0
 
 
 class TianyanchaSettings(_Base):
@@ -478,7 +564,7 @@ class TianyanchaSettings(_Base):
 # =====================================================================
 
 class Settings(
-    AppSettings, DBSettings, RabbitSettings, CommonSettings,
+    AppSettings, DBSettings, RabbitSettings, RedisSettings, CommonSettings,
     CreAudioSettings, CreAudioJsonSettings, CreAudioV2Settings,
     CreAudioRefactoredSettings, CreAudioOriginalSpeedSettings,
     TtsSettings, MurfTtsSettings, GoogleTtsSettings, FishAsrSettings,
@@ -487,6 +573,7 @@ class Settings(
     JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings,
     ZhipinSettings, BossZhipinSettings, RegionJobsSettings,
+    WebSearchSettings,
     TianyanchaSettings,
 ):
     """全局唯一的配置对象。模块中只需 ``from utils.settings import settings`` 后取值。"""

@@ -17,6 +17,8 @@ from utils.settings import settings as _settings
 
 logger = setup_module_logger(__name__, "logs/tianyancha/client.log")
 
+CANDIDATE_PREVIEW_LIMIT = 10
+
 
 ERROR_MESSAGES = {
     0: "请求成功",
@@ -98,6 +100,25 @@ def _non_empty(value: Any) -> bool:
 def build_search_fingerprint(params: Dict[str, Any]) -> str:
     payload = json.dumps(params, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _candidate_clarification(
+    *,
+    input_value: Optional[str],
+    candidates: List[Dict[str, str]],
+    retry_field: str,
+    retry_with: str,
+    limit: int = CANDIDATE_PREVIEW_LIMIT,
+) -> Dict[str, Any]:
+    returned = min(len(candidates), limit)
+    return {
+        "input": input_value,
+        "total": len(candidates),
+        "returned": returned,
+        "truncated": len(candidates) > limit,
+        "retry_field": retry_field,
+        "retry_with": retry_with,
+    }
 
 
 class TianyanchaClient:
@@ -329,9 +350,28 @@ class TianyanchaClient:
         if area_candidates or category_candidates:
             return {
                 "need_clarification": True,
-                "area_candidates": area_candidates[:10],
-                "category_candidates": category_candidates[:10],
-                "message": "区域或行业匹配不唯一，请选择候选项后重试。",
+                "area_candidates": area_candidates[:CANDIDATE_PREVIEW_LIMIT],
+                "category_candidates": category_candidates[:CANDIDATE_PREVIEW_LIMIT],
+                "clarification": {
+                    "area": _candidate_clarification(
+                        input_value=region,
+                        candidates=area_candidates,
+                        retry_field="region",
+                        retry_with=(
+                            "候选项 code，例如 110105，或更完整名称，例如 北京市朝阳区"
+                        ),
+                    ),
+                    "category": _candidate_clarification(
+                        input_value=industry,
+                        candidates=category_candidates,
+                        retry_field="industry",
+                        retry_with="候选项 code，例如 65，或更完整行业名称",
+                    ),
+                },
+                "message": (
+                    "区域或行业匹配不唯一，请选择候选项 code 后重试；"
+                    "若未看到目标项，请输入更完整名称。"
+                ),
             }
 
         safe_limit = min(limit, _settings.TIANYANCHA_DIFY_MAX_LIMIT)

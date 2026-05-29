@@ -2,6 +2,8 @@ export class PcmAudioPlayer {
   constructor(sampleRate = 24000) {
     this.sampleRate = sampleRate;
     this.audioContext = null;
+    this.gainNode = null;
+    this.gain = 1;
     this.nextStartTime = 0;
     this.sources = new Set();
   }
@@ -9,10 +11,20 @@ export class PcmAudioPlayer {
   async ensureContext() {
     if (!this.audioContext) {
       this.audioContext = new AudioContext();
+      this.gainNode = this.audioContext.createGain();
+      this.gainNode.gain.value = this.gain;
+      this.gainNode.connect(this.audioContext.destination);
       this.nextStartTime = this.audioContext.currentTime;
     }
     if (this.audioContext.state === "suspended") {
       await this.audioContext.resume();
+    }
+  }
+
+  setGain(value) {
+    this.gain = Math.max(0, Math.min(2.5, Number(value) || 0));
+    if (this.gainNode) {
+      this.gainNode.gain.value = this.gain;
     }
   }
 
@@ -25,7 +37,7 @@ export class PcmAudioPlayer {
 
     const source = this.audioContext.createBufferSource();
     source.buffer = buffer;
-    source.connect(this.audioContext.destination);
+    source.connect(this.gainNode || this.audioContext.destination);
     source.onended = () => this.sources.delete(source);
 
     const startAt = Math.max(this.audioContext.currentTime, this.nextStartTime);

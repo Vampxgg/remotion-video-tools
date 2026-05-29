@@ -51,3 +51,14 @@ pytesseract
 PyPDF2
 tavily-python
 json-repair
+
+# Cache (Redis 异步客户端，含 redis.asyncio)
+redis>=5.0
+# 进程内降级缓存（Redis 不可用时兜底）
+cachetools
+
+# Test (web_search 单测：pytest-httpx 拦截出站，fakeredis 模拟缓存)
+pytest
+pytest-asyncio
+pytest-httpx
+fakeredis

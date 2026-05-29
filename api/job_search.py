@@ -13,6 +13,7 @@ import sys
 import time
 import asyncio
 import threading
+from contextlib import asynccontextmanager
 from email.message import EmailMessage
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -22,7 +23,7 @@ import aiohttp
 # FastAPI 相关导入
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # DrissionPage 相关导入
 try:
@@ -46,12 +47,68 @@ router = APIRouter()
 # --- 全局配置 ---
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 BROWSER_HOST_PORT = _settings.JOB_SEARCH_BROWSER_HOST_PORT
-MAX_CONCURRENT_TASKS = _settings.JOB_SEARCH_MAX_CONCURRENT  # 合理的并发任务数，避免对目标网站造成过大压力
+MAX_CONCURRENT_TASKS = max(1, _settings.JOB_SEARCH_MAX_CONCURRENT)  # 合理的并发任务数，避免对目标网站造成过大压力
+DETAIL_HTTP_CONCURRENCY = max(1, _settings.JOB_SEARCH_DETAIL_HTTP_CONCURRENCY)
+DETAIL_HTTP_TIMEOUT = max(1.0, _settings.JOB_SEARCH_DETAIL_HTTP_TIMEOUT)
+SCRAPE_TIMEOUT_SEC = max(1.0, _settings.JOB_SEARCH_SCRAPE_TIMEOUT_SEC)
 # 智联招聘登录凭证：必须由 .env 提供（ZHILIAN_USERNAME / ZHILIAN_PASSWORD），不再保留代码内默认值
 ZHILIAN_USERNAME = _settings.ZHILIAN_USERNAME or ""
 ZHILIAN_PASSWORD = _settings.ZHILIAN_PASSWORD or ""
 _login_notify_lock = threading.Lock()
 _last_login_notify_ts = 0.0
+_scrape_request_semaphore: Optional[asyncio.Semaphore] = None
+_scrape_executor: Optional[ThreadPoolExecutor] = None
+_active_scrape_requests = 0
+_active_scrape_requests_lock = threading.Lock()
+
+
+def _get_scrape_executor() -> ThreadPoolExecutor:
+    global _scrape_executor
+    if _scrape_executor is None:
+        _scrape_executor = ThreadPoolExecutor(
+            max_workers=max(1, _settings.JOB_SEARCH_EXECUTOR_WORKERS),
+            thread_name_prefix="zhilian-v1-request",
+        )
+    return _scrape_executor
+
+
+def _get_scrape_request_semaphore() -> asyncio.Semaphore:
+    global _scrape_request_semaphore
+    if _scrape_request_semaphore is None:
+        _scrape_request_semaphore = asyncio.Semaphore(
+            max(1, _settings.JOB_SEARCH_REQUEST_CONCURRENCY)
+        )
+    return _scrape_request_semaphore
+
+
+def _set_active_scrape_delta(delta: int) -> int:
+    global _active_scrape_requests
+    with _active_scrape_requests_lock:
+        _active_scrape_requests = max(0, _active_scrape_requests + delta)
+        return _active_scrape_requests
+
+
+@asynccontextmanager
+async def lifespan_resources(app):
+    """为 v1 长任务准备隔离资源，避免占用 asyncio 默认 executor。"""
+    _get_scrape_request_semaphore()
+    _get_scrape_executor()
+    logger.info(
+        "V1 智联爬虫资源就绪: request_concurrency=%s, executor_workers=%s, "
+        "combination_workers=%s, detail_http_concurrency=%s",
+        _settings.JOB_SEARCH_REQUEST_CONCURRENCY,
+        _settings.JOB_SEARCH_EXECUTOR_WORKERS,
+        MAX_CONCURRENT_TASKS,
+        DETAIL_HTTP_CONCURRENCY,
+    )
+    try:
+        yield
+    finally:
+        global _scrape_executor
+        if _scrape_executor is not None:
+            _scrape_executor.shutdown(wait=False, cancel_futures=True)
+            _scrape_executor = None
+        logger.info("V1 智联爬虫资源已关闭。")
 
 
 # ======================================================================================
@@ -336,7 +393,8 @@ def handle_login_if_needed(page) -> bool:
 
 async def scrape_job_details_async(
         session: aiohttp.ClientSession,
-        position_number: str
+        position_number: str,
+        semaphore: asyncio.Semaphore,
 ) -> Optional[Dict[str, Any]]:
     """
     【异步重构版】
@@ -348,22 +406,22 @@ async def scrape_job_details_async(
     api_url = _settings.ZHAOPIN_DETAIL_API_TEMPLATE.format(number=position_number)
     # 日志移到外面统一管理，避免刷屏
     try:
-        async with session.get(api_url, timeout=10) as response:
-            if response.status == 200:
-                json_data = await response.json()
-                if json_data.get('code') == 200 and 'data' in json_data:
-                    return json_data['data']
-                else:
+        async with semaphore:
+            async with session.get(api_url) as response:
+                if response.status == 200:
+                    json_data = await response.json()
+                    if json_data.get('code') == 200 and 'data' in json_data:
+                        return json_data['data']
                     logger.warning(
                         f"API for {position_number} 返回业务错误: "
                         f"code={json_data.get('code')}, message={json_data.get('message')}"
                     )
                     return None
-            else:
-                logger.warning(
-                    f"请求详情API {api_url} 失败, HTTP状态码: {response.status}"
-                )
-                return None
+                else:
+                    logger.warning(
+                        f"请求详情API {api_url} 失败, HTTP状态码: {response.status}"
+                    )
+                    return None
     except asyncio.TimeoutError:
         logger.error(f"请求详情API {api_url} 超时。")
         return None
@@ -383,12 +441,29 @@ async def fetch_all_details_concurrently(position_numbers: List[str]) -> Dict[st
     if not position_numbers:
         return {}
 
-    logger.info(f"准备并发获取 {len(position_numbers)} 个职位详情...")
-    async with aiohttp.ClientSession() as session:
+    logger.info(
+        f"准备并发获取 {len(position_numbers)} 个职位详情，"
+        f"并发上限: {DETAIL_HTTP_CONCURRENCY}..."
+    )
+    timeout = aiohttp.ClientTimeout(total=DETAIL_HTTP_TIMEOUT)
+    connector = aiohttp.TCPConnector(
+        limit=DETAIL_HTTP_CONCURRENCY,
+        limit_per_host=DETAIL_HTTP_CONCURRENCY,
+    )
+    semaphore = asyncio.Semaphore(DETAIL_HTTP_CONCURRENCY)
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
         tasks = [
-            scrape_job_details_async(session, number) for number in position_numbers
+            scrape_job_details_async(session, number, semaphore) for number in position_numbers
         ]
-        results = await asyncio.gather(*tasks)
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    results = []
+    for number, result in zip(position_numbers, raw_results):
+        if isinstance(result, Exception):
+            logger.error(f"职位详情 {number} 获取异常: {result}")
+            results.append(None)
+        else:
+            results.append(result)
 
     # 将结果与 position_number 对应起来，方便后续合并
     return {num: res for num, res in zip(position_numbers, results)}
@@ -416,15 +491,28 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
         time.sleep(random.uniform(0.2, 0.5))
         search_input_obj.input(Keys.ENTER)
 
+    def _normalize_province_name(raw: str) -> str:
+        # 智联「其它城市」筛选框对 "福州市"/"福建省"/"内蒙古自治区" 这种带后缀的输入匹配为空
+        # 会导致 li[1] 拿不到 → 抛 ElementNotFoundError → 单任务静默 0 条；统一去尾
+        name = (raw or "").strip()
+        for suffix in ("特别行政区", "自治区", "省", "市"):
+            if name.endswith(suffix) and len(name) > len(suffix):
+                name = name[: -len(suffix)]
+                break
+        return name
+
     def get_province(page, prov):
+        normalized = _normalize_province_name(prov)
+        if normalized != prov:
+            logger.info(f"省/市名称归一化: '{prov}' -> '{normalized}'")
         page.listen.clear()
         area_obj = page.ele((By.XPATH, '//div[@class="content-s"]/div[1]'))
         area_obj.click()
         time.sleep(random.uniform(0.2, 0.5))
         area_input_obj = page.ele((By.XPATH, '//div[@class="query-other-city"]/input'))
-        area_input_obj.input(prov)
-        if prov in ['吉林', '海南']:
-            page.ele((By.XPATH, f'//ul[@class="query-other-city__list"]/li[contains(.,"{prov}")]'), timeout=10).click()
+        area_input_obj.input(normalized)
+        if normalized in ['吉林', '海南']:
+            page.ele((By.XPATH, f'//ul[@class="query-other-city__list"]/li[contains(.,"{normalized}")]'), timeout=10).click()
         else:
             page.ele((By.XPATH, '//ul[@class="query-other-city__list"]/li[1]'), timeout=10).click()
 
@@ -438,10 +526,14 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
     def get_data(item, prov) -> List[Dict[str, Any]]:
         extracted_data = []
         json_data = item.response.body
-        print(str(json_data)[:50])
         if json_data:
             try:
                 for data in json_data['data']['list']:
+                    card_custom_json = data.get('cardCustomJson')
+                    try:
+                        address = json.loads(card_custom_json).get('address') if card_custom_json else None
+                    except Exception:
+                        address = None
                     dic = {
                         'name': data.get('name'),
                         'salary': data.get('salary60'),
@@ -449,7 +541,7 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
                             'jobSkillTags') else [],
                         'jobKnowledgeWelfareFeatures': data.get('jobKnowledgeWelfareFeatures'),
                         'province': prov,
-                        'address': json.loads(data.get('cardCustomJson')).get('address'),
+                        'address': address,
                         'workingExp': data.get('workingExp'),
                         'education': data.get('education'),
                         'companyName': data.get('companyName'),
@@ -478,12 +570,15 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
 
     # --- 爬虫主流程 ---
     page = None
+    listen_started = False
     # jobdetail_page = None
     task_results = []
+    started_at = time.monotonic()
     try:
         page = ChromiumPage(BROWSER_HOST_PORT).new_tab()
         api_url = '/c/i/search/positions?'
         page.listen.start(api_url)
+        listen_started = True
         initial_url = _settings.ZHAOPIN_LIST_URL
         goto_html(page, initial_url)
         time.sleep(1)
@@ -543,6 +638,10 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
 
             current_page_num += 1
 
+        logger.info(
+            f"组合 '{keyword}'-'{province}' 完成: {len(task_results)} 条, "
+            f"{round(time.monotonic() - started_at, 2)}s"
+        )
         return task_results
 
     except Exception as e:
@@ -550,9 +649,17 @@ def scrape_single_combination(keyword: str, province: str, page_size: int) -> Li
         raise
     finally:
         if page:
-            logger.info(f"正在关闭任务 '{keyword}'-'{province}' 的浏览器页面...")
-            page.close()
-            logger.info(f"任务 '{keyword}'-'{province}' 的浏览器页面已关闭。")
+            if listen_started:
+                try:
+                    page.listen.stop()
+                except Exception as exc:
+                    logger.warning(f"任务 '{keyword}'-'{province}' 停止监听失败: {exc}")
+            try:
+                logger.info(f"正在关闭任务 '{keyword}'-'{province}' 的浏览器页面...")
+                page.close()
+                logger.info(f"任务 '{keyword}'-'{province}' 的浏览器页面已关闭。")
+            except Exception as exc:
+                logger.warning(f"任务 '{keyword}'-'{province}' 关闭浏览器页面失败: {exc}")
 
 
 def run_zhilian_scraper_concurrent(keywords: List[str], provinces: List[str], page_size: int) -> List[Dict[str, Any]]:
@@ -564,10 +671,17 @@ def run_zhilian_scraper_concurrent(keywords: List[str], provinces: List[str], pa
     """
     all_results = []
     tasks_to_run = [(kw, prov) for kw in keywords for prov in provinces]
+    if not tasks_to_run:
+        return all_results
+    worker_count = max(1, min(MAX_CONCURRENT_TASKS, len(tasks_to_run)))
+    started_at = time.monotonic()
 
-    logger.info(f"准备启动 {len(tasks_to_run)} 个并发爬虫任务，最大并发数: {MAX_CONCURRENT_TASKS}...")
+    logger.info(
+        f"准备启动 {len(tasks_to_run)} 个并发爬虫任务，实际并发数: {worker_count}, "
+        f"当前进程线程数: {threading.active_count()}..."
+    )
 
-    with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TASKS) as executor:
+    with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="zhilian-v1-combo") as executor:
         future_to_task = {
             executor.submit(scrape_single_combination, kw, prov, page_size): (kw, prov)
             for kw, prov in tasks_to_run
@@ -582,7 +696,10 @@ def run_zhilian_scraper_concurrent(keywords: List[str], provinces: List[str], pa
             except Exception as exc:
                 logger.error(f"任务 {task_id} 执行失败: {exc}", exc_info=True)
 
-    logger.info(f"所有并发任务完成，共采集到 {len(all_results)} 条数据。")
+    logger.info(
+        f"所有并发任务完成，共采集到 {len(all_results)} 条数据，"
+        f"耗时 {round(time.monotonic() - started_at, 2)}s，当前进程线程数: {threading.active_count()}。"
+    )
     return all_results
 
 
@@ -591,24 +708,60 @@ def run_zhilian_scraper_concurrent(keywords: List[str], provinces: List[str], pa
 # ======================================================================================
 
 class ScraperPayload(BaseModel):
-    keywords: List[str] = Field(..., description="要搜索的岗位关键词列表", example=["大数据", "Java工程师"])
-    provinces: List[str] = Field(..., description="要搜索的省份或城市列表", example=["深圳", "北京"])
+    keywords: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=_settings.JOB_SEARCH_MAX_KEYWORDS,
+        description="要搜索的岗位关键词列表。大批量请求请使用 /api/scrape/zhilian/v2/async。",
+        example=["大数据", "Java工程师"],
+    )
+    provinces: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=_settings.JOB_SEARCH_MAX_PROVINCES,
+        description="要搜索的省份或城市列表。大批量请求请使用 /api/scrape/zhilian/v2/async。",
+        example=["深圳", "北京"],
+    )
     page_size: int = Field(
         default=3,
-        description="为每个“关键词-省份”组合爬取的最大页数。设置为 0 则表示爬取所有可用的页数。",
-        ge=0
+        description="为每个“关键词-省份”组合爬取的最大页数。v1 不再支持 0（无限页），大批量请使用 v2 async。",
+        ge=1,
+        le=_settings.JOB_SEARCH_MAX_PAGE_SIZE,
     )
 
+    @model_validator(mode="after")
+    def _check_cartesian_size(self):
+        self.keywords = [kw.strip() for kw in self.keywords if kw and kw.strip()]
+        self.provinces = [prov.strip() for prov in self.provinces if prov and prov.strip()]
+        if not self.keywords:
+            raise ValueError("keywords 不能为空")
+        if not self.provinces:
+            raise ValueError("provinces 不能为空")
+        combinations = len(self.keywords) * len(self.provinces)
+        if combinations > _settings.JOB_SEARCH_MAX_COMBINATIONS:
+            raise ValueError(
+                f"keywords × provinces = {combinations}，超过 v1 上限 "
+                f"{_settings.JOB_SEARCH_MAX_COMBINATIONS}；大批量请使用 /api/scrape/zhilian/v2/async"
+            )
+        return self
 
-@router.post("/scrape/zhilian", summary="启动智联招聘并发爬虫任务")
+
+@router.post(
+    "/scrape/zhilian",
+    summary="[兼容] 智联招聘 v1 小批量同步爬虫",
+    description=(
+        "v1 端点保留用于小批量同步请求，并带有严格的请求上限和并发保护。"
+        "大批量或长时间任务请使用 `/api/scrape/zhilian/v2/async`。"
+    ),
+)
 async def scrape_zhilian_jobs(payload: ScraperPayload):
     """
     【重构】
-    接收关键词、省份列表和爬取页数，以**并发模式**启动一个后台爬虫任务来抓取智联招聘的岗位数据。
+    接收关键词、省份列表和爬取页数，以受限并发模式执行智联招聘岗位采集。
 
-    - **这是一个长时任务**，但服务器会保持响应。
-    - **并发执行**: 多个“关键词-省份”组合将并行抓取，以提高效率。
-    - **page_size**: 控制每个组合爬取的最大页数，`0` 代表不限制。
+    - v1 是同步等待返回的兼容端点，只适合小请求。
+    - 大批量或长时间任务请使用 `/api/scrape/zhilian/v2/async`。
+    - page_size 不再支持 `0` 无限页，避免长期占用浏览器与线程资源。
     """
     if not ChromiumPage:
         raise HTTPException(
@@ -616,25 +769,78 @@ async def scrape_zhilian_jobs(payload: ScraperPayload):
             detail="Scraper service is disabled due to missing 'DrissionPage' dependency."
         )
 
+    semaphore = _get_scrape_request_semaphore()
+    try:
+        await asyncio.wait_for(semaphore.acquire(), timeout=0.01)
+    except asyncio.TimeoutError:
+        return create_standard_response(
+            code=status.HTTP_429_TOO_MANY_REQUESTS,
+            message=(
+                "智联 v1 爬虫当前繁忙，请稍后重试；大批量任务请使用 "
+                "/api/scrape/zhilian/v2/async"
+            ),
+        )
+
+    request_started_at = time.monotonic()
+    active_requests = _set_active_scrape_delta(1)
+    combinations = len(payload.keywords) * len(payload.provinces)
+    slot_released = False
+
+    def release_scrape_slot() -> None:
+        nonlocal slot_released
+        if slot_released:
+            return
+        slot_released = True
+        remaining = _set_active_scrape_delta(-1)
+        semaphore.release()
+        logger.info(
+            f"v1 智联爬虫请求结束: active_requests={remaining}, "
+            f"cost={round(time.monotonic() - request_started_at, 2)}s"
+        )
+
     try:
         logger.info(
-            f"接收到并发爬虫请求: keywords={payload.keywords}, provinces={payload.provinces}, page_size={payload.page_size}")
+            f"接收到 v1 智联爬虫请求: keywords={payload.keywords}, provinces={payload.provinces}, "
+            f"page_size={payload.page_size}, combinations={combinations}, active_requests={active_requests}, "
+            f"thread_count={threading.active_count()}"
+        )
 
         loop = asyncio.get_running_loop()
+        executor = _get_scrape_executor()
 
-        # 【核心变更】调用并发版本的爬虫函数
-        scraped_data = await loop.run_in_executor(
-            None,  # 使用默认的 ThreadPoolExecutor
+        scrape_future = loop.run_in_executor(
+            executor,
             run_zhilian_scraper_concurrent,
-            payload.keywords,
-            payload.provinces,
-            payload.page_size
+            list(payload.keywords),
+            list(payload.provinces),
+            payload.page_size,
+        )
+        scraped_data = await asyncio.wait_for(
+            asyncio.shield(scrape_future),
+            timeout=SCRAPE_TIMEOUT_SEC,
         )
 
         message = f"并发爬虫任务成功完成，共找到 {len(scraped_data)} 个岗位。"
-        logger.info(message)
+        logger.info(
+            f"{message} combinations={combinations}, "
+            f"cost={round(time.monotonic() - request_started_at, 2)}s, "
+            f"thread_count={threading.active_count()}"
+        )
         return create_standard_response(data=scraped_data, message=message)
 
+    except asyncio.TimeoutError:
+        error_message = (
+            f"智联 v1 爬虫执行超过 {SCRAPE_TIMEOUT_SEC}s，已停止等待返回；"
+            "请缩小请求范围或使用 /api/scrape/zhilian/v2/async"
+        )
+        logger.error(
+            f"{error_message}; combinations={combinations}, "
+            f"cost={round(time.monotonic() - request_started_at, 2)}s"
+        )
+        return create_standard_response(
+            code=status.HTTP_504_GATEWAY_TIMEOUT,
+            message=error_message,
+        )
     except Exception as e:
         error_message = f"执行并发爬虫任务期间发生错误: {str(e)}"
         logger.error(error_message, exc_info=True)
@@ -642,3 +848,8 @@ async def scrape_zhilian_jobs(payload: ScraperPayload):
             code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=error_message
         )
+    finally:
+        if 'scrape_future' not in locals() or scrape_future.done():
+            release_scrape_slot()
+        else:
+            scrape_future.add_done_callback(lambda _: release_scrape_slot())

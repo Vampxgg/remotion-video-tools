@@ -24,6 +24,23 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: script_tools_redis
+    restart: always
+    # 仅绑定到本机回环，避免缓存层直接暴露到外网
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./volumes/redis_data:/data
+    # 默认参数：appendonly 关闭、最大内存策略 allkeys-lru，适合做"可丢失"的搜索缓存
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     # 使用带有管理插件的官方镜像，方便调试和监控
     image: rabbitmq:3-management-alpine

@@ -7,13 +7,14 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, model_validator
 
 from api.job_search_v2 import get_search_client as get_zhilian_client
 from services.boss_zhipin_client import BossZhipinClient
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
+from utils.security import require_api_key
 from utils.settings import settings as _settings
 
 logger = setup_module_logger(__name__, "logs/jobs/region_search.log")
@@ -78,7 +79,7 @@ class QuerySpec(BaseModel):
     keywords: List[str] = Field(
         ...,
         min_length=1,
-        max_length=10,
+        max_length=20,
         description="岗位关键词列表",
         examples=[["前端开发工程师"]],
     )
@@ -203,17 +204,6 @@ BOSS_CITY_CODES = {
 }
 
 
-async def require_api_key(x_api_key: Optional[str] = Header(None)) -> None:
-    configured_key = _settings.REGION_JOBS_API_KEY
-    if not configured_key:
-        return
-    if x_api_key != configured_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API key",
-        )
-
-
 @router.post(
     "/jobs/region-search",
     summary="区域岗位数据统一搜索",
@@ -221,7 +211,7 @@ async def require_api_key(x_api_key: Optional[str] = Header(None)) -> None:
         "以业务区域为主输入，同时适配智联招聘和 BOSS 直聘。\n"
         "接口返回统一职位字段、来源状态和保守去重后的区域岗位数据。"
     ),
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(require_api_key("REGION_JOBS_API_KEY"))],
 )
 async def search_region_jobs(payload: RegionJobSearchPayload):
     logger.info(
@@ -497,7 +487,7 @@ def _normalize_boss_job(raw: Dict[str, Any], *, payload: RegionJobSearchPayload)
             "industry": raw.get("company_industry"),
             "scale": raw.get("company_scale"),
             "type_or_stage": raw.get("company_stage"),
-            "logo_url": None,
+            "logo_url": raw.get("brand_logo"),
             "profile_url": None,
         },
         "salary": _salary_object(raw.get("salary")),
