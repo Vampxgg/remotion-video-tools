@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from api.job_search_v2 import get_search_client as get_zhilian_client
 from services.boss_zhipin_client import BossZhipinClient
+from utils import region_map
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
 from utils.security import require_api_key
@@ -174,34 +175,9 @@ class SourceRunResult(BaseModel):
     warnings: List[str] = Field(default_factory=list)
 
 
-BOSS_CITY_CODES = {
-    "全国": 100010000,
-    "北京": 101010100,
-    "上海": 101020100,
-    "广州": 101280100,
-    "深圳": 101280600,
-    "杭州": 101210100,
-    "天津": 101030100,
-    "西安": 101110100,
-    "苏州": 101190400,
-    "武汉": 101200100,
-    "厦门": 101230200,
-    "长沙": 101250100,
-    "成都": 101270100,
-    "郑州": 101180100,
-    "重庆": 101040100,
-    "佛山": 101280800,
-    "合肥": 101220100,
-    "济南": 101120100,
-    "青岛": 101120200,
-    "南京": 101190100,
-    "东莞": 101281600,
-    "昆明": 101290100,
-    "南昌": 101240100,
-    "石家庄": 101090100,
-    "宁波": 101210400,
-    "福州": 101230100,
-}
+def _province_for_city(city: Optional[str], province: Optional[str] = None) -> Optional[str]:
+    """按城市名查省份；走全量城市表（缺文件时回退种子）。"""
+    return region_map.province_for_city(city, province)
 
 
 @router.post(
@@ -253,6 +229,8 @@ async def search_region_jobs(payload: RegionJobSearchPayload):
 async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
     city_name = payload.region.city
     city_id = payload.region.platform_hints.zhilian_city_id
+    if city_id is None:
+        city_id = region_map.zhilian_id_for_city(city_name, payload.region.province)
     try:
         client = get_zhilian_client()
         include_detail = payload.collection.detail_level == DetailLevel.DESCRIPTION
@@ -358,6 +336,7 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
         ]
         summary = (raw_result or {}).get("summary") or {}
         warnings = (raw_result or {}).get("warnings") or []
+        warnings.extend(_boss_city_hint_warnings(payload.region, city_code))
         warnings.extend(_multi_keyword_page_warnings(summary, payload))
         warnings.extend(_empty_result_warnings(SourceName.BOSS_ZHIPIN, jobs))
         return SourceRunResult(
@@ -407,7 +386,24 @@ async def _resolve_zhilian_city_id(client, city_name: str) -> Optional[str]:
 def _resolve_boss_city_code(region: RegionSpec) -> Optional[int]:
     if region.platform_hints.boss_city_code:
         return region.platform_hints.boss_city_code
-    return BOSS_CITY_CODES.get(region.city)
+    return region_map.boss_code_for_city(region.city, region.province)
+
+
+def _boss_city_hint_warnings(region: RegionSpec, city_code: Optional[int]) -> List[str]:
+    """当显式传入的 boss_city_code 与 city 名映射不一致时给出告警。
+
+    不阻断请求，仅提示返回数据将按编码（而非 city 名）为准，避免静默地域错配。
+    """
+    hint = region.platform_hints.boss_city_code
+    if not hint:
+        return []
+    expected = region_map.boss_code_for_city(region.city, region.province)
+    if expected is not None and hint != expected:
+        return [
+            f"请求 city={region.city} 但 boss_city_code={hint} 与之不一致"
+            f"（{region.city} 应为 {expected}），返回数据按编码 {hint} 为准"
+        ]
+    return []
 
 
 def _normalize_zhilian_job(
@@ -422,6 +418,7 @@ def _normalize_zhilian_job(
     description_status = "success" if description_text else (
         "empty" if payload.collection.detail_level == DetailLevel.DESCRIPTION else "not_requested"
     )
+    published_at = _extract_zhilian_publish_time(details)
 
     job = _base_job(
         source=SourceName.ZHILIAN.value,
@@ -451,6 +448,7 @@ def _normalize_zhilian_job(
             "labels": [],
         },
         "benefits": _as_list(raw.get("jobKnowledgeWelfareFeatures")),
+        "published_at": published_at,
         "description": {
             "text": description_text,
             "responsibilities": None,
@@ -505,6 +503,9 @@ def _normalize_boss_job(raw: Dict[str, Any], *, payload: RegionJobSearchPayload)
             "labels": _as_list(raw.get("labels")),
         },
         "benefits": _as_list(raw.get("welfare")),
+        "published_at": (
+            raw.get("lastModifyTime") or raw.get("publishTime") or raw.get("publish_date")
+        ),
         "description": {
             "text": raw.get("job_description"),
             "responsibilities": raw.get("responsibilities"),
@@ -586,18 +587,49 @@ def _base_job(
 def _extract_zhilian_description(details: Dict[str, Any]) -> Optional[str]:
     if not details:
         return None
-    for key in (
-        "jobDesc",
-        "jobDescription",
-        "description",
-        "describe",
-        "responsibility",
-        "jobContent",
-        "content",
-    ):
-        value = details.get(key)
-        if isinstance(value, str) and value.strip():
-            return _clean_html(value)
+    # 智联职位详情接口返回结构为 {detailedCompany, detailedPosition, taskId}，
+    # 岗位描述实际在 detailedPosition.jobDesc / jobDescPC；优先深入该层，
+    # 同时兼容历史的顶层结构。
+    scopes: list[Dict[str, Any]] = []
+    nested = details.get("detailedPosition")
+    if isinstance(nested, dict):
+        scopes.append(nested)
+    scopes.append(details)
+    for scope in scopes:
+        for key in (
+            "jobDesc",
+            "jobDescPC",
+            "jobDescription",
+            "description",
+            "describe",
+            "responsibility",
+            "jobContent",
+            "content",
+        ):
+            value = scope.get(key)
+            if isinstance(value, str) and value.strip():
+                return _clean_html(value)
+    return None
+
+
+def _extract_zhilian_publish_time(details: Dict[str, Any]) -> Optional[Any]:
+    """从智联职位详情提取发布时间（原值透传，下游按时间戳/日期串解析）。
+
+    时间字段在 detailedPosition 层（positionPublishTime / publishTime），
+    兼容历史顶层结构。优先绝对时间字段，避免拿到「3天前」这类相对描述。
+    """
+    if not details:
+        return None
+    scopes: list[Dict[str, Any]] = []
+    nested = details.get("detailedPosition")
+    if isinstance(nested, dict):
+        scopes.append(nested)
+    scopes.append(details)
+    for scope in scopes:
+        for key in ("positionPublishTime", "publishTime", "firstPublishTime", "refreshTime"):
+            value = scope.get(key)
+            if value:
+                return value
     return None
 
 
@@ -703,6 +735,8 @@ def _build_response_data(
     all_jobs = []
     for result in results:
         all_jobs.extend(result.jobs)
+
+    all_jobs = [_fill_region_fields(job) for job in all_jobs]
 
     total_before_dedup = len(all_jobs)
     if payload.output.deduplicate:
@@ -827,6 +861,50 @@ def _job_fingerprints(job: Dict[str, Any]) -> List[str]:
 
 def _norm(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def _split_zhilian_address(address: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """从智联 address（如 "厦门 思明 莲前"）解析 (district, business_district)。
+
+    约定格式为「城市 区 街道」，按空白切分：
+    - 第 2 段为 district，缺行政区后缀（区/县/市/旗）时补「区」；
+    - 第 3 段及之后为 business_district。
+    无法解析时返回 (None, None)。
+    """
+    if not address:
+        return None, None
+    parts = [p for p in re.split(r"\s+", address.strip()) if p]
+    if len(parts) < 2:
+        return None, None
+    district = parts[1]
+    if district and district[-1] not in "区县市旗":
+        district = f"{district}区"
+    business_district = parts[2] if len(parts) >= 3 else None
+    return district, business_district
+
+
+def _fill_region_fields(job: Dict[str, Any]) -> Dict[str, Any]:
+    """统一回填地域字段：province 兜底 + 智联 district/business_district 解析。
+
+    仅在字段为空时填充，不覆盖来源已有值。
+    """
+    location = job.get("location") or {}
+
+    if not location.get("province"):
+        province = _province_for_city(location.get("city"), location.get("province"))
+        if province:
+            location["province"] = province
+
+    if job.get("source") == SourceName.ZHILIAN.value:
+        if not location.get("district"):
+            district, business_district = _split_zhilian_address(location.get("address"))
+            if district:
+                location["district"] = district
+            if business_district and not location.get("business_district"):
+                location["business_district"] = business_district
+
+    job["location"] = location
+    return job
 
 
 def _region_to_dict(region: RegionSpec) -> Dict[str, Any]:

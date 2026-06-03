@@ -1,0 +1,2683 @@
+{
+  "generated_at": "2026-05-29T17:22:43",
+  "sources": {
+    "boss": "https://www.zhipin.com/wapi/zpCommon/data/city.json",
+    "zhilian": "https://dict.zhaopin.cn/dict/dictOpenService/getDict?dictNames=region_relation"
+  },
+  "counts": {
+    "cities": 526,
+    "provinces": 34,
+    "boss_cities": 373,
+    "zhilian_cities": 467,
+    "only_boss": 59,
+    "only_zhilian": 153
+  },
+  "provinces": [
+    "上海",
+    "云南",
+    "内蒙古",
+    "北京",
+    "台湾",
+    "吉林",
+    "四川",
+    "天津",
+    "宁夏",
+    "安徽",
+    "山东",
+    "山西",
+    "广东",
+    "广西",
+    "新疆",
+    "江苏",
+    "江西",
+    "河北",
+    "河南",
+    "浙江",
+    "海南",
+    "湖北",
+    "湖南",
+    "澳门",
+    "甘肃",
+    "福建",
+    "西藏",
+    "贵州",
+    "辽宁",
+    "重庆",
+    "陕西",
+    "青海",
+    "香港",
+    "黑龙江"
+  ],
+  "cities": {
+    "七台河": {
+      "province": "黑龙江",
+      "boss_code": 101050900,
+      "zhilian_id": "630"
+    },
+    "万宁": {
+      "province": "海南",
+      "boss_code": 101310800,
+      "zhilian_id": "10186"
+    },
+    "万州区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2321"
+    },
+    "万盛区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2329"
+    },
+    "三亚": {
+      "province": "海南",
+      "boss_code": 101310200,
+      "zhilian_id": "800"
+    },
+    "三明": {
+      "province": "福建",
+      "boss_code": 101230800,
+      "zhilian_id": "684"
+    },
+    "三沙": {
+      "province": "海南",
+      "boss_code": 101310300,
+      "zhilian_id": "10303"
+    },
+    "三门峡": {
+      "province": "河南",
+      "boss_code": 101181700,
+      "zhilian_id": "730"
+    },
+    "上海": {
+      "province": "上海",
+      "boss_code": 101020100,
+      "zhilian_id": "538"
+    },
+    "上饶": {
+      "province": "江西",
+      "boss_code": 101240300,
+      "zhilian_id": "701"
+    },
+    "东丽区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2172"
+    },
+    "东城区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2001"
+    },
+    "东方": {
+      "province": "海南",
+      "boss_code": 101310900,
+      "zhilian_id": "10187"
+    },
+    "东沙群岛": {
+      "province": "广东",
+      "boss_code": 101282200,
+      "zhilian_id": null
+    },
+    "东莞": {
+      "province": "广东",
+      "boss_code": 101281600,
+      "zhilian_id": "779"
+    },
+    "东营": {
+      "province": "山东",
+      "boss_code": 101121200,
+      "zhilian_id": "706"
+    },
+    "两江新区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "104158"
+    },
+    "中卫": {
+      "province": "宁夏",
+      "boss_code": 101170500,
+      "zhilian_id": "906"
+    },
+    "中山": {
+      "province": "广东",
+      "boss_code": 101281700,
+      "zhilian_id": "780"
+    },
+    "丰台区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2007"
+    },
+    "丰都县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2342"
+    },
+    "临夏": {
+      "province": "甘肃",
+      "boss_code": null,
+      "zhilian_id": "876"
+    },
+    "临夏回族自治州": {
+      "province": "甘肃",
+      "boss_code": 101161300,
+      "zhilian_id": null
+    },
+    "临汾": {
+      "province": "山西",
+      "boss_code": 101100700,
+      "zhilian_id": "585"
+    },
+    "临沂": {
+      "province": "山东",
+      "boss_code": 101120900,
+      "zhilian_id": "714"
+    },
+    "临沧": {
+      "province": "云南",
+      "boss_code": 101290800,
+      "zhilian_id": "846"
+    },
+    "临高": {
+      "province": "海南",
+      "boss_code": 101311300,
+      "zhilian_id": "10191"
+    },
+    "丹东": {
+      "province": "辽宁",
+      "boss_code": 101070600,
+      "zhilian_id": "604"
+    },
+    "丽水": {
+      "province": "浙江",
+      "boss_code": 101210800,
+      "zhilian_id": "663"
+    },
+    "丽江": {
+      "province": "云南",
+      "boss_code": 101290900,
+      "zhilian_id": "843"
+    },
+    "乌兰察布": {
+      "province": "内蒙古",
+      "boss_code": 101080900,
+      "zhilian_id": "596"
+    },
+    "乌审旗": {
+      "province": "内蒙古",
+      "boss_code": null,
+      "zhilian_id": "10031"
+    },
+    "乌海": {
+      "province": "内蒙古",
+      "boss_code": 101080300,
+      "zhilian_id": "589"
+    },
+    "乌鲁木齐": {
+      "province": "新疆",
+      "boss_code": 101130100,
+      "zhilian_id": "890"
+    },
+    "乐东": {
+      "province": "海南",
+      "boss_code": null,
+      "zhilian_id": "10196"
+    },
+    "乐东黎族自治县": {
+      "province": "海南",
+      "boss_code": 101311600,
+      "zhilian_id": null
+    },
+    "乐山": {
+      "province": "四川",
+      "boss_code": 101271400,
+      "zhilian_id": "810"
+    },
+    "九江": {
+      "province": "江西",
+      "boss_code": 101240200,
+      "zhilian_id": "694"
+    },
+    "九龙坡区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2316"
+    },
+    "云浮": {
+      "province": "广东",
+      "boss_code": 101281400,
+      "zhilian_id": "783"
+    },
+    "云阳县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2339"
+    },
+    "五家渠": {
+      "province": "新疆",
+      "boss_code": 101131900,
+      "zhilian_id": null
+    },
+    "五家渠市": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "10178"
+    },
+    "五指山": {
+      "province": "海南",
+      "boss_code": 101310500,
+      "zhilian_id": "10184"
+    },
+    "亳州": {
+      "province": "安徽",
+      "boss_code": 101220900,
+      "zhilian_id": "678"
+    },
+    "仙桃": {
+      "province": "湖北",
+      "boss_code": 101201400,
+      "zhilian_id": null
+    },
+    "仙桃市": {
+      "province": "湖北",
+      "boss_code": null,
+      "zhilian_id": "10168"
+    },
+    "伊春": {
+      "province": "黑龙江",
+      "boss_code": 101050700,
+      "zhilian_id": "628"
+    },
+    "伊犁": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "901"
+    },
+    "伊犁哈萨克自治州": {
+      "province": "新疆",
+      "boss_code": 101130600,
+      "zhilian_id": null
+    },
+    "佛山": {
+      "province": "广东",
+      "boss_code": 101280800,
+      "zhilian_id": "768"
+    },
+    "佳木斯": {
+      "province": "黑龙江",
+      "boss_code": 101050400,
+      "zhilian_id": "629"
+    },
+    "保亭": {
+      "province": "海南",
+      "boss_code": null,
+      "zhilian_id": "10193"
+    },
+    "保亭黎族苗族自治县": {
+      "province": "海南",
+      "boss_code": 101311800,
+      "zhilian_id": null
+    },
+    "保定": {
+      "province": "河北",
+      "boss_code": 101090200,
+      "zhilian_id": "570"
+    },
+    "保山": {
+      "province": "云南",
+      "boss_code": 101290300,
+      "zhilian_id": "834"
+    },
+    "信阳": {
+      "province": "河南",
+      "boss_code": 101180600,
+      "zhilian_id": "733"
+    },
+    "儋州": {
+      "province": "海南",
+      "boss_code": 101310400,
+      "zhilian_id": "10183"
+    },
+    "克孜勒苏柯尔克孜": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "898"
+    },
+    "克孜勒苏柯尔克孜自治州": {
+      "province": "新疆",
+      "boss_code": 101131100,
+      "zhilian_id": null
+    },
+    "克拉玛依": {
+      "province": "新疆",
+      "boss_code": 101130200,
+      "zhilian_id": "891"
+    },
+    "六安": {
+      "province": "安徽",
+      "boss_code": 101221400,
+      "zhilian_id": "677"
+    },
+    "六盘水": {
+      "province": "贵州",
+      "boss_code": 101260600,
+      "zhilian_id": "823"
+    },
+    "兰州": {
+      "province": "甘肃",
+      "boss_code": 101160100,
+      "zhilian_id": "864"
+    },
+    "兴安盟": {
+      "province": "内蒙古",
+      "boss_code": 101081100,
+      "zhilian_id": "594"
+    },
+    "内江": {
+      "province": "四川",
+      "boss_code": 101271200,
+      "zhilian_id": "809"
+    },
+    "凉山": {
+      "province": "四川",
+      "boss_code": null,
+      "zhilian_id": "821"
+    },
+    "凉山彝族自治州": {
+      "province": "四川",
+      "boss_code": 101272000,
+      "zhilian_id": null
+    },
+    "包头": {
+      "province": "内蒙古",
+      "boss_code": 101080200,
+      "zhilian_id": "588"
+    },
+    "北京": {
+      "province": "北京",
+      "boss_code": 101010100,
+      "zhilian_id": "530"
+    },
+    "北屯市": {
+      "province": "新疆",
+      "boss_code": 101132100,
+      "zhilian_id": "932"
+    },
+    "北海": {
+      "province": "广西",
+      "boss_code": 101301300,
+      "zhilian_id": "789"
+    },
+    "北碚区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2320"
+    },
+    "北辰区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2175"
+    },
+    "北部新区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2360"
+    },
+    "十堰": {
+      "province": "湖北",
+      "boss_code": 101201000,
+      "zhilian_id": "738"
+    },
+    "南京": {
+      "province": "江苏",
+      "boss_code": 101190100,
+      "zhilian_id": "635"
+    },
+    "南充": {
+      "province": "四川",
+      "boss_code": 101270500,
+      "zhilian_id": "811"
+    },
+    "南宁": {
+      "province": "广西",
+      "boss_code": 101300100,
+      "zhilian_id": "785"
+    },
+    "南岸区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2314"
+    },
+    "南川区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2330"
+    },
+    "南平": {
+      "province": "福建",
+      "boss_code": 101230900,
+      "zhilian_id": "688"
+    },
+    "南开区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2168"
+    },
+    "南昌": {
+      "province": "江西",
+      "boss_code": 101240100,
+      "zhilian_id": "691"
+    },
+    "南通": {
+      "province": "江苏",
+      "boss_code": 101190500,
+      "zhilian_id": "641"
+    },
+    "南阳": {
+      "province": "河南",
+      "boss_code": 101180700,
+      "zhilian_id": "731"
+    },
+    "博尔塔拉": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "895"
+    },
+    "博尔塔拉蒙古自治州": {
+      "province": "新疆",
+      "boss_code": 101130500,
+      "zhilian_id": null
+    },
+    "厦门": {
+      "province": "福建",
+      "boss_code": 101230200,
+      "zhilian_id": "682"
+    },
+    "双桥区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2328"
+    },
+    "双河市": {
+      "province": "新疆",
+      "boss_code": 101132400,
+      "zhilian_id": "10301"
+    },
+    "双鸭山": {
+      "province": "黑龙江",
+      "boss_code": 101051200,
+      "zhilian_id": "626"
+    },
+    "可克达拉市": {
+      "province": "新疆",
+      "boss_code": 101132200,
+      "zhilian_id": "104028"
+    },
+    "台北": {
+      "province": "台湾",
+      "boss_code": null,
+      "zhilian_id": "10304"
+    },
+    "台州": {
+      "province": "浙江",
+      "boss_code": 101210600,
+      "zhilian_id": "662"
+    },
+    "台湾": {
+      "province": "台湾",
+      "boss_code": 101341100,
+      "zhilian_id": null
+    },
+    "合川区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2327"
+    },
+    "合肥": {
+      "province": "安徽",
+      "boss_code": 101220100,
+      "zhilian_id": "664"
+    },
+    "吉安": {
+      "province": "江西",
+      "boss_code": 101240600,
+      "zhilian_id": "698"
+    },
+    "吉林": {
+      "province": "吉林",
+      "boss_code": 101060200,
+      "zhilian_id": null
+    },
+    "吉林市": {
+      "province": "吉林",
+      "boss_code": null,
+      "zhilian_id": "614"
+    },
+    "吐鲁番": {
+      "province": "新疆",
+      "boss_code": 101130800,
+      "zhilian_id": "892"
+    },
+    "吕梁": {
+      "province": "山西",
+      "boss_code": 101101100,
+      "zhilian_id": "586"
+    },
+    "吴忠": {
+      "province": "宁夏",
+      "boss_code": 101170300,
+      "zhilian_id": "888"
+    },
+    "周口": {
+      "province": "河南",
+      "boss_code": 101181400,
+      "zhilian_id": "734"
+    },
+    "呼伦贝尔": {
+      "province": "内蒙古",
+      "boss_code": 101080700,
+      "zhilian_id": "593"
+    },
+    "呼和浩特": {
+      "province": "内蒙古",
+      "boss_code": 101080100,
+      "zhilian_id": "587"
+    },
+    "和平区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2165"
+    },
+    "和田": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "900"
+    },
+    "和田地区": {
+      "province": "新疆",
+      "boss_code": 101131300,
+      "zhilian_id": null
+    },
+    "咸宁": {
+      "province": "湖北",
+      "boss_code": 101200700,
+      "zhilian_id": "746"
+    },
+    "咸阳": {
+      "province": "陕西",
+      "boss_code": 101110200,
+      "zhilian_id": "857"
+    },
+    "哈密": {
+      "province": "新疆",
+      "boss_code": 101130900,
+      "zhilian_id": "893"
+    },
+    "哈尔滨": {
+      "province": "黑龙江",
+      "boss_code": 101050100,
+      "zhilian_id": "622"
+    },
+    "唐山": {
+      "province": "河北",
+      "boss_code": 101090500,
+      "zhilian_id": "566"
+    },
+    "商丘": {
+      "province": "河南",
+      "boss_code": 101181000,
+      "zhilian_id": "732"
+    },
+    "商洛": {
+      "province": "陕西",
+      "boss_code": 101110600,
+      "zhilian_id": "863"
+    },
+    "喀什": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "899"
+    },
+    "喀什地区": {
+      "province": "新疆",
+      "boss_code": 101131200,
+      "zhilian_id": null
+    },
+    "嘉兴": {
+      "province": "浙江",
+      "boss_code": 101210300,
+      "zhilian_id": "656"
+    },
+    "嘉定区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2030"
+    },
+    "嘉峪关": {
+      "province": "甘肃",
+      "boss_code": 101161200,
+      "zhilian_id": "865"
+    },
+    "四平": {
+      "province": "吉林",
+      "boss_code": 101060300,
+      "zhilian_id": "615"
+    },
+    "固原": {
+      "province": "宁夏",
+      "boss_code": 101170400,
+      "zhilian_id": "889"
+    },
+    "图木舒克": {
+      "province": "新疆",
+      "boss_code": 101131800,
+      "zhilian_id": null
+    },
+    "图木舒克市": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "10177"
+    },
+    "垫江县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2341"
+    },
+    "城口县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2346"
+    },
+    "塔城": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "902"
+    },
+    "塔城地区": {
+      "province": "新疆",
+      "boss_code": 101131400,
+      "zhilian_id": null
+    },
+    "大兴区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2012"
+    },
+    "大兴安岭": {
+      "province": "黑龙江",
+      "boss_code": null,
+      "zhilian_id": "634"
+    },
+    "大兴安岭地区": {
+      "province": "黑龙江",
+      "boss_code": 101051300,
+      "zhilian_id": null
+    },
+    "大同": {
+      "province": "山西",
+      "boss_code": 101100200,
+      "zhilian_id": "577"
+    },
+    "大庆": {
+      "province": "黑龙江",
+      "boss_code": 101050800,
+      "zhilian_id": "627"
+    },
+    "大渡口区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2317"
+    },
+    "大理": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "841"
+    },
+    "大理白族自治州": {
+      "province": "云南",
+      "boss_code": 101291600,
+      "zhilian_id": null
+    },
+    "大足区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2332"
+    },
+    "大连": {
+      "province": "辽宁",
+      "boss_code": 101070200,
+      "zhilian_id": "600"
+    },
+    "天水": {
+      "province": "甘肃",
+      "boss_code": 101160900,
+      "zhilian_id": "868"
+    },
+    "天津": {
+      "province": "天津",
+      "boss_code": 101030100,
+      "zhilian_id": "531"
+    },
+    "天门": {
+      "province": "湖北",
+      "boss_code": 101201600,
+      "zhilian_id": null
+    },
+    "天门市": {
+      "province": "湖北",
+      "boss_code": null,
+      "zhilian_id": "10140"
+    },
+    "太原": {
+      "province": "山西",
+      "boss_code": 101100100,
+      "zhilian_id": "576"
+    },
+    "奉节县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2343"
+    },
+    "奉贤区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2035"
+    },
+    "威海": {
+      "province": "山东",
+      "boss_code": 101121300,
+      "zhilian_id": "711"
+    },
+    "娄底": {
+      "province": "湖南",
+      "boss_code": 101250800,
+      "zhilian_id": "761"
+    },
+    "孝感": {
+      "province": "湖北",
+      "boss_code": 101200400,
+      "zhilian_id": "743"
+    },
+    "宁德": {
+      "province": "福建",
+      "boss_code": 101230300,
+      "zhilian_id": "690"
+    },
+    "宁河区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2179"
+    },
+    "宁波": {
+      "province": "浙江",
+      "boss_code": 101210400,
+      "zhilian_id": "654"
+    },
+    "安庆": {
+      "province": "安徽",
+      "boss_code": 101220600,
+      "zhilian_id": "671"
+    },
+    "安康": {
+      "province": "陕西",
+      "boss_code": 101110700,
+      "zhilian_id": "862"
+    },
+    "安阳": {
+      "province": "河南",
+      "boss_code": 101180200,
+      "zhilian_id": "723"
+    },
+    "安顺": {
+      "province": "贵州",
+      "boss_code": 101260300,
+      "zhilian_id": "825"
+    },
+    "定安": {
+      "province": "海南",
+      "boss_code": 101311000,
+      "zhilian_id": "10188"
+    },
+    "定西": {
+      "province": "甘肃",
+      "boss_code": 101160200,
+      "zhilian_id": "874"
+    },
+    "宜宾": {
+      "province": "四川",
+      "boss_code": 101271100,
+      "zhilian_id": "813"
+    },
+    "宜昌": {
+      "province": "湖北",
+      "boss_code": 101200900,
+      "zhilian_id": "739"
+    },
+    "宜春": {
+      "province": "江西",
+      "boss_code": 101240500,
+      "zhilian_id": "699"
+    },
+    "宝坻区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2177"
+    },
+    "宝山区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2029"
+    },
+    "宝鸡": {
+      "province": "陕西",
+      "boss_code": 101110900,
+      "zhilian_id": "856"
+    },
+    "宣城": {
+      "province": "安徽",
+      "boss_code": 101221300,
+      "zhilian_id": "680"
+    },
+    "宣武区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2004"
+    },
+    "宿州": {
+      "province": "安徽",
+      "boss_code": 101220700,
+      "zhilian_id": "675"
+    },
+    "宿迁": {
+      "province": "江苏",
+      "boss_code": 101191300,
+      "zhilian_id": "648"
+    },
+    "密云区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2017"
+    },
+    "屯昌": {
+      "province": "海南",
+      "boss_code": 101311100,
+      "zhilian_id": "10189"
+    },
+    "山南": {
+      "province": "西藏",
+      "boss_code": 101140500,
+      "zhilian_id": "849"
+    },
+    "岳阳": {
+      "province": "湖南",
+      "boss_code": 101251000,
+      "zhilian_id": "754"
+    },
+    "崇左": {
+      "province": "广西",
+      "boss_code": 101300200,
+      "zhilian_id": "905"
+    },
+    "崇文区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2003"
+    },
+    "崇明区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2036"
+    },
+    "巫山县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2344"
+    },
+    "巫溪县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2345"
+    },
+    "巴中": {
+      "province": "四川",
+      "boss_code": 101270900,
+      "zhilian_id": "817"
+    },
+    "巴南区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2319"
+    },
+    "巴彦淖尔": {
+      "province": "内蒙古",
+      "boss_code": 101080800,
+      "zhilian_id": "597"
+    },
+    "巴音郭楞": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "896"
+    },
+    "巴音郭楞蒙古自治州": {
+      "province": "新疆",
+      "boss_code": 101130400,
+      "zhilian_id": null
+    },
+    "常州": {
+      "province": "江苏",
+      "boss_code": 101191100,
+      "zhilian_id": "638"
+    },
+    "常德": {
+      "province": "湖南",
+      "boss_code": 101250600,
+      "zhilian_id": "755"
+    },
+    "平凉": {
+      "province": "甘肃",
+      "boss_code": 101160300,
+      "zhilian_id": "871"
+    },
+    "平谷区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2015"
+    },
+    "平顶山": {
+      "province": "河南",
+      "boss_code": 101180500,
+      "zhilian_id": "722"
+    },
+    "广元": {
+      "province": "四川",
+      "boss_code": 101271800,
+      "zhilian_id": "807"
+    },
+    "广安": {
+      "province": "四川",
+      "boss_code": 101270800,
+      "zhilian_id": "814"
+    },
+    "广州": {
+      "province": "广东",
+      "boss_code": 101280100,
+      "zhilian_id": "763"
+    },
+    "庆阳": {
+      "province": "甘肃",
+      "boss_code": 101160400,
+      "zhilian_id": "873"
+    },
+    "廊坊": {
+      "province": "河北",
+      "boss_code": 101090600,
+      "zhilian_id": "574"
+    },
+    "延安": {
+      "province": "陕西",
+      "boss_code": 101110300,
+      "zhilian_id": "859"
+    },
+    "延庆区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2018"
+    },
+    "延边": {
+      "province": "吉林",
+      "boss_code": null,
+      "zhilian_id": "621"
+    },
+    "延边朝鲜族自治州": {
+      "province": "吉林",
+      "boss_code": 101060900,
+      "zhilian_id": null
+    },
+    "开封": {
+      "province": "河南",
+      "boss_code": 101180800,
+      "zhilian_id": "720"
+    },
+    "开州区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2338"
+    },
+    "张家口": {
+      "province": "河北",
+      "boss_code": 101090300,
+      "zhilian_id": "571"
+    },
+    "张家界": {
+      "province": "湖南",
+      "boss_code": 101251100,
+      "zhilian_id": "756"
+    },
+    "张掖": {
+      "province": "甘肃",
+      "boss_code": 101160700,
+      "zhilian_id": "870"
+    },
+    "彭水苗族土家族自治县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2436"
+    },
+    "徐州": {
+      "province": "江苏",
+      "boss_code": 101190800,
+      "zhilian_id": "637"
+    },
+    "徐汇区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2021"
+    },
+    "德宏": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "842"
+    },
+    "德宏傣族景颇族自治州": {
+      "province": "云南",
+      "boss_code": 101291300,
+      "zhilian_id": null
+    },
+    "德州": {
+      "province": "山东",
+      "boss_code": 101120400,
+      "zhilian_id": "715"
+    },
+    "德阳": {
+      "province": "四川",
+      "boss_code": 101271700,
+      "zhilian_id": "805"
+    },
+    "忠县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2337"
+    },
+    "忻州": {
+      "province": "山西",
+      "boss_code": 101101000,
+      "zhilian_id": "584"
+    },
+    "怀化": {
+      "province": "湖南",
+      "boss_code": 101251200,
+      "zhilian_id": "760"
+    },
+    "怀柔区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2014"
+    },
+    "怒江": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "844"
+    },
+    "怒江傈僳族自治州": {
+      "province": "云南",
+      "boss_code": 101291400,
+      "zhilian_id": null
+    },
+    "恩施": {
+      "province": "湖北",
+      "boss_code": null,
+      "zhilian_id": "748"
+    },
+    "恩施土家族苗族自治州": {
+      "province": "湖北",
+      "boss_code": 101201300,
+      "zhilian_id": null
+    },
+    "惠州": {
+      "province": "广东",
+      "boss_code": 101280300,
+      "zhilian_id": "773"
+    },
+    "成都": {
+      "province": "四川",
+      "boss_code": 101270100,
+      "zhilian_id": "801"
+    },
+    "房山区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2011"
+    },
+    "扬州": {
+      "province": "江苏",
+      "boss_code": 101190600,
+      "zhilian_id": "645"
+    },
+    "承德": {
+      "province": "河北",
+      "boss_code": 101090400,
+      "zhilian_id": "572"
+    },
+    "抚州": {
+      "province": "江西",
+      "boss_code": 101240400,
+      "zhilian_id": "700"
+    },
+    "抚顺": {
+      "province": "辽宁",
+      "boss_code": 101070400,
+      "zhilian_id": "602"
+    },
+    "拉萨": {
+      "province": "西藏",
+      "boss_code": 101140100,
+      "zhilian_id": "847"
+    },
+    "揭阳": {
+      "province": "广东",
+      "boss_code": 101281900,
+      "zhilian_id": "782"
+    },
+    "攀枝花": {
+      "province": "四川",
+      "boss_code": 101270200,
+      "zhilian_id": "803"
+    },
+    "文山": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "838"
+    },
+    "文山壮族苗族自治州": {
+      "province": "云南",
+      "boss_code": 101291100,
+      "zhilian_id": null
+    },
+    "文昌": {
+      "province": "海南",
+      "boss_code": 101310700,
+      "zhilian_id": "10185"
+    },
+    "新乡": {
+      "province": "河南",
+      "boss_code": 101180300,
+      "zhilian_id": "725"
+    },
+    "新余": {
+      "province": "江西",
+      "boss_code": 101241000,
+      "zhilian_id": "695"
+    },
+    "新星市": {
+      "province": "新疆",
+      "boss_code": 101132500,
+      "zhilian_id": "104049"
+    },
+    "无锡": {
+      "province": "江苏",
+      "boss_code": 101190200,
+      "zhilian_id": "636"
+    },
+    "日喀则": {
+      "province": "西藏",
+      "boss_code": 101140200,
+      "zhilian_id": "850"
+    },
+    "日照": {
+      "province": "山东",
+      "boss_code": 101121500,
+      "zhilian_id": "712"
+    },
+    "昆明": {
+      "province": "云南",
+      "boss_code": 101290100,
+      "zhilian_id": "831"
+    },
+    "昆玉市": {
+      "province": "新疆",
+      "boss_code": 101132300,
+      "zhilian_id": "104029"
+    },
+    "昌吉": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "894"
+    },
+    "昌吉回族自治州": {
+      "province": "新疆",
+      "boss_code": 101130300,
+      "zhilian_id": null
+    },
+    "昌平区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2013"
+    },
+    "昌江": {
+      "province": "海南",
+      "boss_code": null,
+      "zhilian_id": "10195"
+    },
+    "昌江黎族自治县": {
+      "province": "海南",
+      "boss_code": 101311500,
+      "zhilian_id": null
+    },
+    "昌都": {
+      "province": "西藏",
+      "boss_code": 101140300,
+      "zhilian_id": "848"
+    },
+    "昭通": {
+      "province": "云南",
+      "boss_code": 101290700,
+      "zhilian_id": "835"
+    },
+    "晋中": {
+      "province": "山西",
+      "boss_code": 101100400,
+      "zhilian_id": "582"
+    },
+    "晋城": {
+      "province": "山西",
+      "boss_code": 101100600,
+      "zhilian_id": "580"
+    },
+    "普洱": {
+      "province": "云南",
+      "boss_code": 101290500,
+      "zhilian_id": "10163"
+    },
+    "普陀区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2024"
+    },
+    "景德镇": {
+      "province": "江西",
+      "boss_code": 101240800,
+      "zhilian_id": "692"
+    },
+    "曲靖": {
+      "province": "云南",
+      "boss_code": 101290200,
+      "zhilian_id": "832"
+    },
+    "朔州": {
+      "province": "山西",
+      "boss_code": 101100900,
+      "zhilian_id": "581"
+    },
+    "朝阳": {
+      "province": "辽宁",
+      "boss_code": 101071200,
+      "zhilian_id": "611"
+    },
+    "朝阳区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2006"
+    },
+    "本溪": {
+      "province": "辽宁",
+      "boss_code": 101070500,
+      "zhilian_id": "603"
+    },
+    "来宾": {
+      "province": "广西",
+      "boss_code": 101300400,
+      "zhilian_id": "904"
+    },
+    "杨浦区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2027"
+    },
+    "杭州": {
+      "province": "浙江",
+      "boss_code": 101210100,
+      "zhilian_id": "653"
+    },
+    "松原": {
+      "province": "吉林",
+      "boss_code": 101060700,
+      "zhilian_id": "619"
+    },
+    "松江区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2033"
+    },
+    "林芝": {
+      "province": "西藏",
+      "boss_code": 101140400,
+      "zhilian_id": "853"
+    },
+    "果洛": {
+      "province": "青海",
+      "boss_code": null,
+      "zhilian_id": "883"
+    },
+    "果洛藏族自治州": {
+      "province": "青海",
+      "boss_code": 101150600,
+      "zhilian_id": null
+    },
+    "枣庄": {
+      "province": "山东",
+      "boss_code": 101121400,
+      "zhilian_id": "705"
+    },
+    "柳州": {
+      "province": "广西",
+      "boss_code": 101300300,
+      "zhilian_id": "786"
+    },
+    "株洲": {
+      "province": "湖南",
+      "boss_code": 101250300,
+      "zhilian_id": "750"
+    },
+    "桂林": {
+      "province": "广西",
+      "boss_code": 101300500,
+      "zhilian_id": "787"
+    },
+    "梁平区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2340"
+    },
+    "梅州": {
+      "province": "广东",
+      "boss_code": 101280400,
+      "zhilian_id": "774"
+    },
+    "梧州": {
+      "province": "广西",
+      "boss_code": 101300600,
+      "zhilian_id": "788"
+    },
+    "楚雄": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "836"
+    },
+    "楚雄彝族自治州": {
+      "province": "云南",
+      "boss_code": 101291700,
+      "zhilian_id": null
+    },
+    "榆林": {
+      "province": "陕西",
+      "boss_code": 101110400,
+      "zhilian_id": "861"
+    },
+    "武威": {
+      "province": "甘肃",
+      "boss_code": 101160500,
+      "zhilian_id": "869"
+    },
+    "武汉": {
+      "province": "湖北",
+      "boss_code": 101200100,
+      "zhilian_id": "736"
+    },
+    "武清区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2176"
+    },
+    "武隆区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2347"
+    },
+    "毕节": {
+      "province": "贵州",
+      "boss_code": 101260500,
+      "zhilian_id": "828"
+    },
+    "永川区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2323"
+    },
+    "永州": {
+      "province": "湖南",
+      "boss_code": 101251300,
+      "zhilian_id": "759"
+    },
+    "汉中": {
+      "province": "陕西",
+      "boss_code": 101110800,
+      "zhilian_id": "860"
+    },
+    "汕头": {
+      "province": "广东",
+      "boss_code": 101280500,
+      "zhilian_id": "767"
+    },
+    "汕尾": {
+      "province": "广东",
+      "boss_code": 101282100,
+      "zhilian_id": "775"
+    },
+    "江北区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2313"
+    },
+    "江津区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2326"
+    },
+    "江门": {
+      "province": "广东",
+      "boss_code": 101281100,
+      "zhilian_id": "769"
+    },
+    "池州": {
+      "province": "安徽",
+      "boss_code": 101221500,
+      "zhilian_id": "679"
+    },
+    "沈阳": {
+      "province": "辽宁",
+      "boss_code": 101070100,
+      "zhilian_id": "599"
+    },
+    "沙坪坝区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2315"
+    },
+    "沧州": {
+      "province": "河北",
+      "boss_code": 101090700,
+      "zhilian_id": "573"
+    },
+    "河东区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2166"
+    },
+    "河北区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2169"
+    },
+    "河池": {
+      "province": "广西",
+      "boss_code": 101301200,
+      "zhilian_id": "796"
+    },
+    "河源": {
+      "province": "广东",
+      "boss_code": 101281200,
+      "zhilian_id": "776"
+    },
+    "河西区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2167"
+    },
+    "泉州": {
+      "province": "福建",
+      "boss_code": 101230500,
+      "zhilian_id": "685"
+    },
+    "泰安": {
+      "province": "山东",
+      "boss_code": 101120800,
+      "zhilian_id": "710"
+    },
+    "泰州": {
+      "province": "江苏",
+      "boss_code": 101191200,
+      "zhilian_id": "647"
+    },
+    "泸州": {
+      "province": "四川",
+      "boss_code": 101271000,
+      "zhilian_id": "804"
+    },
+    "洋浦市/洋浦经济开发区": {
+      "province": "海南",
+      "boss_code": null,
+      "zhilian_id": "907"
+    },
+    "洛阳": {
+      "province": "河南",
+      "boss_code": 101180900,
+      "zhilian_id": "721"
+    },
+    "津南区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2174"
+    },
+    "济南": {
+      "province": "山东",
+      "boss_code": 101120100,
+      "zhilian_id": "702"
+    },
+    "济宁": {
+      "province": "山东",
+      "boss_code": 101120700,
+      "zhilian_id": "709"
+    },
+    "济源": {
+      "province": "河南",
+      "boss_code": 101181800,
+      "zhilian_id": null
+    },
+    "济源市": {
+      "province": "河南",
+      "boss_code": null,
+      "zhilian_id": "10044"
+    },
+    "浦东新区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2031"
+    },
+    "海东": {
+      "province": "青海",
+      "boss_code": 101150200,
+      "zhilian_id": "879"
+    },
+    "海北": {
+      "province": "青海",
+      "boss_code": null,
+      "zhilian_id": "880"
+    },
+    "海北藏族自治州": {
+      "province": "青海",
+      "boss_code": 101150300,
+      "zhilian_id": null
+    },
+    "海南州": {
+      "province": "青海",
+      "boss_code": null,
+      "zhilian_id": "882"
+    },
+    "海南藏族自治州": {
+      "province": "青海",
+      "boss_code": 101150500,
+      "zhilian_id": null
+    },
+    "海口": {
+      "province": "海南",
+      "boss_code": 101310100,
+      "zhilian_id": "799"
+    },
+    "海淀区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2005"
+    },
+    "海西": {
+      "province": "青海",
+      "boss_code": null,
+      "zhilian_id": "885"
+    },
+    "海西蒙古族藏族自治州": {
+      "province": "青海",
+      "boss_code": 101150800,
+      "zhilian_id": null
+    },
+    "涪陵区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2324"
+    },
+    "淄博": {
+      "province": "山东",
+      "boss_code": 101120300,
+      "zhilian_id": "704"
+    },
+    "淮北": {
+      "province": "安徽",
+      "boss_code": 101221100,
+      "zhilian_id": "669"
+    },
+    "淮南": {
+      "province": "安徽",
+      "boss_code": 101220400,
+      "zhilian_id": "667"
+    },
+    "淮安": {
+      "province": "江苏",
+      "boss_code": 101190900,
+      "zhilian_id": "643"
+    },
+    "深圳": {
+      "province": "广东",
+      "boss_code": 101280600,
+      "zhilian_id": "765"
+    },
+    "清远": {
+      "province": "广东",
+      "boss_code": 101281300,
+      "zhilian_id": "778"
+    },
+    "渝中区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2312"
+    },
+    "渝北区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2318"
+    },
+    "温州": {
+      "province": "浙江",
+      "boss_code": 101210700,
+      "zhilian_id": "655"
+    },
+    "渭南": {
+      "province": "陕西",
+      "boss_code": 101110500,
+      "zhilian_id": "858"
+    },
+    "湖州": {
+      "province": "浙江",
+      "boss_code": 101210200,
+      "zhilian_id": "657"
+    },
+    "湘潭": {
+      "province": "湖南",
+      "boss_code": 101250200,
+      "zhilian_id": "751"
+    },
+    "湘西": {
+      "province": "湖南",
+      "boss_code": null,
+      "zhilian_id": "762"
+    },
+    "湘西土家族苗族自治州": {
+      "province": "湖南",
+      "boss_code": 101251400,
+      "zhilian_id": null
+    },
+    "湛江": {
+      "province": "广东",
+      "boss_code": 101281000,
+      "zhilian_id": "770"
+    },
+    "滁州": {
+      "province": "安徽",
+      "boss_code": 101221000,
+      "zhilian_id": "673"
+    },
+    "滨州": {
+      "province": "山东",
+      "boss_code": 101121100,
+      "zhilian_id": "717"
+    },
+    "滨海新区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2171"
+    },
+    "漯河": {
+      "province": "河南",
+      "boss_code": 101181500,
+      "zhilian_id": "729"
+    },
+    "漳州": {
+      "province": "福建",
+      "boss_code": 101230600,
+      "zhilian_id": "687"
+    },
+    "潍坊": {
+      "province": "山东",
+      "boss_code": 101120600,
+      "zhilian_id": "708"
+    },
+    "潜江": {
+      "province": "湖北",
+      "boss_code": 101201500,
+      "zhilian_id": null
+    },
+    "潜江市": {
+      "province": "湖北",
+      "boss_code": null,
+      "zhilian_id": "10169"
+    },
+    "潮州": {
+      "province": "广东",
+      "boss_code": 101281500,
+      "zhilian_id": "781"
+    },
+    "潼南区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2335"
+    },
+    "澄迈": {
+      "province": "海南",
+      "boss_code": 101311200,
+      "zhilian_id": "10190"
+    },
+    "澳门": {
+      "province": "澳门",
+      "boss_code": 101330100,
+      "zhilian_id": null
+    },
+    "濮阳": {
+      "province": "河南",
+      "boss_code": 101181300,
+      "zhilian_id": "727"
+    },
+    "烟台": {
+      "province": "山东",
+      "boss_code": 101120500,
+      "zhilian_id": "707"
+    },
+    "焦作": {
+      "province": "河南",
+      "boss_code": 101181100,
+      "zhilian_id": "726"
+    },
+    "牡丹江": {
+      "province": "黑龙江",
+      "boss_code": 101050300,
+      "zhilian_id": "631"
+    },
+    "玉林": {
+      "province": "广西",
+      "boss_code": 101300900,
+      "zhilian_id": "793"
+    },
+    "玉树": {
+      "province": "青海",
+      "boss_code": null,
+      "zhilian_id": "884"
+    },
+    "玉树藏族自治州": {
+      "province": "青海",
+      "boss_code": 101150700,
+      "zhilian_id": null
+    },
+    "玉溪": {
+      "province": "云南",
+      "boss_code": 101290400,
+      "zhilian_id": "833"
+    },
+    "珠海": {
+      "province": "广东",
+      "boss_code": 101280700,
+      "zhilian_id": "766"
+    },
+    "琼中": {
+      "province": "海南",
+      "boss_code": null,
+      "zhilian_id": "10192"
+    },
+    "琼中黎族苗族自治县": {
+      "province": "海南",
+      "boss_code": 101311900,
+      "zhilian_id": null
+    },
+    "琼海": {
+      "province": "海南",
+      "boss_code": 101310600,
+      "zhilian_id": "10153"
+    },
+    "璧山区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2333"
+    },
+    "甘南": {
+      "province": "甘肃",
+      "boss_code": null,
+      "zhilian_id": "877"
+    },
+    "甘南藏族自治州": {
+      "province": "甘肃",
+      "boss_code": 101161400,
+      "zhilian_id": null
+    },
+    "甘孜": {
+      "province": "四川",
+      "boss_code": null,
+      "zhilian_id": "820"
+    },
+    "甘孜藏族自治州": {
+      "province": "四川",
+      "boss_code": 101272100,
+      "zhilian_id": null
+    },
+    "白城": {
+      "province": "吉林",
+      "boss_code": 101060500,
+      "zhilian_id": "620"
+    },
+    "白山": {
+      "province": "吉林",
+      "boss_code": 101060800,
+      "zhilian_id": "618"
+    },
+    "白杨市": {
+      "province": "新疆",
+      "boss_code": 101132700,
+      "zhilian_id": null
+    },
+    "白沙": {
+      "province": "海南",
+      "boss_code": null,
+      "zhilian_id": "10194"
+    },
+    "白沙黎族自治县": {
+      "province": "海南",
+      "boss_code": 101311400,
+      "zhilian_id": null
+    },
+    "白银": {
+      "province": "甘肃",
+      "boss_code": 101161000,
+      "zhilian_id": "867"
+    },
+    "百色": {
+      "province": "广西",
+      "boss_code": 101301000,
+      "zhilian_id": "794"
+    },
+    "益阳": {
+      "province": "湖南",
+      "boss_code": 101250700,
+      "zhilian_id": "757"
+    },
+    "盐城": {
+      "province": "江苏",
+      "boss_code": 101190700,
+      "zhilian_id": "644"
+    },
+    "盘锦": {
+      "province": "辽宁",
+      "boss_code": 101071300,
+      "zhilian_id": "609"
+    },
+    "眉山": {
+      "province": "四川",
+      "boss_code": 101271500,
+      "zhilian_id": "812"
+    },
+    "石嘴山": {
+      "province": "宁夏",
+      "boss_code": 101170200,
+      "zhilian_id": "887"
+    },
+    "石家庄": {
+      "province": "河北",
+      "boss_code": 101090100,
+      "zhilian_id": "565"
+    },
+    "石景山区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2008"
+    },
+    "石柱土家族自治县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2433"
+    },
+    "石河子": {
+      "province": "新疆",
+      "boss_code": 101131600,
+      "zhilian_id": null
+    },
+    "石河子市": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "10061"
+    },
+    "神农架": {
+      "province": "湖北",
+      "boss_code": 101201700,
+      "zhilian_id": null
+    },
+    "神农架林区": {
+      "province": "湖北",
+      "boss_code": null,
+      "zhilian_id": "10179"
+    },
+    "福州": {
+      "province": "福建",
+      "boss_code": 101230100,
+      "zhilian_id": "681"
+    },
+    "秀山土家族苗族自治县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2434"
+    },
+    "秦皇岛": {
+      "province": "河北",
+      "boss_code": 101091100,
+      "zhilian_id": "567"
+    },
+    "綦江区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2336"
+    },
+    "红桥区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2170"
+    },
+    "红河": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "837"
+    },
+    "红河哈尼族彝族自治州": {
+      "province": "云南",
+      "boss_code": 101291200,
+      "zhilian_id": null
+    },
+    "绍兴": {
+      "province": "浙江",
+      "boss_code": 101210500,
+      "zhilian_id": "658"
+    },
+    "绥化": {
+      "province": "黑龙江",
+      "boss_code": 101050500,
+      "zhilian_id": "633"
+    },
+    "绵阳": {
+      "province": "四川",
+      "boss_code": 101270400,
+      "zhilian_id": "806"
+    },
+    "聊城": {
+      "province": "山东",
+      "boss_code": 101121700,
+      "zhilian_id": "716"
+    },
+    "肇庆": {
+      "province": "广东",
+      "boss_code": 101280900,
+      "zhilian_id": "772"
+    },
+    "胡杨河市": {
+      "province": "新疆",
+      "boss_code": 101132600,
+      "zhilian_id": "104030"
+    },
+    "自贡": {
+      "province": "四川",
+      "boss_code": 101270300,
+      "zhilian_id": "802"
+    },
+    "舟山": {
+      "province": "浙江",
+      "boss_code": 101211100,
+      "zhilian_id": "661"
+    },
+    "芜湖": {
+      "province": "安徽",
+      "boss_code": 101220300,
+      "zhilian_id": "665"
+    },
+    "苏州": {
+      "province": "江苏",
+      "boss_code": 101190400,
+      "zhilian_id": "639"
+    },
+    "茂名": {
+      "province": "广东",
+      "boss_code": 101282000,
+      "zhilian_id": "771"
+    },
+    "荆州": {
+      "province": "湖北",
+      "boss_code": 101200800,
+      "zhilian_id": "744"
+    },
+    "荆门": {
+      "province": "湖北",
+      "boss_code": 101201200,
+      "zhilian_id": "742"
+    },
+    "荣昌区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2331"
+    },
+    "莆田": {
+      "province": "福建",
+      "boss_code": 101230400,
+      "zhilian_id": "683"
+    },
+    "莱芜": {
+      "province": "山东",
+      "boss_code": null,
+      "zhilian_id": "713"
+    },
+    "菏泽": {
+      "province": "山东",
+      "boss_code": 101121000,
+      "zhilian_id": "718"
+    },
+    "萍乡": {
+      "province": "江西",
+      "boss_code": 101240900,
+      "zhilian_id": "693"
+    },
+    "营口": {
+      "province": "辽宁",
+      "boss_code": 101070800,
+      "zhilian_id": "606"
+    },
+    "葫芦岛": {
+      "province": "辽宁",
+      "boss_code": 101071400,
+      "zhilian_id": "612"
+    },
+    "蓟州区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2180"
+    },
+    "虹口区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2026"
+    },
+    "蚌埠": {
+      "province": "安徽",
+      "boss_code": 101220200,
+      "zhilian_id": "666"
+    },
+    "衡水": {
+      "province": "河北",
+      "boss_code": 101090800,
+      "zhilian_id": "575"
+    },
+    "衡阳": {
+      "province": "湖南",
+      "boss_code": 101250400,
+      "zhilian_id": "752"
+    },
+    "衢州": {
+      "province": "浙江",
+      "boss_code": 101211000,
+      "zhilian_id": "660"
+    },
+    "襄阳": {
+      "province": "湖北",
+      "boss_code": 101200200,
+      "zhilian_id": "740"
+    },
+    "西双版纳": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "840"
+    },
+    "西双版纳傣族自治州": {
+      "province": "云南",
+      "boss_code": 101291000,
+      "zhilian_id": null
+    },
+    "西咸新区": {
+      "province": "陕西",
+      "boss_code": null,
+      "zhilian_id": "933"
+    },
+    "西城区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2002"
+    },
+    "西宁": {
+      "province": "青海",
+      "boss_code": 101150100,
+      "zhilian_id": "878"
+    },
+    "西安": {
+      "province": "陕西",
+      "boss_code": 101110100,
+      "zhilian_id": "854"
+    },
+    "西青区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2173"
+    },
+    "许昌": {
+      "province": "河南",
+      "boss_code": 101180400,
+      "zhilian_id": "728"
+    },
+    "贵港": {
+      "province": "广西",
+      "boss_code": 101300800,
+      "zhilian_id": "792"
+    },
+    "贵阳": {
+      "province": "贵州",
+      "boss_code": 101260100,
+      "zhilian_id": "822"
+    },
+    "贺州": {
+      "province": "广西",
+      "boss_code": 101300700,
+      "zhilian_id": "795"
+    },
+    "资阳": {
+      "province": "四川",
+      "boss_code": 101271300,
+      "zhilian_id": "818"
+    },
+    "赣州": {
+      "province": "江西",
+      "boss_code": 101240700,
+      "zhilian_id": "697"
+    },
+    "赤峰": {
+      "province": "内蒙古",
+      "boss_code": 101080500,
+      "zhilian_id": "590"
+    },
+    "辽源": {
+      "province": "吉林",
+      "boss_code": 101060600,
+      "zhilian_id": "616"
+    },
+    "辽阳": {
+      "province": "辽宁",
+      "boss_code": 101071000,
+      "zhilian_id": "608"
+    },
+    "达州": {
+      "province": "四川",
+      "boss_code": 101270600,
+      "zhilian_id": "815"
+    },
+    "运城": {
+      "province": "山西",
+      "boss_code": 101100800,
+      "zhilian_id": "583"
+    },
+    "连云港": {
+      "province": "江苏",
+      "boss_code": 101191000,
+      "zhilian_id": "642"
+    },
+    "迪庆": {
+      "province": "云南",
+      "boss_code": null,
+      "zhilian_id": "845"
+    },
+    "迪庆藏族自治州": {
+      "province": "云南",
+      "boss_code": 101291500,
+      "zhilian_id": null
+    },
+    "通化": {
+      "province": "吉林",
+      "boss_code": 101060400,
+      "zhilian_id": "617"
+    },
+    "通州区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2009"
+    },
+    "通辽": {
+      "province": "内蒙古",
+      "boss_code": 101080400,
+      "zhilian_id": "591"
+    },
+    "遂宁": {
+      "province": "四川",
+      "boss_code": 101270700,
+      "zhilian_id": "808"
+    },
+    "遵义": {
+      "province": "贵州",
+      "boss_code": 101260200,
+      "zhilian_id": "824"
+    },
+    "邢台": {
+      "province": "河北",
+      "boss_code": 101090900,
+      "zhilian_id": "569"
+    },
+    "那曲": {
+      "province": "西藏",
+      "boss_code": 101140600,
+      "zhilian_id": "851"
+    },
+    "邯郸": {
+      "province": "河北",
+      "boss_code": 101091000,
+      "zhilian_id": "568"
+    },
+    "邵阳": {
+      "province": "湖南",
+      "boss_code": 101250900,
+      "zhilian_id": "753"
+    },
+    "郑州": {
+      "province": "河南",
+      "boss_code": 101180100,
+      "zhilian_id": "719"
+    },
+    "郴州": {
+      "province": "湖南",
+      "boss_code": 101250500,
+      "zhilian_id": "758"
+    },
+    "鄂尔多斯": {
+      "province": "内蒙古",
+      "boss_code": 101080600,
+      "zhilian_id": "592"
+    },
+    "鄂州": {
+      "province": "湖北",
+      "boss_code": 101200300,
+      "zhilian_id": "741"
+    },
+    "酉阳土家族苗族自治县": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2435"
+    },
+    "酒泉": {
+      "province": "甘肃",
+      "boss_code": 101160800,
+      "zhilian_id": "872"
+    },
+    "重庆": {
+      "province": "重庆",
+      "boss_code": 101040100,
+      "zhilian_id": "551"
+    },
+    "金华": {
+      "province": "浙江",
+      "boss_code": 101210900,
+      "zhilian_id": "659"
+    },
+    "金山区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2032"
+    },
+    "金昌": {
+      "province": "甘肃",
+      "boss_code": 101160600,
+      "zhilian_id": "866"
+    },
+    "钦州": {
+      "province": "广西",
+      "boss_code": 101301100,
+      "zhilian_id": "791"
+    },
+    "铁岭": {
+      "province": "辽宁",
+      "boss_code": 101071100,
+      "zhilian_id": "610"
+    },
+    "铁门关": {
+      "province": "新疆",
+      "boss_code": 101132000,
+      "zhilian_id": null
+    },
+    "铁门关市": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "10302"
+    },
+    "铜仁": {
+      "province": "贵州",
+      "boss_code": 101260400,
+      "zhilian_id": "826"
+    },
+    "铜川": {
+      "province": "陕西",
+      "boss_code": 101111000,
+      "zhilian_id": "855"
+    },
+    "铜梁区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2334"
+    },
+    "铜陵": {
+      "province": "安徽",
+      "boss_code": 101221200,
+      "zhilian_id": "670"
+    },
+    "银川": {
+      "province": "宁夏",
+      "boss_code": 101170100,
+      "zhilian_id": "886"
+    },
+    "锡林郭勒盟": {
+      "province": "内蒙古",
+      "boss_code": 101081000,
+      "zhilian_id": "595"
+    },
+    "锦州": {
+      "province": "辽宁",
+      "boss_code": 101070700,
+      "zhilian_id": "605"
+    },
+    "镇江": {
+      "province": "江苏",
+      "boss_code": 101190300,
+      "zhilian_id": "646"
+    },
+    "长宁区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2022"
+    },
+    "长寿区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2325"
+    },
+    "长春": {
+      "province": "吉林",
+      "boss_code": 101060100,
+      "zhilian_id": "613"
+    },
+    "长沙": {
+      "province": "湖南",
+      "boss_code": 101250100,
+      "zhilian_id": "749"
+    },
+    "长治": {
+      "province": "山西",
+      "boss_code": 101100500,
+      "zhilian_id": "579"
+    },
+    "门头沟区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2016"
+    },
+    "闵行区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2028"
+    },
+    "闸北区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2025"
+    },
+    "阜新": {
+      "province": "辽宁",
+      "boss_code": 101070900,
+      "zhilian_id": "607"
+    },
+    "阜阳": {
+      "province": "安徽",
+      "boss_code": 101220800,
+      "zhilian_id": "674"
+    },
+    "防城港": {
+      "province": "广西",
+      "boss_code": 101301400,
+      "zhilian_id": "790"
+    },
+    "阳江": {
+      "province": "广东",
+      "boss_code": 101281800,
+      "zhilian_id": "777"
+    },
+    "阳泉": {
+      "province": "山西",
+      "boss_code": 101100300,
+      "zhilian_id": "578"
+    },
+    "阿克苏": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "897"
+    },
+    "阿克苏地区": {
+      "province": "新疆",
+      "boss_code": 101131000,
+      "zhilian_id": null
+    },
+    "阿勒泰": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "903"
+    },
+    "阿勒泰地区": {
+      "province": "新疆",
+      "boss_code": 101131500,
+      "zhilian_id": null
+    },
+    "阿坝": {
+      "province": "四川",
+      "boss_code": null,
+      "zhilian_id": "819"
+    },
+    "阿坝藏族羌族自治州": {
+      "province": "四川",
+      "boss_code": 101271900,
+      "zhilian_id": null
+    },
+    "阿拉善盟": {
+      "province": "内蒙古",
+      "boss_code": 101081200,
+      "zhilian_id": "598"
+    },
+    "阿拉尔": {
+      "province": "新疆",
+      "boss_code": 101131700,
+      "zhilian_id": null
+    },
+    "阿拉尔市": {
+      "province": "新疆",
+      "boss_code": null,
+      "zhilian_id": "10176"
+    },
+    "阿里": {
+      "province": "西藏",
+      "boss_code": null,
+      "zhilian_id": "852"
+    },
+    "阿里地区": {
+      "province": "西藏",
+      "boss_code": 101140700,
+      "zhilian_id": null
+    },
+    "陇南": {
+      "province": "甘肃",
+      "boss_code": 101161100,
+      "zhilian_id": "875"
+    },
+    "陵水": {
+      "province": "海南",
+      "boss_code": null,
+      "zhilian_id": "10197"
+    },
+    "陵水黎族自治县": {
+      "province": "海南",
+      "boss_code": 101311700,
+      "zhilian_id": null
+    },
+    "随州": {
+      "province": "湖北",
+      "boss_code": 101201100,
+      "zhilian_id": "747"
+    },
+    "雄安新区": {
+      "province": "河北",
+      "boss_code": null,
+      "zhilian_id": "65901003"
+    },
+    "雅安": {
+      "province": "四川",
+      "boss_code": 101271600,
+      "zhilian_id": "816"
+    },
+    "青岛": {
+      "province": "山东",
+      "boss_code": 101120200,
+      "zhilian_id": "703"
+    },
+    "青浦区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2034"
+    },
+    "静安区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2023"
+    },
+    "静海区": {
+      "province": "天津",
+      "boss_code": null,
+      "zhilian_id": "2178"
+    },
+    "鞍山": {
+      "province": "辽宁",
+      "boss_code": 101070300,
+      "zhilian_id": "601"
+    },
+    "韶关": {
+      "province": "广东",
+      "boss_code": 101280200,
+      "zhilian_id": "764"
+    },
+    "顺义区": {
+      "province": "北京",
+      "boss_code": null,
+      "zhilian_id": "2010"
+    },
+    "香港": {
+      "province": "香港",
+      "boss_code": 101320300,
+      "zhilian_id": null
+    },
+    "马鞍山": {
+      "province": "安徽",
+      "boss_code": 101220500,
+      "zhilian_id": "668"
+    },
+    "驻马店": {
+      "province": "河南",
+      "boss_code": 101181600,
+      "zhilian_id": "735"
+    },
+    "鸡西": {
+      "province": "黑龙江",
+      "boss_code": 101051000,
+      "zhilian_id": "624"
+    },
+    "鹤壁": {
+      "province": "河南",
+      "boss_code": 101181200,
+      "zhilian_id": "724"
+    },
+    "鹤岗": {
+      "province": "黑龙江",
+      "boss_code": 101051100,
+      "zhilian_id": "625"
+    },
+    "鹰潭": {
+      "province": "江西",
+      "boss_code": 101241100,
+      "zhilian_id": "696"
+    },
+    "黄冈": {
+      "province": "湖北",
+      "boss_code": 101200500,
+      "zhilian_id": "745"
+    },
+    "黄南": {
+      "province": "青海",
+      "boss_code": null,
+      "zhilian_id": "881"
+    },
+    "黄南藏族自治州": {
+      "province": "青海",
+      "boss_code": 101150400,
+      "zhilian_id": null
+    },
+    "黄山": {
+      "province": "安徽",
+      "boss_code": 101221600,
+      "zhilian_id": "672"
+    },
+    "黄浦区": {
+      "province": "上海",
+      "boss_code": null,
+      "zhilian_id": "2019"
+    },
+    "黄石": {
+      "province": "湖北",
+      "boss_code": 101200600,
+      "zhilian_id": "737"
+    },
+    "黑河": {
+      "province": "黑龙江",
+      "boss_code": 101050600,
+      "zhilian_id": "632"
+    },
+    "黔东南": {
+      "province": "贵州",
+      "boss_code": null,
+      "zhilian_id": "829"
+    },
+    "黔东南苗族侗族自治州": {
+      "province": "贵州",
+      "boss_code": 101260700,
+      "zhilian_id": null
+    },
+    "黔南": {
+      "province": "贵州",
+      "boss_code": null,
+      "zhilian_id": "830"
+    },
+    "黔南布依族苗族自治州": {
+      "province": "贵州",
+      "boss_code": 101260800,
+      "zhilian_id": null
+    },
+    "黔江区": {
+      "province": "重庆",
+      "boss_code": null,
+      "zhilian_id": "2322"
+    },
+    "黔西南": {
+      "province": "贵州",
+      "boss_code": null,
+      "zhilian_id": "827"
+    },
+    "黔西南布依族苗族自治州": {
+      "province": "贵州",
+      "boss_code": 101260900,
+      "zhilian_id": null
+    },
+    "齐齐哈尔": {
+      "province": "黑龙江",
+      "boss_code": 101050200,
+      "zhilian_id": "623"
+    },
+    "龙岩": {
+      "province": "福建",
+      "boss_code": 101230700,
+      "zhilian_id": "689"
+    }
+  }
+}

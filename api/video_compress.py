@@ -75,6 +75,13 @@ class CompressionPreset(str, Enum):
     SLOW = "slow"
 
 
+class WebmPreset(str, Enum):
+    QUALITY = "quality"
+    BALANCED = "balanced"
+    FAST = "fast"
+    FASTEST = "fastest"
+
+
 # 统一从 utils.responses 引入；本 router 历史行为是 model_dump(exclude_none=True)，
 # 因此用一层薄包装显式打开 exclude_none，对外接口字段集合保持完全不变
 from utils.responses import StandardResponse  # noqa: F401
@@ -118,6 +125,23 @@ def _normalize_ffmpeg_max_bitrate(value: Optional[str]) -> Optional[str]:
     if tl in ("string", "none", "null", "undefined", "-", "nan", "optional", "text"):
         return None
     # 典型 ffmpeg 码率：2M、500k、1.5M、8000000（纯数字视为比特率，谨慎允许 4–9 位）
+    if re.fullmatch(r"\d+(\.\d+)?[kKmMgG]?", t):
+        return t
+    if re.fullmatch(r"\d{4,9}", t):
+        return t
+    return None
+
+
+def _normalize_webm_bitrate(value: Optional[str]) -> Optional[str]:
+    """WebM 转码只接受 ffmpeg 常见码率格式；空值表示 VP9 CRF 模式。"""
+    if value is None:
+        return None
+    t = value.strip()
+    if not t:
+        return None
+    tl = t.lower()
+    if tl in ("string", "none", "null", "undefined", "-", "nan", "optional", "text"):
+        return None
     if re.fullmatch(r"\d+(\.\d+)?[kKmMgG]?", t):
         return t
     if re.fullmatch(r"\d{4,9}", t):
@@ -240,6 +264,88 @@ def compress_video(
         "original_size_mb": round(original_size / (1024 * 1024), 2),
         "compressed_size_mb": round(compressed_size / (1024 * 1024), 2),
         "compression_ratio": round(ratio, 2),
+    }
+
+
+def build_webm_video_options(
+        preset: str,
+        crf: int,
+        bitrate: Optional[str],
+        threads: int = FFMPEG_THREADS,
+) -> list[str]:
+    """复刻 convert_webm.py 的预设逻辑，并让线程数沿用服务端配置。"""
+    preset_value = WebmPreset(preset)
+    normalized_bitrate = _normalize_webm_bitrate(bitrate)
+    if preset_value == WebmPreset.FASTEST:
+        return [
+            "-c:v", "libvpx",
+            "-deadline", "realtime",
+            "-cpu-used", "8",
+            "-b:v", normalized_bitrate if normalized_bitrate else "1200k",
+        ]
+
+    cpu_used = {
+        WebmPreset.QUALITY: "2",
+        WebmPreset.BALANCED: "4",
+        WebmPreset.FAST: "6",
+    }[preset_value]
+
+    return [
+        "-c:v", "libvpx-vp9",
+        "-deadline", "good",
+        "-cpu-used", cpu_used,
+        "-row-mt", "1",
+        "-threads", str(threads if threads and threads > 0 else 0),
+        "-crf", str(crf),
+        "-b:v", normalized_bitrate if normalized_bitrate else "0",
+    ]
+
+
+def convert_video_to_webm(
+        input_path: str,
+        output_path: str,
+        crf: int = 32,
+        bitrate: Optional[str] = None,
+        preset: str = WebmPreset.FAST.value,
+        audio_bitrate: str = "96k",
+        threads: int = FFMPEG_THREADS,
+        timeout_sec: int = FFMPEG_TIMEOUT_SEC,
+) -> dict:
+    input_file = Path(input_path)
+    output_file = Path(output_path)
+    if not input_file.is_file():
+        raise FileNotFoundError(f"输入文件不存在: {input_file}")
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-hide_banner",
+        "-i", str(input_file),
+        *build_webm_video_options(preset, crf, bitrate, threads=threads),
+        "-c:a", "libopus",
+        "-b:a", audio_bitrate,
+        str(output_file),
+    ]
+
+    logger.info(f"执行 WebM 转换命令: {' '.join(cmd)}")
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_sec)
+    if result.returncode != 0:
+        raise RuntimeError(f"FFmpeg WebM 转换失败: {result.stderr[-500:]}")
+
+    original_size = os.path.getsize(input_file)
+    converted_size = os.path.getsize(output_file)
+    ratio = (1 - converted_size / original_size) * 100 if original_size > 0 else 0
+    return {
+        "original_size_bytes": original_size,
+        "converted_size_bytes": converted_size,
+        "original_size_mb": round(original_size / (1024 * 1024), 2),
+        "converted_size_mb": round(converted_size / (1024 * 1024), 2),
+        "compression_ratio": round(ratio, 2),
+        "preset": WebmPreset(preset).value,
+        "crf": crf,
+        "bitrate": _normalize_webm_bitrate(bitrate),
+        "audio_bitrate": audio_bitrate,
     }
 
 
@@ -390,6 +496,87 @@ async def _run_dify_async_task(
         logger.exception(f"[dify-async][{task_id}] 压缩失败: {e}")
 
 
+async def _run_webm_task(
+        task_id: str,
+        input_path: Path,
+        output_path: Path,
+        base_url: str,
+        crf: int,
+        bitrate: Optional[str],
+        preset: str,
+        audio_bitrate: str,
+):
+    sem = _get_semaphore()
+    task = _read_task_state(task_id) or {}
+    task.update({
+        "status": TaskStatus.PENDING,
+        "updated_at": datetime.now().isoformat(),
+        "elapsed_sec": _elapsed_sec(task),
+    })
+    _write_task_state(task_id, task)
+    logger.info(f"[webm][{task_id}] 排队等待信号量 (当前限制 {MAX_CONCURRENT_FFMPEG} 并发)")
+
+    try:
+        async with sem:
+            task = _read_task_state(task_id) or task
+            task.update({
+                "status": TaskStatus.PROCESSING,
+                "started_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "elapsed_sec": _elapsed_sec(task),
+            })
+            _write_task_state(task_id, task)
+            logger.info(f"[webm][{task_id}] 获得信号量，开始转换 WebM")
+
+            convert_result = await asyncio.to_thread(
+                convert_video_to_webm,
+                str(input_path),
+                str(output_path),
+                crf=crf,
+                bitrate=bitrate,
+                preset=preset,
+                audio_bitrate=audio_bitrate,
+            )
+
+            download_url = (
+                f"{base_url.rstrip('/')}/{STATIC_DIR_NAME}/"
+                f"{COMPRESS_OUTPUT_SUBDIR}/{output_path.name}"
+            )
+
+            task = _read_task_state(task_id) or task
+            task.update({
+                "status": TaskStatus.COMPLETED,
+                "download_url": download_url,
+                "completed_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                **convert_result,
+            })
+            task["elapsed_sec"] = _elapsed_sec(task)
+            _write_task_state(task_id, task)
+            input_path.unlink(missing_ok=True)
+            asyncio.create_task(cleanup_files([output_path, _state_path(task_id)], delay=CLEANUP_DELAY_SEC))
+
+            logger.info(
+                f"[webm][{task_id}] 转换完成: "
+                f"{convert_result['original_size_mb']}MB -> {convert_result['converted_size_mb']}MB "
+                f"(压缩率 {convert_result['compression_ratio']}%)"
+            )
+
+    except Exception as e:
+        input_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
+        task = _read_task_state(task_id) or task
+        task.update({
+            "status": TaskStatus.FAILED,
+            "error": str(e),
+            "completed_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        })
+        task["elapsed_sec"] = _elapsed_sec(task)
+        _write_task_state(task_id, task)
+        logger.exception(f"[webm][{task_id}] 转换失败: {e}")
+
+
 # ──────────────────────────── API 端点 ────────────────────────────
 
 @router.post(
@@ -487,6 +674,148 @@ async def query_compress_task(task_id: str):
         return create_standard_response(code=404, message=f"任务 {task_id} 不存在")
 
     return create_standard_response(data=task)
+
+
+@router.post(
+    "/convert_webm",
+    summary="提交视频转 WebM 任务",
+    description=(
+        "封装 convert_webm.py：上传视频文件后立即返回 task_id，后台使用 ffmpeg 转为 WebM。"
+        "通过 GET /api/convert_webm/{task_id} 查询进度，完成后可下载 .webm 文件。"
+    ),
+)
+async def submit_webm_task(
+        request: Request,
+        video: UploadFile = File(..., description="要转换为 WebM 的视频文件（form-data 字段名 video）"),
+        crf: int = Form(32, description="VP9 CRF 压缩质量，值越大文件越小，推荐 28-38", ge=0, le=63),
+        bitrate: Optional[str] = Form(None, description="视频码率，如 800k、1M；留空则使用 VP9 CRF 模式"),
+        preset: WebmPreset = Form(WebmPreset.FAST, description="转换速度预设"),
+        audio_bitrate: str = Form("96k", description="Opus 音频码率，如 64k、96k、128k"),
+):
+    bitrate = _normalize_webm_bitrate(bitrate)
+    ext = Path(video.filename or "").suffix.lower()
+    if ext not in ALLOWED_VIDEO_EXTENSIONS:
+        return create_standard_response(
+            code=400,
+            message=f"不支持的视频格式 '{ext}'，支持的格式: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}"
+        )
+
+    task_id = str(uuid.uuid4())
+    input_filename = f"{task_id}_input{ext}"
+    output_filename = f"{task_id}_converted.webm"
+    input_path = UPLOAD_DIR / input_filename
+    output_path = OUTPUT_DIR / output_filename
+
+    try:
+        file_size = await _save_upload(video, input_path)
+        logger.info(f"[webm][{task_id}] 文件已保存: {input_path} ({round(file_size / 1024 / 1024, 2)}MB)")
+
+        base_url = str(request.base_url).rstrip("/")
+        state = {
+            "task_id": task_id,
+            "status": TaskStatus.PENDING,
+            "original_filename": video.filename,
+            "original_size_mb": round(file_size / 1024 / 1024, 2),
+            "submitted_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "status_url": f"{base_url}/api/convert_webm/{task_id}",
+            "file_url": f"{base_url}/api/convert_webm/{task_id}/file",
+            "download_url": None,
+            "input_path": str(input_path),
+            "output_path": str(output_path),
+            "state_path": str(_state_path(task_id)),
+            "error": None,
+            "crf": crf,
+            "bitrate": bitrate,
+            "preset": preset.value,
+            "audio_bitrate": audio_bitrate,
+        }
+        _write_task_state(task_id, state)
+
+        asyncio.create_task(
+            _run_webm_task(
+                task_id=task_id,
+                input_path=input_path,
+                output_path=output_path,
+                base_url=str(request.base_url),
+                crf=crf,
+                bitrate=bitrate,
+                preset=preset.value,
+                audio_bitrate=audio_bitrate,
+            )
+        )
+
+        return create_standard_response(
+            data=_public_task_payload(state),
+            message="WebM 转换任务已提交，请通过 GET /api/convert_webm/{task_id} 查询进度"
+        )
+
+    except ValueError as e:
+        input_path.unlink(missing_ok=True)
+        return create_standard_response(code=413, message=str(e))
+    except Exception as e:
+        input_path.unlink(missing_ok=True)
+        logger.exception(f"[webm][{task_id}] 提交失败: {e}")
+        return create_standard_response(code=500, message=f"提交任务失败: {str(e)}")
+
+
+@router.get(
+    "/convert_webm/{task_id}",
+    summary="查询 WebM 转换任务状态",
+    description="通过 task_id 查询 WebM 转换任务的当前状态和结果。"
+)
+async def query_webm_task(task_id: str):
+    task = _read_task_state(task_id) or tasks.get(task_id)
+    if not task:
+        output_path = OUTPUT_DIR / f"{task_id}_converted.webm"
+        if output_path.is_file():
+            return create_standard_response(data={
+                "task_id": task_id,
+                "status": TaskStatus.COMPLETED,
+                "file_url": f"/api/convert_webm/{task_id}/file",
+                "download_url": f"/{STATIC_DIR_NAME}/{COMPRESS_OUTPUT_SUBDIR}/{output_path.name}",
+                "converted_size_bytes": output_path.stat().st_size,
+                "converted_size_mb": round(output_path.stat().st_size / (1024 * 1024), 2),
+                "warning": "任务状态不在当前 worker 或已丢失，已根据输出文件恢复结果",
+            })
+        return create_standard_response(code=404, message=f"任务 {task_id} 不存在")
+    task["elapsed_sec"] = _elapsed_sec(task)
+    return create_standard_response(data=_public_task_payload(task))
+
+
+@router.get(
+    "/convert_webm/{task_id}/file",
+    summary="下载 WebM 转换完成的视频文件",
+    response_class=FileResponse,
+)
+async def download_webm_file(task_id: str):
+    task = _read_task_state(task_id) or tasks.get(task_id)
+    if not task:
+        output_path = OUTPUT_DIR / f"{task_id}_converted.webm"
+        if output_path.is_file():
+            return FileResponse(
+                path=str(output_path),
+                media_type="video/webm",
+                filename=f"{task_id}.webm",
+            )
+        return create_standard_response(code=404, message=f"任务 {task_id} 不存在")
+    if task.get("status") != TaskStatus.COMPLETED:
+        return create_standard_response(
+            code=409,
+            message=f"任务尚未完成，当前状态: {task.get('status')}"
+        )
+
+    output_path = Path(task.get("output_path") or OUTPUT_DIR / f"{task_id}_converted.webm")
+    if not output_path.is_file():
+        return create_standard_response(code=404, message="WebM 文件不存在或已清理")
+
+    original_name = task.get("original_filename") or "upload"
+    converted_name = f"{Path(original_name).stem}.webm"
+    return FileResponse(
+        path=str(output_path),
+        media_type="video/webm",
+        filename=converted_name,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -789,4 +1118,109 @@ async def compress_video_for_dify(
         if output_path:
             output_path.unlink(missing_ok=True)
         logger.exception(f"[dify][{task_id}] 未知错误: {e}")
+        return create_standard_response(code=500, message=f"内部错误: {str(e)}")
+
+
+_CONVERT_WEBM_DIFY_OPENAPI_RESPONSES: Dict[int, Any] = {
+    200: {
+        "description": "成功：返回转换后的 WebM 文件流。",
+        "content": {
+            "video/webm": {
+                "schema": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "完整 WebM 文件字节",
+                }
+            }
+        },
+    },
+    400: {"description": "业务拒绝（如扩展名不支持）", "content": _COMPRESS_DIFY_ERR_JSON},
+    413: {"description": "文件过大", "content": _COMPRESS_DIFY_ERR_JSON},
+    422: {"description": "参数校验失败（如未上传 multipart、字段名不是 video）", "content": _COMPRESS_DIFY_ERR_JSON},
+    500: {"description": "转换失败或内部错误", "content": _COMPRESS_DIFY_ERR_JSON},
+}
+
+
+@router.post(
+    "/convert_webm/dify",
+    summary="[Dify] 视频转 WebM → 返回 video/webm 二进制",
+    description=(
+        "**Body**：`multipart/form-data`，且只传一个文件，字段名必须为 **`video`**。\n"
+        "**参数**：`crf`、`bitrate`、`preset`、`audio_bitrate` 全部放在 **URL Query**。\n"
+        "封装 `convert_webm.py` 的转换逻辑，输出 `.webm` 文件。"
+    ),
+    response_class=FileResponse,
+    responses=_CONVERT_WEBM_DIFY_OPENAPI_RESPONSES,
+)
+async def convert_webm_for_dify(
+        background_tasks: BackgroundTasks,
+        video: UploadFile = File(
+            ...,
+            description="唯一 body 字段：视频文件，multipart 中字段名必须为 video",
+        ),
+        crf: int = Query(32, description="VP9 CRF 压缩质量，值越大文件越小，推荐 28-38", ge=0, le=63),
+        bitrate: Optional[str] = Query(None, description="视频码率，如 800k、1M；留空则使用 VP9 CRF 模式"),
+        preset: WebmPreset = Query(WebmPreset.FAST, description="转换速度预设"),
+        audio_bitrate: str = Query("96k", description="Opus 音频码率"),
+):
+    task_id = str(uuid.uuid4())
+    input_path: Optional[Path] = None
+    output_path: Optional[Path] = None
+
+    try:
+        input_path, original_name = await _dify_persist_upload(video, task_id)
+        output_path = OUTPUT_DIR / f"{task_id}_converted.webm"
+        normalized_bitrate = _normalize_webm_bitrate(bitrate)
+
+        sem = _get_semaphore()
+        logger.info(f"[webm-dify][{task_id}] 等待信号量 (并发限制 {MAX_CONCURRENT_FFMPEG})")
+        async with sem:
+            logger.info(f"[webm-dify][{task_id}] 开始转换 WebM")
+            result = await asyncio.to_thread(
+                convert_video_to_webm,
+                str(input_path),
+                str(output_path),
+                crf=crf,
+                bitrate=normalized_bitrate,
+                preset=preset.value,
+                audio_bitrate=audio_bitrate,
+            )
+
+        logger.info(
+            f"[webm-dify][{task_id}] 完成: "
+            f"{result['original_size_mb']}MB -> {result['converted_size_mb']}MB "
+            f"(压缩率 {result['compression_ratio']}%)"
+        )
+
+        input_path.unlink(missing_ok=True)
+        background_tasks.add_task(cleanup_files, [output_path], delay=CLEANUP_DELAY_SEC)
+        converted_name = f"{Path(original_name).stem}.webm"
+        return FileResponse(
+            path=str(output_path),
+            media_type="video/webm",
+            filename=converted_name,
+        )
+
+    except DifyInputError as e:
+        if input_path:
+            input_path.unlink(missing_ok=True)
+        return create_standard_response(code=e.code, message=e.message)
+    except ValueError as e:
+        if input_path:
+            input_path.unlink(missing_ok=True)
+        logger.warning(f"[webm-dify][{task_id}] {e}")
+        return create_standard_response(code=413, message=str(e))
+    except RuntimeError as e:
+        if input_path:
+            input_path.unlink(missing_ok=True)
+        if output_path:
+            output_path.unlink(missing_ok=True)
+        logger.error(f"[webm-dify][{task_id}] 转换失败: {e}")
+        return create_standard_response(code=500, message=str(e))
+    except Exception as e:
+        if input_path:
+            input_path.unlink(missing_ok=True)
+        if output_path:
+            output_path.unlink(missing_ok=True)
+        logger.exception(f"[webm-dify][{task_id}] 未知错误: {e}")
         return create_standard_response(code=500, message=f"内部错误: {str(e)}")
