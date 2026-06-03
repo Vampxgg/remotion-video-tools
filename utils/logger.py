@@ -8,9 +8,43 @@ import logging
 import os
 import re
 import sys
+import time
 from logging.handlers import TimedRotatingFileHandler
 
 from utils.settings import settings
+
+
+class SafeTimedRotatingFileHandler(TimedRotatingFileHandler):
+    """多进程 / Windows 友好的按时间轮转 Handler。
+
+    背景：以 uvicorn 多 worker 运行时，多个进程会各自打开同一日志文件。Windows 下
+    午夜轮转 ``os.rename`` 会因「文件被另一进程占用」或「归档已被先轮转的 worker 建好」
+    抛 ``PermissionError``/``FileExistsError``，进而触发 Python logging 反复刷
+    ``--- Logging error ---`` 栈，污染输出且可能丢日志。
+
+    这里覆盖 ``doRollover``：轮转失败时不抛错，丢弃本进程旧句柄、重新挂到当前 base
+    文件继续写，并推进下一次轮转时间，避免在同一周期内对每条日志反复重试。
+    """
+
+    def doRollover(self):  # noqa: D401
+        try:
+            super().doRollover()
+        except (PermissionError, FileExistsError, OSError):
+            # 另一个 worker 已完成（或正占用）轮转：重新打开当前 base 文件继续写
+            try:
+                if self.stream:
+                    self.stream.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self.stream = None
+            if not self.delay:
+                self.stream = self._open()
+            # 推进 rolloverAt，避免本周期内每条日志都再次触发失败
+            current_time = int(time.time())
+            new_rollover_at = self.computeRollover(current_time)
+            while new_rollover_at <= current_time:
+                new_rollover_at += self.interval
+            self.rolloverAt = new_rollover_at
 
 
 def setup_module_logger(
@@ -71,7 +105,7 @@ def setup_module_logger(
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
 
-    file_handler = TimedRotatingFileHandler(
+    file_handler = SafeTimedRotatingFileHandler(
         filename=log_path,
         when=when,
         interval=1,
