@@ -81,6 +81,7 @@ _LIFESPAN_MODULES = [
     # fish_asr,
     job_search,
     job_search_v2,
+    boss_zhipin,
     gemini_live,
     web_search,
 ]
@@ -154,7 +155,7 @@ app.add_middleware(
 # app.include_router(tts.router, prefix="/api", tags=["tts"])
 # app.include_router(cre_audio.router, prefix="/api", tags=["create_audio"])
 # # app.include_router(google_tts.router, prefix="/api", tags=["create_audio"])
-# app.include_router(converter.router, prefix="/api", tags=["Converter"])
+app.include_router(converter.router, prefix="/api", tags=["Converter"])
 # app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
 # app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
 # app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])

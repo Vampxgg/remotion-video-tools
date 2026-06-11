@@ -389,6 +389,10 @@ class ConverterSettings(_Base):
     """对应 api/converter.py"""
     CONVERTER_GENERATED_FILES_SUBDIR: str = "generated_files"
     CONVERTER_TEMP_IMAGES_SUBDIR: str = "temp_images"
+    CONVERTER_DOC_TEMP_SUBDIR: str = "doc_convert_temp"
+    CONVERTER_DOC_MAX_UPLOAD_MB: int = 100
+    CONVERTER_DOC_CONVERT_TIMEOUT_SEC: int = 180
+    CONVERTER_SOFFICE_PATH: Optional[str] = None
     CONVERTER_CLEANUP_DELAY_SEC: int = 120
 
 
@@ -480,6 +484,19 @@ class BossZhipinSettings(_Base):
     BOSS_ZHIPIN_MAX_DELAY_SEC: float = 2.5
     BOSS_ZHIPIN_DETAIL_MIN_DELAY_SEC: float = 1.0
     BOSS_ZHIPIN_DETAIL_MAX_DELAY_SEC: float = 2.0
+    # 直连模式：浏览器只负责铸造 __zp_stoken__ cookie，列表/详情改用 httpx 直接
+    # 调用官方 wapi 接口，大幅降低每页/每条详情的耗时（实测列表/详情均 <0.5s）。
+    BOSS_ZHIPIN_DIRECT_ENABLED: bool = True
+    # 单个 __zp_stoken__ 的安全调用配额；实测一次浏览器导航刷新后恰好支持 5 次
+    # 成功调用（列表/详情共享），第 6 次必返回 code=37。留 1 次余量取 5。
+    BOSS_ZHIPIN_DIRECT_BUDGET_PER_TOKEN: int = 5
+    BOSS_ZHIPIN_DIRECT_HTTP_TIMEOUT: float = 15.0
+    # 直连模式下两次 httpx 调用之间的随机延时（远小于浏览器导航延时）。
+    BOSS_ZHIPIN_DIRECT_MIN_DELAY_SEC: float = 0.2
+    BOSS_ZHIPIN_DIRECT_MAX_DELAY_SEC: float = 0.5
+    # 铸造 cookie 时导航后等待 JS 生成 stoken 的时间。实测 <1.2s 偏早会 code=37，
+    # 取 1.5s 留安全余量。
+    BOSS_ZHIPIN_DIRECT_COOKIE_WAIT_SEC: float = 1.5
 
 
 class RegionJobsSettings(_Base):

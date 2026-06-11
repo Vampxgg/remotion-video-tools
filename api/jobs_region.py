@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, model_validator
 
 from api.job_search_v2 import get_search_client as get_zhilian_client
-from services.boss_zhipin_client import BossZhipinClient
+from services.boss_zhipin_client import get_boss_client
 from utils import region_map
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
@@ -21,7 +21,7 @@ from utils.settings import settings as _settings
 logger = setup_module_logger(__name__, "logs/jobs/region_search.log")
 
 router = APIRouter()
-_boss_client = BossZhipinClient()
+_boss_client = get_boss_client()
 
 
 class SourceName(str, Enum):

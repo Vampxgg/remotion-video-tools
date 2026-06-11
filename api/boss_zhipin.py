@@ -2,12 +2,13 @@
 """BOSS 直聘职位采集接口。"""
 
 import asyncio
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
 
-from services.boss_zhipin_client import BossZhipinClient
+from services.boss_zhipin_client import get_boss_client
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
 from utils.settings import settings as _settings
@@ -15,7 +16,19 @@ from utils.settings import settings as _settings
 logger = setup_module_logger(__name__, "logs/jobs/boss_zhipin.log")
 
 router = APIRouter()
-_client = BossZhipinClient()
+_client = get_boss_client()
+
+
+@asynccontextmanager
+async def lifespan_resources(app):
+    """应用关闭时释放共享的持久化浏览器 tab / httpx client。"""
+    try:
+        yield
+    finally:
+        try:
+            await _client.shutdown()
+        except Exception as exc:
+            logger.warning(f"BOSS 客户端关闭异常: {exc}")
 
 
 async def require_api_key(x_api_key: Optional[str] = Header(None)) -> None:

@@ -306,7 +306,7 @@ def convert_video_to_webm(
         output_path: str,
         crf: int = 32,
         bitrate: Optional[str] = None,
-        preset: str = WebmPreset.FAST.value,
+        preset: str = WebmPreset.FASTEST.value,
         audio_bitrate: str = "96k",
         threads: int = FFMPEG_THREADS,
         timeout_sec: int = FFMPEG_TIMEOUT_SEC,
@@ -687,9 +687,9 @@ async def query_compress_task(task_id: str):
 async def submit_webm_task(
         request: Request,
         video: UploadFile = File(..., description="要转换为 WebM 的视频文件（form-data 字段名 video）"),
-        crf: int = Form(32, description="VP9 CRF 压缩质量，值越大文件越小，推荐 28-38", ge=0, le=63),
-        bitrate: Optional[str] = Form(None, description="视频码率，如 800k、1M；留空则使用 VP9 CRF 模式"),
-        preset: WebmPreset = Form(WebmPreset.FAST, description="转换速度预设"),
+        crf: int = Form(32, description="VP9 模式下的 CRF 压缩质量，值越大文件越小，推荐 28-38", ge=0, le=63),
+        bitrate: Optional[str] = Form(None, description="视频码率，如 800k、1M；fastest 留空默认 1200k，VP9 留空则使用 CRF 模式"),
+        preset: WebmPreset = Form(WebmPreset.FASTEST, description="转换速度预设；默认 fastest 使用 VP8 实时编码，速度优先"),
         audio_bitrate: str = Form("96k", description="Opus 音频码率，如 64k、96k、128k"),
 ):
     bitrate = _normalize_webm_bitrate(bitrate)
@@ -1158,9 +1158,9 @@ async def convert_webm_for_dify(
             ...,
             description="唯一 body 字段：视频文件，multipart 中字段名必须为 video",
         ),
-        crf: int = Query(32, description="VP9 CRF 压缩质量，值越大文件越小，推荐 28-38", ge=0, le=63),
-        bitrate: Optional[str] = Query(None, description="视频码率，如 800k、1M；留空则使用 VP9 CRF 模式"),
-        preset: WebmPreset = Query(WebmPreset.FAST, description="转换速度预设"),
+        crf: int = Query(32, description="VP9 模式下的 CRF 压缩质量，值越大文件越小，推荐 28-38", ge=0, le=63),
+        bitrate: Optional[str] = Query(None, description="视频码率，如 800k、1M；fastest 留空默认 1200k，VP9 留空则使用 CRF 模式"),
+        preset: WebmPreset = Query(WebmPreset.FASTEST, description="转换速度预设；默认 fastest 使用 VP8 实时编码，速度优先"),
         audio_bitrate: str = Query("96k", description="Opus 音频码率"),
 ):
     task_id = str(uuid.uuid4())
