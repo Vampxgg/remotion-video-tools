@@ -14,7 +14,7 @@ import trafilatura
 from bs4 import BeautifulSoup
 from trafilatura.settings import use_config
 
-from api.document_parser_service import DataCleaningPipeline, DocumentParserService
+from services.document_parser_service import DataCleaningPipeline, DocumentParserService
 from utils.settings import settings as _settings
 
 DEFAULT_UA = _settings.FETCH_USER_AGENT
@@ -247,15 +247,18 @@ async def fetch_url_content(
                 base_out["content_error"] = "下载后超过 20MB"
                 return base_out
 
-            raw = await asyncio.to_thread(
-                parser.parse, file_bytes, ext or ".bin", url
+            parsed = await asyncio.to_thread(
+                parser.parse_document, file_bytes, ext or ".bin", url
             )
+            raw = parsed.markdown
             if not (raw and raw.strip()):
                 base_out["content_fetch_status"] = "empty"
                 base_out["content_error"] = "解析结果为空"
                 return base_out
             text = raw[:max_chars] if len(raw) > max_chars else raw
             base_out["content_text"] = text
+            base_out["content_meta"] = parsed.meta
+            base_out["content_warnings"] = parsed.warning_messages()
             base_out["content_fetch_status"] = "ok"
             return base_out
 

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>模型分析表工作台</title>
+    <link rel="stylesheet" href="./model-inventory-studio.css" />
+  </head>
+  <body>
+    <main class="studio-shell">
+      <aside class="sidebar">
+        <div class="brand-card">
+          <p class="eyebrow">Excel Workspace</p>
+          <h1>模型分析表工作台</h1>
+          <p class="muted">
+            上传你的模型分析表，实时预览多工作表、搜索筛选、在线改单元格，并重新导出成新的
+            Excel 文件。
+          </p>
+        </div>
+
+        <section class="panel">
+          <h2>文件导入</h2>
+          <label class="upload-drop" for="fileInput" id="dropZone">
+            <input
+              id="fileInput"
+              type="file"
+              accept=".xlsx,.xls,.csv,.json"
+              hidden
+            />
+            <strong>点击选择文件</strong>
+            <span>或将 Excel / CSV / JSON 拖到这里</span>
+          </label>
+          <div class="button-row">
+            <button id="loadDemoBtn" class="ghost">载入当前分析表</button>
+            <button id="clearWorkbookBtn" class="ghost">清空工作区</button>
+          </div>
+          <p id="fileMeta" class="helper">尚未导入文件</p>
+        </section>
+
+        <section class="panel">
+          <h2>工作簿概览</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="label">工作表数</span>
+              <strong id="sheetCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="label">总行数</span>
+              <strong id="rowCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="label">总列数</span>
+              <strong id="colCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="label">已改动单元格</span>
+              <strong id="dirtyCount">0</strong>
+            </div>
+          </div>
+          <div id="sheetSummary" class="sheet-summary empty">
+            导入文件后会显示每个工作表的规模和用途。
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>导出与编辑</h2>
+          <div class="button-row wrap">
+            <button id="addRowBtn">新增一行</button>
+            <button id="addColBtn">新增一列</button>
+            <button id="downloadBtn" class="primary" disabled>导出 Excel</button>
+            <button id="downloadJsonBtn" class="ghost" disabled>导出 JSON</button>
+          </div>
+          <p class="helper">
+            点击表格单元格即可直接编辑。导出时会保留你在页面里的修改。
+          </p>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="workspace-header">
+          <div>
+            <p class="eyebrow">Interactive Preview</p>
+            <h2 id="workbookTitle">未打开工作簿</h2>
+          </div>
+          <div class="status-box">
+            <span id="statusDot" class="dot idle"></span>
+            <div>
+              <strong id="statusText">等待导入</strong>
+              <small id="statusHint">支持 .xlsx / .xls / .csv / .json</small>
+            </div>
+          </div>
+        </header>
+
+        <section class="toolbar panel panel-flat">
+          <div class="toolbar-row">
+            <label class="grow">
+              全表搜索
+              <input
+                id="searchInput"
+                type="text"
+                placeholder="搜索模型名、区域、工作表内容..."
+              />
+            </label>
+            <label>
+              行筛选方式
+              <select id="filterMode">
+                <option value="contains">包含关键字</option>
+                <option value="changed">仅看已改动行</option>
+                <option value="all">显示全部</option>
+              </select>
+            </label>
+            <label>
+              当前视图
+              <select id="viewMode">
+                <option value="table">表格视图</option>
+                <option value="json">JSON 视图</option>
+              </select>
+            </label>
+          </div>
+          <div id="sheetTabs" class="sheet-tabs empty">导入后可切换工作表</div>
+        </section>
+
+        <section class="content-grid">
+          <section class="panel table-panel">
+            <div class="panel-head">
+              <h3 id="sheetTitle">工作表预览</h3>
+              <span id="sheetMetaBadge" class="badge">0 行 · 0 列</span>
+            </div>
+            <div id="tableContainer" class="table-container empty">
+              <p>导入 Excel 后，在这里实时预览和编辑表格。</p>
+            </div>
+            <pre id="jsonPreview" class="json-preview hidden"></pre>
+          </section>
+
+          <section class="panel side-panel">
+            <div class="panel-head">
+              <h3>改动记录</h3>
+              <span id="changeBadge" class="badge neutral">0 项</span>
+            </div>
+            <div id="changeList" class="change-list empty">
+              尚未有修改。双击单元格即可编辑。
+            </div>
+
+            <div class="panel-head secondary-head">
+              <h3>使用说明</h3>
+            </div>
+            <ul class="tips-list">
+              <li>支持上传你导出的模型分析 Excel，也支持普通 CSV 和 JSON。</li>
+              <li>点击工作表标签即可切换；搜索框会按当前工作表实时过滤行。</li>
+              <li>点击单元格进入编辑，回车保存，Esc 取消。</li>
+              <li>导出的 Excel 会保留页面中的所有编辑结果。</li>
+            </ul>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="./model-inventory-studio-loader.js"></script>
+  </body>
+</html>

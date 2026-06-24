@@ -456,9 +456,38 @@ class UrlFetchSettings(_Base):
 
 
 class DocParserSettings(_Base):
-    """对应 api/document_parser_service.py
+    """对应 services/document_parser_service.py
     生产部署必须显式提供 DOC_PARSER_IMAGE_UPLOAD_URL，避免 192.168.x 内网泄漏。"""
     DOC_PARSER_IMAGE_UPLOAD_URL: Optional[str] = None
+    DOC_PARSER_IMAGE_UPLOAD_FIELD: str = "file"
+    DOC_PARSER_IMAGE_UPLOAD_TOKEN: Optional[str] = None
+    DOC_PARSER_IMAGE_UPLOAD_LOGIN_URL: Optional[str] = None
+    DOC_PARSER_IMAGE_UPLOAD_LOGIN: Optional[str] = None
+    DOC_PARSER_IMAGE_UPLOAD_PASSWORD: Optional[str] = None
+    DOC_PARSER_PDF_MAX_PAGES: int = 50
+    DOC_PARSER_MAX_TABLE_ROWS: int = 500
+    DOC_PARSER_MIN_IMG_BYTES: int = 5 * 1024
+    DOC_PARSER_MIN_IMG_DIM: int = 50
+
+
+class FileParseSettings(_Base):
+    """对应 api/file_parser.py（正式文件上传解析服务）。"""
+    FILE_PARSE_API_KEY: Optional[str] = None
+    # HTTP 上传层限制：单文件和批量总量分开控制，批量总量不是单文件上限乘以文件数。
+    FILE_PARSE_MAX_UPLOAD_MB: int = 50
+    FILE_PARSE_MAX_BATCH_FILES: int = 10
+    FILE_PARSE_MAX_TOTAL_MB: int = 100
+    FILE_PARSE_ENABLE_OCR_DEFAULT: bool = False
+    FILE_PARSE_ENABLE_IMAGE_UPLOAD_DEFAULT: bool = True
+    # API 默认返回长度；用户不传 max_chars 时使用它。
+    FILE_PARSE_DEFAULT_MAX_CHARS: int = 60000
+    # 文件解析内容硬上限；核心解析清洗、JSON/XML/TXT 截断、API max_chars 上限统一使用它。
+    FILE_PARSE_MAX_CONTENT_CHARS: int = 200000
+    FILE_PARSE_ALLOWED_EXTENSIONS: List[str] = [
+        ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".csv",
+        ".html", ".htm", ".json", ".xml", ".txt", ".md", ".markdown",
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",
+    ]
 
 
 class ZhipinSettings(_Base):
@@ -588,7 +617,7 @@ class Settings(
     CreImageSettings, GeminiLiveSettings, CreVideoSettings, FenbiSettings,
     VideoCompressSettings, ConverterSettings, JobSearchSettings,
     JobSearchV2Settings,
-    TuoyuSerpSettings, UrlFetchSettings, DocParserSettings,
+    TuoyuSerpSettings, UrlFetchSettings, DocParserSettings, FileParseSettings,
     ZhipinSettings, BossZhipinSettings, RegionJobsSettings,
     WebSearchSettings,
     TianyanchaSettings,
