@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
     job_search, job_search_v2, boss_zhipin, jobs_region, fish_asr, fenbi_gateway, video_compress, gemini_live, \
-    tianyancha, web_search, file_parser
+    tianyancha, web_search, file_parser, file_understand
 from fastapi.staticfiles import StaticFiles
 from db.database import engine, Base, get_db
 from utils.settings import settings
@@ -166,6 +166,7 @@ app.include_router(jobs_region.router, prefix="/api", tags=["jobs_region"])
 app.include_router(tianyancha.router, prefix="/api", tags=["tianyancha"])
 app.include_router(web_search.router, prefix="/api", tags=["web_search"])
 app.include_router(file_parser.router, prefix="/api", tags=["file_parser"])
+app.include_router(file_understand.router, prefix="/api", tags=["file_understand"])
 # app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
 # app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
 app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])

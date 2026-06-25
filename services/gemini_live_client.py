@@ -12,6 +12,8 @@ import contextlib
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Dict, List, Optional
 
+from utils.gcp_credentials import get_gcp_credentials
+
 
 @dataclass(slots=True)
 class GeminiLiveConfig:
@@ -227,6 +229,7 @@ class GeminiLiveSession:
                 vertexai=True,
                 project=self.config.project_id,
                 location=self.config.location,
+                credentials=get_gcp_credentials(),
             )
             connect_config = self._build_connect_config(types)
             async with client.aio.live.connect(

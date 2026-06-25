@@ -16,8 +16,6 @@ import httpx
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, HTTPException, status, Body
 from pydantic import BaseModel, Field, conint, confloat, constr
-import google.auth
-import google.auth.transport.requests
 
 # 尝试导入您项目中的日志模块
 # utils.logger 是仓库内必需模块，删除冗余 fallback；导入失败应直接报错暴露问题
@@ -27,6 +25,7 @@ logger = setup_module_logger(__name__, "logs/video/veo.log")
 
 router = APIRouter()
 
+from utils.gcp_credentials import get_access_token  # noqa: E402
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 
 # --- Google Vertex AI Veo API 配置 ---
@@ -103,28 +102,8 @@ def create_standard_response(
 
 # --- 工具函数 ---
 async def get_gcloud_auth_token() -> str:
-    """
-    [最佳实践] 使用 google-auth 库获取应用默认凭证 (ADC)。
-    这种方法无需调用外部 gcloud 命令，稳定且跨平台。
-    """
-    try:
-        # 自动查找凭证 (来自 `gcloud auth application-default login` 或环境变量)
-        credentials, project_id = google.auth.default(scopes=['https://www.googleapis.com/auth/cloud-platform'])
-
-        # 刷新凭证以确保它是有效的
-        auth_req = google.auth.transport.requests.Request()
-        credentials.refresh(auth_req)
-
-        if not credentials.token:
-            raise Exception("获取到的凭证中没有 token。")
-
-        logger.info("成功通过 google-auth 库获取并刷新了 Access Token。")
-        return credentials.token
-
-    except Exception as e:
-        logger.error(f"使用 google-auth 获取默认凭证失败: {e}")
-        logger.error("请确保您已运行 'gcloud auth application-default login' 或已正确设置服务账户环境变量。")
-        raise Exception(f"Failed to get application default credentials: {e}")
+    """统一走 utils.gcp_credentials 共享凭证加载器（显式 SA / 回退 ADC）。"""
+    return await get_access_token()
 
 
 def convert_gcs_to_public_url(gcs_uri: str) -> str:

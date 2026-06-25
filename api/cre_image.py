@@ -16,8 +16,6 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-import google.auth
-import google.auth.transport.requests
 import httpx
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -37,6 +35,7 @@ logger = setup_module_logger(__name__, "logs/image/gemini_image.log")
 
 router = APIRouter()
 
+from utils.gcp_credentials import get_access_token  # noqa: E402
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 
 GOOGLE_PROJECT_ID = _settings.GCP_PROJECT_ID
@@ -205,18 +204,8 @@ def create_standard_response(
 
 
 async def get_gcloud_auth_token() -> str:
-    try:
-        credentials, _ = google.auth.default(
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
-        )
-        auth_req = google.auth.transport.requests.Request()
-        credentials.refresh(auth_req)
-        if not credentials.token:
-            raise RuntimeError("凭证中无 token")
-        return credentials.token
-    except Exception as e:
-        logger.error(f"获取 ADC 失败: {e}")
-        raise RuntimeError(f"Failed to get application default credentials: {e}") from e
+    """统一走 utils.gcp_credentials 共享凭证加载器（显式 SA / 回退 ADC）。"""
+    return await get_access_token()
 
 
 async def upload_to_gcs(image_data: bytes, content_type: str, folder: str = GCS_OUTPUT_DIR) -> str:

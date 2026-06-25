@@ -113,6 +113,9 @@ class CommonSettings(_Base):
     # GCP / GCS 共享配置
     GCP_PROJECT_ID: str = "x-pilot-469902"
     GCP_LOCATION_ID: str = "us-central1"
+    # Vertex/GCS 服务账号 JSON 路径；留空则回退 google.auth.default()(用户级 ADC)。
+    # 相对路径按项目根解析。配置后所有 Vertex 调用(理解/图/视频/live)统一用该凭证。
+    GCP_CREDENTIALS_FILE: Optional[str] = None
     GCS_BUCKET_NAME: str = "x-pilot-storage"
     GCS_PUBLIC_URL_PREFIX: str = "https://storage.googleapis.com/x-pilot-storage"
 
@@ -490,6 +493,32 @@ class FileParseSettings(_Base):
     ]
 
 
+class FileUnderstandSettings(_Base):
+    """对应 api/file_understand.py（多模态知识理解微服务）。
+
+    在 /file/parse 抽取(图->公网URL、表格、文本)的基础上，再用 Vertex Gemini
+    对原始文档做"视觉级"理解：看懂图表/图片、把数据型图表转写为 markdown 数据表、
+    用视觉忠实转写源表格，并保留源图 URL。凭证复用 cre_image 的 ADC(google.auth.default)。
+    """
+    # 默认走 flash（快/便宜，适合 iteration 逐文件）；可用环境变量切到 pro。
+    FILE_UNDERSTAND_MODEL: str = "gemini-2.5-flash"
+    # Vertex 区域；留空则沿用与 cre_image 一致的 global 优先轮询。
+    FILE_UNDERSTAND_LOCATION: str = "global"
+    # Gemini 3 才支持 media_resolution（low/medium/high）；非 3 系模型会被忽略。
+    FILE_UNDERSTAND_MEDIA_RESOLUTION: Optional[str] = None
+    # 单次 Gemini 调用超时（秒）。视觉理解较慢，给足。
+    FILE_UNDERSTAND_TIMEOUT_SEC: float = 300.0
+    # 直接喂给 Gemini 的 PDF 体积上限（MB）；超出则跳过视觉、仅返回基础解析。
+    FILE_UNDERSTAND_MAX_PDF_MB: int = 50
+    # 鉴权：留空则复用 FILE_PARSE_API_KEY；都留空表示不鉴权。
+    FILE_UNDERSTAND_API_KEY: Optional[str] = None
+    # 输出 markdown 硬上限，沿用文件解析的口径。
+    FILE_UNDERSTAND_MAX_CONTENT_CHARS: int = 200000
+    # 生成温度，理解/转写场景取低值更稳。
+    FILE_UNDERSTAND_TEMPERATURE: float = 0.2
+    FILE_UNDERSTAND_MAX_OUTPUT_TOKENS: int = 32768
+
+
 class ZhipinSettings(_Base):
     """对应 api/zhipin_job.py / api/pc_drissionpage_new.py"""
     ZHIPIN_BROWSER_HOST_PORT: str = "127.0.0.1:9527"
@@ -618,6 +647,7 @@ class Settings(
     VideoCompressSettings, ConverterSettings, JobSearchSettings,
     JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings, FileParseSettings,
+    FileUnderstandSettings,
     ZhipinSettings, BossZhipinSettings, RegionJobsSettings,
     WebSearchSettings,
     TianyanchaSettings,
