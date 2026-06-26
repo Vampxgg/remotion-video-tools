@@ -72,7 +72,12 @@ def get_gcp_credentials():
 def _refresh_token() -> str:
     creds = get_gcp_credentials()
     if not creds.valid:
+        logger.info("access token 失效/缺失，执行 refresh…")
         creds.refresh(google.auth.transport.requests.Request())
+        logger.info(
+            f"access token 已刷新 (expiry={getattr(creds, 'expiry', None)} "
+            f"sa={getattr(creds, 'service_account_email', None)})"
+        )
     if not creds.token:
         raise RuntimeError("凭证刷新后仍无 token")
     return creds.token

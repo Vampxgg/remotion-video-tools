@@ -27,6 +27,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -511,7 +512,14 @@ async def understand_file_payload(
     payload: FilePayload, options: UnderstandOptions
 ) -> FileParseResult:
     request_id = uuid.uuid4().hex[:8]
+    t_start = time.time()
+    logger.info(
+        f"[{request_id}] 开始理解 file={payload.filename!r} ext={payload.extension} "
+        f"size={payload.size // 1024}KB vision={'on' if options.enable_vision else 'off'} "
+        f"patch_mode={_settings.FILE_UNDERSTAND_PATCH_MODE} model={_resolve_model(options)}"
+    )
     # 1) 基础解析（强制开启内嵌图上传，确保 markdown 带真实图 URL）。
+    t_base = time.time()
     base = await parse_file_payload(
         payload,
         FileParseOptions(
@@ -528,6 +536,11 @@ async def understand_file_payload(
     warnings = list(base.warnings)
     meta = dict(base.meta) if base.meta else {}
     content_kind = base.parser.content_kind
+    base_imgs = len(set(_IMG_MD_RE.findall(base_md)))
+    logger.info(
+        f"[{request_id}] 基础解析完成 耗时={time.time() - t_base:.2f}s kind={content_kind} "
+        f"chars={len(base_md)} 源图={base_imgs} parser={base.parser.parser_used}"
+    )
 
     understanding_applied = False
     model_used: Optional[str] = None
@@ -535,12 +548,14 @@ async def understand_file_payload(
     if not options.enable_vision:
         enriched = base_md
         warnings.append("本次请求未启用视觉理解，返回基础解析结果。")
+        logger.info(f"[{request_id}] 跳过视觉理解（enable_vision=off）。")
     else:
         vision_part, skip_reason = await _prepare_vision_part(payload, content_kind)
         if vision_part is None:
             enriched = base_md
             if skip_reason:
                 warnings.append(skip_reason)
+            logger.info(f"[{request_id}] 跳过视觉理解：{skip_reason}")
         else:
             model_used = _resolve_model(options)
             runner = (
@@ -548,13 +563,21 @@ async def understand_file_payload(
                 if _settings.FILE_UNDERSTAND_PATCH_MODE
                 else _run_understand_full
             )
+            t_vis = time.time()
             try:
                 enriched, understanding_applied, w = await runner(
                     vision_part, base_md, model_used, request_id
                 )
                 warnings.extend(w)
+                logger.info(
+                    f"[{request_id}] 视觉理解完成 耗时={time.time() - t_vis:.2f}s "
+                    f"applied={understanding_applied} mode={'patch' if _settings.FILE_UNDERSTAND_PATCH_MODE else 'full'}"
+                )
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"[{request_id}] Gemini 理解失败，降级为基础解析: {e}")
+                logger.warning(
+                    f"[{request_id}] Gemini 理解失败，降级为基础解析 耗时={time.time() - t_vis:.2f}s "
+                    f"file={payload.filename!r}: {type(e).__name__}: {e}"
+                )
                 enriched = base_md
                 warnings.append(f"视觉理解失败，已降级为基础解析：{e}")
 
@@ -586,6 +609,14 @@ async def understand_file_payload(
             "images_url_corrected": image_stats["corrupted_fixed"],
             "images_reappended": image_stats["reappended"],
         }
+    )
+
+    logger.info(
+        f"[{request_id}] 理解结束 file={payload.filename!r} 总耗时={time.time() - t_start:.2f}s "
+        f"applied={understanding_applied} 最终chars={len(markdown)} "
+        f"源图={meta.get('source_image_count')} 终图={meta.get('final_image_count')} "
+        f"剔除编造={image_stats['fake_dropped']} 纠正={image_stats['corrupted_fixed']} 补回={image_stats['reappended']} "
+        f"truncated={truncated} warns={len(warnings)}"
     )
 
     return FileParseResult(

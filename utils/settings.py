@@ -524,6 +524,11 @@ class FileUnderstandSettings(_Base):
     # “仅补丁”模式：Gemini 不重写正文，只产出 表格视觉校对 + 图表转表 + 图片描述 补丁，
     # 本地按锚点合并基础解析正文。大幅减少输出 token => 主要提速来源。置 False 回退整篇重写模式。
     FILE_UNDERSTAND_PATCH_MODE: bool = True
+    # 异步任务（/file/understand/async + /result/{job_id}）的文件存储目录；
+    # 留空则用系统临时目录下 file_understand_jobs。改为提交+轮询可绕开前置网关 ~120s 读超时。
+    FILE_UNDERSTAND_JOB_DIR: Optional[str] = None
+    # 异步任务记录的保留时长（秒），超时自动清理。
+    FILE_UNDERSTAND_JOB_TTL_SEC: int = 86400
 
 
 class ZhipinSettings(_Base):

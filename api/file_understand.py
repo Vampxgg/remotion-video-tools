@@ -7,12 +7,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
 from schemas.file_parse import FileParseBatchData, FileParseBatchSummary
+from services import file_understand_jobs as jobs
 from services.file_parse_service import FilePayload, ParseInputError
 from services.file_understand_service import (
     UnderstandOptions,
@@ -24,6 +26,9 @@ from utils.settings import settings as _settings
 
 router = APIRouter(dependencies=[Depends(require_api_key("FILE_UNDERSTAND_API_KEY"))])
 logger = logging.getLogger(__name__)
+
+# 持有后台任务引用，避免 asyncio 在任务结束前将其回收。
+_BG_TASKS: Set[asyncio.Task] = set()
 
 
 async def _payload_from_upload(
@@ -118,6 +123,87 @@ async def understand_file(
         data=result.model_dump(),
         message="文件多模态理解完成",
     )
+
+
+async def _process_understand_job(
+    job_id: str, payload: FilePayload, options: UnderstandOptions
+) -> None:
+    """后台执行单文件多模态理解，并把结果写入任务存储。"""
+    jobs.mark_running(job_id)
+    try:
+        result = await understand_file_payload(payload, options)
+        jobs.mark_succeeded(job_id, result.model_dump())
+    except ParseInputError as exc:
+        jobs.mark_failed(job_id, exc.code, exc.detail)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("async file understand failed [%s]: %s", job_id, exc)
+        jobs.mark_failed(job_id, "internal_error", str(exc))
+
+
+@router.post(
+    "/file/understand/async",
+    summary="异步多模态理解：提交任务，立即返回 job_id（配合 /file/understand/result 轮询）",
+)
+async def understand_file_async(
+    file: UploadFile = File(..., description="唯一文件字段，字段名必须为 file"),
+    enable_ocr: Optional[bool] = Form(None, description="是否启用图片 OCR（基础解析层）"),
+    enable_embedded_image_upload: Optional[bool] = Form(
+        None, description="是否上传文档内嵌图片为公网 URL（默认开启）"
+    ),
+    max_chars: Optional[int] = Form(None, description="返回内容最大字符数，上限由服务端配置控制"),
+    model: Optional[str] = Form(None, description="覆盖默认 Vertex Gemini 模型"),
+    enable_vision: bool = Form(True, description="是否启用视觉理解；关闭则等同 /file/parse"),
+):
+    """接收文件后立即返回 ``job_id``，真正的多模态理解放后台执行。
+
+    调用方随后用 ``GET /file/understand/result/{job_id}`` 轮询，直到 status 为
+    ``succeeded``/``failed``。每个请求都很短，可绕开前置网关对单条长连接的读超时。
+    """
+    try:
+        payload, _ = await _payload_from_upload(file)
+    except ParseInputError as exc:
+        return create_standard_response(
+            data={"error": {"code": exc.code, "detail": exc.detail}},
+            code=exc.status_code,
+            message=exc.detail,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("async understand intake failed: %s", exc)
+        detail = "文件接收失败，请稍后重试或联系服务维护人员。"
+        return create_standard_response(
+            data={"error": {"code": "internal_error", "detail": detail}},
+            code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=detail,
+        )
+    finally:
+        await file.close()
+
+    options = _options(max_chars, enable_ocr, enable_embedded_image_upload, model, enable_vision)
+    job_id = jobs.create_job(payload.filename)
+    task = asyncio.create_task(_process_understand_job(job_id, payload, options))
+    _BG_TASKS.add(task)
+    task.add_done_callback(_BG_TASKS.discard)
+
+    return create_standard_response(
+        data={"job_id": job_id, "status": jobs.STATUS_PENDING},
+        message="任务已受理，请轮询 /file/understand/result/{job_id} 获取结果",
+    )
+
+
+@router.get(
+    "/file/understand/result/{job_id}",
+    summary="查询异步多模态理解任务结果",
+)
+async def understand_file_result(job_id: str):
+    """返回任务状态；succeeded 时 data.result 为与 /file/understand 一致的解析结果。"""
+    job = jobs.read_job(job_id)
+    if job is None:
+        return create_standard_response(
+            data={"job_id": job_id, "status": "not_found"},
+            code=status.HTTP_404_NOT_FOUND,
+            message="任务不存在或已过期。",
+        )
+    return create_standard_response(data=job, message="ok")
 
 
 @router.post(

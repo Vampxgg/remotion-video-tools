@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -67,6 +68,30 @@ async def get_adc_token() -> str:
     return await get_access_token()
 
 
+def _classify_exc(e: BaseException) -> str:
+    """把异常归类成可检索的短标签，便于在日志里快速分辨故障性质。
+
+    - net_disconnect : 连接被对端在收到响应前断开（典型为出口/代理被掐断，如 GFW、egress 不稳）
+    - net_connect    : 连不上（DNS/拒绝/不可达）
+    - net_timeout    : 建连/读/写/连接池超时
+    - net_protocol   : 其它协议层错误
+    - http_status    : 服务端返回了 4xx/5xx
+    - other          : 兜底
+    """
+    if isinstance(e, httpx.HTTPStatusError):
+        return "http_status"
+    if isinstance(e, httpx.RemoteProtocolError):
+        # "Server disconnected without sending a response" 属于此类
+        return "net_disconnect"
+    if isinstance(e, httpx.ConnectError):
+        return "net_connect"
+    if isinstance(e, (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.WriteTimeout, httpx.PoolTimeout, httpx.TimeoutException)):
+        return "net_timeout"
+    if isinstance(e, httpx.TransportError):
+        return "net_protocol"
+    return "other"
+
+
 def _locations_to_try(location: Optional[str]) -> List[str]:
     if location and location.strip():
         loc = location.strip()
@@ -111,10 +136,28 @@ async def generate_content(
     locations = _locations_to_try(location)
     if max_locations and max_locations > 0:
         locations = locations[:max_locations]
+
+    # 请求体大小：诊断 “大请求体 -> 连接被断” 假设的关键指标（不打印 base64 本身）。
+    n_parts = sum(len(c.get("parts") or []) for c in contents)
+    n_inline = sum(
+        1 for c in contents for p in (c.get("parts") or []) if isinstance(p, dict) and "inlineData" in p
+    )
+    try:
+        import json as _json
+        body_kb = len(_json.dumps(body).encode("utf-8")) // 1024
+    except Exception:  # noqa: BLE001
+        body_kb = -1
+    t_all = time.time()
+    logger.info(
+        f"[{request_id}] Vertex 调用开始 model={model} 区域候选={locations} "
+        f"parts={n_parts}(含inline={n_inline}) body≈{body_kb}KB read_timeout={timeout_sec}s"
+    )
+
     for attempt, loc in enumerate(locations):
         endpoint = _VERTEX_ENDPOINT_TEMPLATE.format(
             project=GOOGLE_PROJECT_ID, location=loc, model=model
         )
+        t0 = time.time()
         try:
             logger.debug(
                 f"[{request_id}] Vertex generateContent location={loc} "
@@ -124,24 +167,48 @@ async def generate_content(
                 endpoint, headers=headers, json=body, timeout=per_timeout
             )
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            dt = time.time() - t0
+            n_cand = len(data.get("candidates") or [])
+            fr = finish_reason(data)
+            usage = data.get("usageMetadata") or {}
+            logger.info(
+                f"[{request_id}] Vertex 成功 location={loc} ({attempt + 1}/{len(locations)}) "
+                f"耗时={dt:.2f}s 总耗时={time.time() - t_all:.2f}s candidates={n_cand} "
+                f"finishReason={fr} tokens={usage.get('totalTokenCount')} resp≈{len(resp.content)//1024}KB"
+            )
+            return data
         except httpx.HTTPStatusError as e:
             last_exc = e
+            dt = time.time() - t0
             code = e.response.status_code
             if code == 429 or code >= 500:
                 logger.warning(
-                    f"[{request_id}] {loc} 失败 {code}: {e.response.text[:300]}"
+                    f"[{request_id}] {loc} 可重试HTTP {code} ({attempt + 1}/{len(locations)}) "
+                    f"耗时={dt:.2f}s body={e.response.text[:300]}"
                 )
                 continue
             logger.error(
-                f"[{request_id}] {loc} 不可重试错误 {code}: {e.response.text[:300]}"
+                f"[{request_id}] {loc} 不可重试HTTP {code} ({attempt + 1}/{len(locations)}) "
+                f"耗时={dt:.2f}s body={e.response.text[:300]}"
             )
             raise
         except Exception as e:  # noqa: BLE001
             last_exc = e
-            logger.warning(f"[{request_id}] {loc} 异常: {e}")
+            dt = time.time() - t0
+            kind = _classify_exc(e)
+            logger.warning(
+                f"[{request_id}] {loc} {kind} ({attempt + 1}/{len(locations)}) "
+                f"耗时={dt:.2f}s {type(e).__name__}: {e}"
+            )
             continue
+
+    total = time.time() - t_all
     if last_exc:
+        logger.error(
+            f"[{request_id}] Vertex 全部 {len(locations)} 个区域失败 总耗时={total:.2f}s "
+            f"最后错误={_classify_exc(last_exc)} {type(last_exc).__name__}: {last_exc}"
+        )
         raise last_exc
     raise RuntimeError("Vertex 调用失败且无异常信息")
 
