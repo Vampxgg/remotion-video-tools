@@ -529,10 +529,15 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_JOB_DIR: Optional[str] = None
     # 异步任务记录的保留时长（秒），超时自动清理。
     FILE_UNDERSTAND_JOB_TTL_SEC: int = 86400
-    # 单进程内同时进行的 Vertex 视觉理解并发上限（基础解析不受限）。
-    # 实测 8 路并发会把出口打满 => 约一半在 ~125s 被掐断再换区重试到 ~350s。
-    # 限并发后每路更快完成、几乎不再触发掐断。0/None 表示不限。
-    FILE_UNDERSTAND_MAX_CONCURRENCY: int = 3
+    # 跨 worker 的 Vertex 视觉理解全局并发上限（基础解析不受限）。
+    # 通过 Redis 租约实现；多 worker 下不会被进程数放大。0/None 表示不限。
+    FILE_UNDERSTAND_GLOBAL_CONCURRENCY: int = 3
+    FILE_UNDERSTAND_GLOBAL_LIMITER_ENABLED: bool = True
+    # 租约 TTL 需覆盖单次理解最坏耗时（区域轮询 + 网络抖动）；worker 崩溃后会自动释放。
+    FILE_UNDERSTAND_GLOBAL_LEASE_TTL_SEC: int = 600
+    FILE_UNDERSTAND_GLOBAL_WAIT_INTERVAL_SEC: float = 0.5
+    # Redis 不可用策略：fallback_base=降级基础解析；open=本地开发可放开；fail=抛错。
+    FILE_UNDERSTAND_LIMITER_UNAVAILABLE_POLICY: str = "fallback_base"
 
 
 class ZhipinSettings(_Base):

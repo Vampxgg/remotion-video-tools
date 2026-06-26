@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Dict, List, Optional
 
@@ -149,7 +150,7 @@ async def generate_content(
         body_kb = -1
     t_all = time.time()
     logger.info(
-        f"[{request_id}] Vertex 调用开始 model={model} 区域候选={locations} "
+        f"[{request_id}] Vertex 调用开始 pid={os.getpid()} model={model} 区域候选={locations} "
         f"parts={n_parts}(含inline={n_inline}) body≈{body_kb}KB read_timeout={timeout_sec}s"
     )
 
