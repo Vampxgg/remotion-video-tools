@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import difflib
 import json
 import os
@@ -51,6 +52,20 @@ from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
 
 logger = setup_module_logger(__name__, "logs/file/file_understand.log")
+
+# 视觉理解(Vertex)并发闸门：基础解析不限，仅给昂贵且依赖出口带宽的 Gemini 调用限流，
+# 避免高并发把出口打满导致连接被中途掐断(~125s)再换区慢重试(~350s)。懒加载绑定当前事件循环。
+_vision_sem: Optional["asyncio.Semaphore"] = None
+
+
+def _get_vision_sem() -> Optional["asyncio.Semaphore"]:
+    global _vision_sem
+    limit = getattr(_settings, "FILE_UNDERSTAND_MAX_CONCURRENCY", 0) or 0
+    if limit <= 0:
+        return None
+    if _vision_sem is None:
+        _vision_sem = asyncio.Semaphore(int(limit))
+    return _vision_sem
 
 _OFFICE_EXTS = {".docx", ".doc", ".pptx", ".ppt"}
 _IMAGE_MIME = {
@@ -563,23 +578,33 @@ async def understand_file_payload(
                 if _settings.FILE_UNDERSTAND_PATCH_MODE
                 else _run_understand_full
             )
-            t_vis = time.time()
-            try:
-                enriched, understanding_applied, w = await runner(
-                    vision_part, base_md, model_used, request_id
-                )
-                warnings.extend(w)
-                logger.info(
-                    f"[{request_id}] 视觉理解完成 耗时={time.time() - t_vis:.2f}s "
-                    f"applied={understanding_applied} mode={'patch' if _settings.FILE_UNDERSTAND_PATCH_MODE else 'full'}"
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    f"[{request_id}] Gemini 理解失败，降级为基础解析 耗时={time.time() - t_vis:.2f}s "
-                    f"file={payload.filename!r}: {type(e).__name__}: {e}"
-                )
-                enriched = base_md
-                warnings.append(f"视觉理解失败，已降级为基础解析：{e}")
+            sem = _get_vision_sem()
+            t_wait = time.time()
+            ctx = sem if sem is not None else contextlib.nullcontext()
+            async with ctx:
+                queued = time.time() - t_wait
+                if queued > 1.0:
+                    logger.info(
+                        f"[{request_id}] 视觉理解排队 {queued:.1f}s 后开始"
+                        f"（并发上限={_settings.FILE_UNDERSTAND_MAX_CONCURRENCY}）"
+                    )
+                t_vis = time.time()
+                try:
+                    enriched, understanding_applied, w = await runner(
+                        vision_part, base_md, model_used, request_id
+                    )
+                    warnings.extend(w)
+                    logger.info(
+                        f"[{request_id}] 视觉理解完成 耗时={time.time() - t_vis:.2f}s "
+                        f"applied={understanding_applied} mode={'patch' if _settings.FILE_UNDERSTAND_PATCH_MODE else 'full'}"
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        f"[{request_id}] Gemini 理解失败，降级为基础解析 耗时={time.time() - t_vis:.2f}s "
+                        f"file={payload.filename!r}: {type(e).__name__}: {e}"
+                    )
+                    enriched = base_md
+                    warnings.append(f"视觉理解失败，已降级为基础解析：{e}")
 
     # 3) 图片 URL 白名单校正：剔除编造链接、纠正改写链接、补回丢失源图。
     image_stats = {"fake_dropped": 0, "corrupted_fixed": 0, "reappended": 0}
