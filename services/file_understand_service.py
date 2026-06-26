@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import difflib
+import json
 import os
 import re
 import shutil
@@ -62,7 +63,8 @@ _IMAGE_MIME = {
 _IMG_MD_RE = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
 _IMG_FULL_RE = re.compile(r"!\[([^\]]*)\]\((https?://[^)\s]+)\)")
 
-_SYSTEM_PROMPT = (
+# 整篇重写模式（FILE_UNDERSTAND_PATCH_MODE=False 时使用）：让 Gemini 输出完整增强 Markdown。
+_SYSTEM_PROMPT_FULL = (
     "你是严谨的文档多模态理解助手。你会收到一份文档的原始文件（PDF 或图片，用于视觉理解）"
     "以及一份已抽取的 Markdown（其中包含真实的图片 URL 和初步表格）。请产出一份"
     "“多模态增强 Markdown”，严格遵守：\n"
@@ -79,6 +81,54 @@ _SYSTEM_PROMPT = (
     "5. 保持文档原有的章节标题层级与正文顺序；\n"
     "6. 仅输出最终 Markdown 正文，不要任何前言、解释或额外代码围栏包裹整体。"
 )
+
+# 仅补丁模式（默认）：不重写正文，只产结构化补丁，本地合并。主要提速来源。
+_SYSTEM_PROMPT_PATCH = (
+    "你是严谨的文档多模态理解助手。你会收到一份原始文件（PDF/图片）用于视觉理解，"
+    "以及一份已抽取的 Markdown（正文、标题、表格均已可靠提取）。\n"
+    "你的任务【不是】重写全文，而是【只】产出结构化补丁 JSON，严格遵守：\n"
+    "1. 完全忠实原文，不臆造任何数据、数字或结论；\n"
+    "2. tables：逐一视觉校对每个带 `<!--TBL:n-->` 锚点的表格，输出规范、完整、无遗漏的 Markdown "
+    "表格（多层表头合理合并）；anchor 字段填该表的数字编号（如 \"1\"）；只需返回需要的表格，"
+    "未变化也应原样返回以保证完整；\n"
+    "3. images：对每个给定 URL 的图片，判定 kind 为 chart（数据型图表）或 figure（普通图片/照片/Logo/示意图）；"
+    "chart 必须在 table_markdown 给出图表数值转写的 Markdown 表（保留量纲/单位/系列名），"
+    "figure 只需用一句客观中文描述作 caption；\n"
+    "4. 图片 URL 必须逐字使用输入给定的真实 URL，严禁改写或臆造；\n"
+    "5. 严格按给定 JSON Schema 输出，不要输出正文、解释或任何额外文本。"
+)
+
+# Vertex responseSchema（OpenAPI 子集）：强制 Gemini 返回可解析的补丁 JSON。
+_PATCH_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "tables": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "anchor": {"type": "string"},
+                    "markdown": {"type": "string"},
+                },
+                "required": ["anchor", "markdown"],
+            },
+        },
+        "images": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string"},
+                    "kind": {"type": "string", "enum": ["chart", "figure"]},
+                    "caption": {"type": "string"},
+                    "table_markdown": {"type": "string"},
+                },
+                "required": ["url", "kind", "caption"],
+            },
+        },
+    },
+    "required": ["tables", "images"],
+}
 
 
 @dataclass(frozen=True)
@@ -159,7 +209,7 @@ def _resolve_model(options: UnderstandOptions) -> str:
     return _settings.FILE_UNDERSTAND_MODEL
 
 
-def _generation_config(model: str) -> dict:
+def _generation_config(model: str, *, patch: bool) -> dict:
     cfg: dict = {
         "temperature": _settings.FILE_UNDERSTAND_TEMPERATURE,
         "maxOutputTokens": _settings.FILE_UNDERSTAND_MAX_OUTPUT_TOKENS,
@@ -168,6 +218,14 @@ def _generation_config(model: str) -> dict:
     # media_resolution 仅 Gemini 3 系支持；其它模型设置会报错，故仅 3 系附加。
     if res and "gemini-3" in model:
         cfg["mediaResolution"] = f"MEDIA_RESOLUTION_{res.strip().upper()}"
+    # 思考预算仅 gemini-2.5/3 支持；0=关闭扩展思考以提速（转写/校对无需思考）。
+    budget = _settings.FILE_UNDERSTAND_THINKING_BUDGET
+    if budget is not None and budget >= 0 and ("gemini-2.5" in model or "gemini-3" in model):
+        cfg["thinkingConfig"] = {"thinkingBudget": budget}
+    # 补丁模式强制 JSON 结构化输出，保证可解析。
+    if patch:
+        cfg["responseMimeType"] = "application/json"
+        cfg["responseSchema"] = _PATCH_SCHEMA
     return cfg
 
 
@@ -251,6 +309,189 @@ def _reconcile_images(enriched: str, base_markdown: str) -> Tuple[str, dict]:
     return enriched, stats
 
 
+_TBL_MARKER_RE = re.compile(r"^<!--TBL:(\d+)-->$")
+
+
+def _anchor_tables(md: str) -> Tuple[str, int]:
+    """在每个 Markdown 表格块前插入 `<!--TBL:n-->` 锚点，供 Gemini 定位与本地合并。
+
+    表格块=连续 ≥2 行（含表头与分隔行）以 `|` 开头的行。返回 (带锚点的 md, 表格数)。
+    """
+    lines = md.split("\n")
+    out: List[str] = []
+    i = 0
+    idx = 0
+    while i < len(lines):
+        if lines[i].lstrip().startswith("|"):
+            j = i
+            while j < len(lines) and lines[j].lstrip().startswith("|"):
+                j += 1
+            if j - i >= 2:
+                idx += 1
+                out.append(f"<!--TBL:{idx}-->")
+                out.extend(lines[i:j])
+                i = j
+                continue
+        out.append(lines[i])
+        i += 1
+    return "\n".join(out), idx
+
+
+def _norm_anchor(a: str) -> str:
+    m = re.search(r"(\d+)", a or "")
+    return m.group(1) if m else (a or "").strip()
+
+
+def _apply_patches(anchored_md: str, patches: dict) -> Tuple[str, dict]:
+    """把 Gemini 的补丁 JSON 合并进带锚点的 base markdown（确定性本地合并）。
+
+    - tables：按锚点数字替换对应表格块；缺失的锚点保留原表；
+    - images：按真实 URL 命中后，figure 改写描述、chart 在图后插入转写表；未命中保留原样。
+    """
+    stats = {"tables": 0, "charts": 0, "figures": 0}
+    tbl_map: dict = {}
+    for t in (patches.get("tables") or []):
+        if not isinstance(t, dict):
+            continue
+        a = _norm_anchor(str(t.get("anchor", "")))
+        m = t.get("markdown")
+        if a and isinstance(m, str) and m.strip():
+            tbl_map[a] = m.strip()
+    img_map: dict = {}
+    for im in (patches.get("images") or []):
+        if not isinstance(im, dict):
+            continue
+        u = (im.get("url") or "").strip()
+        if u:
+            img_map[u] = im
+
+    # 1) 表格按锚点替换（按行处理）。
+    lines = anchored_md.split("\n")
+    out: List[str] = []
+    i = 0
+    while i < len(lines):
+        mm = _TBL_MARKER_RE.match(lines[i].strip())
+        if mm:
+            anchor_id = mm.group(1)
+            i += 1
+            start = i
+            while i < len(lines) and lines[i].lstrip().startswith("|"):
+                i += 1
+            original = lines[start:i]
+            patch_md = tbl_map.get(anchor_id)
+            if patch_md:
+                out.append(patch_md)
+                stats["tables"] += 1
+            else:
+                out.extend(original)
+            continue
+        out.append(lines[i])
+        i += 1
+    text = "\n".join(out)
+
+    # 2) 图片按 URL 命中后改写/插表（正则）。
+    def _img_sub(m):
+        alt, url = m.group(1), m.group(2)
+        im = img_map.get(url)
+        if not im:
+            return m.group(0)
+        caption = (im.get("caption") or alt or "").strip()
+        base_img = f"![{caption}]({url})"
+        if (im.get("kind") or "figure").strip() == "chart":
+            tm = (im.get("table_markdown") or "").strip()
+            if tm:
+                stats["charts"] += 1
+                return base_img + "\n\n" + tm
+        stats["figures"] += 1
+        return base_img
+
+    text = _IMG_FULL_RE.sub(_img_sub, text)
+    return text, stats
+
+
+def _build_patch_user_text(anchored_md: str, n_tables: int, img_urls: List[str]) -> str:
+    urls_block = "\n".join(f"- {u}" for u in img_urls) or "（无）"
+    return (
+        "下面是从该文档抽取的 Markdown，正文与标题已可靠提取，你无需重复输出正文。\n"
+        f"其中有 {n_tables} 个表格，已用 `<!--TBL:n-->` 标注锚点；图片真实 URL 列表如下：\n"
+        f"{urls_block}\n\n"
+        "请结合随附的原始文件做视觉理解，只输出补丁 JSON（不要输出正文）：\n"
+        "- tables：对每个锚点给出视觉校对后的规范 Markdown 表格，anchor 用对应数字；\n"
+        "- images：对每个 URL 判定 chart/figure，chart 给 table_markdown，figure 给 caption；\n"
+        "- URL 必须逐字使用上面列表中的原值，严禁改写或臆造。\n\n"
+        "已抽取 Markdown：\n" + anchored_md
+    )
+
+
+async def _run_understand_full(
+    vision_part: dict, base_md: str, model: str, request_id: str
+) -> Tuple[str, bool, List[str]]:
+    """整篇重写模式：Gemini 输出完整增强 Markdown。"""
+    warns: List[str] = []
+    user_text = (
+        "以下是从该文档已抽取的 Markdown（含真实图片 URL 与初步内容），"
+        "请结合随附的原始文件进行多模态增强后，输出最终 Markdown：\n\n" + base_md
+    )
+    contents = [{"role": "user", "parts": [vision_part, {"text": user_text}]}]
+    data = await gvc.generate_content(
+        model=model,
+        contents=contents,
+        generation_config=_generation_config(model, patch=False),
+        system_instruction=_SYSTEM_PROMPT_FULL,
+        location=_settings.FILE_UNDERSTAND_LOCATION,
+        timeout_sec=_settings.FILE_UNDERSTAND_TIMEOUT_SEC,
+        max_locations=_settings.FILE_UNDERSTAND_MAX_REGIONS,
+        request_id=request_id,
+    )
+    enriched = gvc.extract_text(data).strip()
+    if not enriched:
+        return base_md, False, ["Gemini 未返回有效内容，降级为基础解析结果。"]
+    finish = gvc.finish_reason(data)
+    if finish and finish not in ("STOP", "MAX_TOKENS"):
+        warns.append(f"Gemini finishReason={finish}")
+    return enriched, True, warns
+
+
+async def _run_understand_patch(
+    vision_part: dict, base_md: str, model: str, request_id: str
+) -> Tuple[str, bool, List[str]]:
+    """仅补丁模式：Gemini 只产表格校对/图表转表/图片描述补丁，本地合并 base_md。"""
+    warns: List[str] = []
+    anchored_md, n_tables = _anchor_tables(base_md)
+    img_urls = list(dict.fromkeys(_IMG_MD_RE.findall(base_md)))
+    contents = [
+        {
+            "role": "user",
+            "parts": [vision_part, {"text": _build_patch_user_text(anchored_md, n_tables, img_urls)}],
+        }
+    ]
+    data = await gvc.generate_content(
+        model=model,
+        contents=contents,
+        generation_config=_generation_config(model, patch=True),
+        system_instruction=_SYSTEM_PROMPT_PATCH,
+        location=_settings.FILE_UNDERSTAND_LOCATION,
+        timeout_sec=_settings.FILE_UNDERSTAND_TIMEOUT_SEC,
+        max_locations=_settings.FILE_UNDERSTAND_MAX_REGIONS,
+        request_id=request_id,
+    )
+    raw = gvc.extract_text(data).strip()
+    if not raw:
+        return base_md, False, ["Gemini 未返回有效内容，降级为基础解析结果。"]
+    try:
+        patches = json.loads(raw)
+    except Exception as e:  # noqa: BLE001
+        return base_md, False, [f"补丁 JSON 解析失败，降级为基础解析：{e}"]
+    enriched, stats = _apply_patches(anchored_md, patches)
+    finish = gvc.finish_reason(data)
+    if finish and finish not in ("STOP", "MAX_TOKENS"):
+        warns.append(f"Gemini finishReason={finish}")
+    warns.append(
+        f"补丁合并：表格 {stats['tables']}、图表转表 {stats['charts']}、图片描述 {stats['figures']}。"
+    )
+    return enriched, True, warns
+
+
 def _truncate(text: str, max_chars: int) -> Tuple[str, bool]:
     if len(text) <= max_chars:
         return text, False
@@ -302,35 +543,16 @@ async def understand_file_payload(
                 warnings.append(skip_reason)
         else:
             model_used = _resolve_model(options)
-            user_text = (
-                "以下是从该文档已抽取的 Markdown（含真实图片 URL 与初步内容），"
-                "请结合随附的原始文件进行多模态增强后，输出最终 Markdown：\n\n" + base_md
+            runner = (
+                _run_understand_patch
+                if _settings.FILE_UNDERSTAND_PATCH_MODE
+                else _run_understand_full
             )
-            contents = [
-                {
-                    "role": "user",
-                    "parts": [vision_part, {"text": user_text}],
-                }
-            ]
             try:
-                data = await gvc.generate_content(
-                    model=model_used,
-                    contents=contents,
-                    generation_config=_generation_config(model_used),
-                    system_instruction=_SYSTEM_PROMPT,
-                    location=_settings.FILE_UNDERSTAND_LOCATION,
-                    timeout_sec=_settings.FILE_UNDERSTAND_TIMEOUT_SEC,
-                    request_id=request_id,
+                enriched, understanding_applied, w = await runner(
+                    vision_part, base_md, model_used, request_id
                 )
-                enriched = gvc.extract_text(data).strip()
-                if not enriched:
-                    enriched = base_md
-                    warnings.append("Gemini 未返回有效内容，降级为基础解析结果。")
-                else:
-                    understanding_applied = True
-                    finish = gvc.finish_reason(data)
-                    if finish and finish not in ("STOP", "MAX_TOKENS"):
-                        warnings.append(f"Gemini finishReason={finish}")
+                warnings.extend(w)
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"[{request_id}] Gemini 理解失败，降级为基础解析: {e}")
                 enriched = base_md

@@ -84,11 +84,14 @@ async def generate_content(
     system_instruction: Optional[str] = None,
     location: Optional[str] = None,
     timeout_sec: float = 300.0,
+    max_locations: Optional[int] = None,
     request_id: str = "-",
 ) -> Dict[str, Any]:
     """调用 Vertex generateContent，返回原始 JSON。
 
     contents: 形如 ``[{"role": "user", "parts": [...]}]``。
+    max_locations: 最多尝试的区域数（截断 _locations_to_try 结果）。用于限制总等待时间，
+    避免区域轮询把偶发慢/限流放大成 区域数×timeout_sec 的超长阻塞。
     """
     body: Dict[str, Any] = {"contents": contents}
     if generation_config:
@@ -106,6 +109,8 @@ async def generate_content(
 
     last_exc: Optional[BaseException] = None
     locations = _locations_to_try(location)
+    if max_locations and max_locations > 0:
+        locations = locations[:max_locations]
     for attempt, loc in enumerate(locations):
         endpoint = _VERTEX_ENDPOINT_TEMPLATE.format(
             project=GOOGLE_PROJECT_ID, location=loc, model=model
