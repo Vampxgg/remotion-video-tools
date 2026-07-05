@@ -635,6 +635,16 @@ class ZhaopinSearchClient:
                 )
                 if jobs:
                     return jobs
+                # 直连返回空要区分两种情况：
+                # 1) 正常翻到底（isEndPage=1 且非验证码）→ 这不是失败，直接返回空，
+                #    让上层停止翻页并保留前面已抓到的结果，绝不能回退浏览器（既慢又可能撞登录墙）。
+                # 2) 疑似被拦截 / 验证码 / 异常空 → 才回退浏览器兜底。
+                if bool(meta.get("isEndPage")) and not bool(meta.get("isVerification")):
+                    logger.info(
+                        f"直连已到末页(isEndPage=1)，正常结束，不回退: "
+                        f"{keyword}/cityId={city_id} p{page}, meta={meta}"
+                    )
+                    return []
                 logger.warning(
                     f"直连列表为空: {keyword}/cityId={city_id} p{page}, meta={meta}"
                 )
@@ -725,9 +735,21 @@ class ZhaopinSearchClient:
 
         for page_num in range(1, max_pages + 1):
             t0 = time.monotonic()
-            raw_list = await self.search_positions(
-                keyword, city_id, page=page_num
-            )
+            try:
+                raw_list = await self.search_positions(
+                    keyword, city_id, page=page_num
+                )
+            except Exception as exc:
+                # 页级容错：某页抓取失败时，若前面已抓到数据则停止翻页并保留已有结果，
+                # 不让单页异常吞掉整组已成功的数据；仅当第一页就失败（毫无数据）时才向上
+                # 抛出，交由 scrape_many 计入 failed_combinations，保留「全部失败」信号。
+                if all_jobs:
+                    logger.warning(
+                        f"[v2] {keyword}|{province} p{page_num} 列表获取失败，"
+                        f"停止翻页并保留已抓 {len(all_jobs)} 条: {exc}"
+                    )
+                    break
+                raise
             pages_fetched += 1
             cost = round(time.monotonic() - t0, 2)
             logger.info(

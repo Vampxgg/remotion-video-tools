@@ -14,7 +14,11 @@ BOSS 直聘职位采集客户端。
 
 import asyncio
 import json
+import queue
+import re
+import threading
 import time
+from datetime import datetime
 from random import uniform
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
@@ -34,6 +38,70 @@ DETAIL_API_URL = "https://www.zhipin.com/wapi/zpgeek/job/detail.json"
 # BOSS 反爬：环境异常错误码，表示 __zp_stoken__ 失效，需要刷新 cookie。
 _BOSS_ENV_ERROR_CODE = 37
 
+# 命中访问受限 / IP 异常 / 验证码等风控拦截页的文本特征。
+_ACCESS_LIMITED_MARKERS = (
+    "访问受限",
+    "存在异常行为",
+    "IP 存在异常",
+    "IP存在异常",
+    "请勿频繁",
+    "恢复正常",
+    "验证码",
+    "人机验证",
+)
+
+
+class BossAccessLimitedError(RuntimeError):
+    """BOSS 访问受限 / IP 异常 / 验证码 / 连续 code=37 等风控信号。
+
+    这是**非重试型**错误：立即重试或换请求只会加重风控。调用方应据此熔断一段时间。
+    ``retry_after_seconds`` 来自风控页「将于 X 恢复正常」提示（可能为空）；
+    ``raw_hint`` 是脱敏后的提示摘要（已抹去 IP），仅供排查。
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        retry_after_seconds: Optional[int] = None,
+        raw_hint: Optional[str] = None,
+    ) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+        self.raw_hint = raw_hint
+
+
+def _looks_access_limited(text: Optional[str]) -> bool:
+    if not text:
+        return False
+    return any(marker in text for marker in _ACCESS_LIMITED_MARKERS)
+
+
+def _parse_recovery_seconds(text: Optional[str]) -> Optional[int]:
+    """从「将于 2026-07-02 19:00 恢复正常」解析距恢复的秒数。"""
+    if not text:
+        return None
+    match = re.search(r"将于\s*([\d\-:\s]+?)\s*恢复", text)
+    if not match:
+        return None
+    raw = match.group(1).strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            recover_at = datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+        delta = (recover_at - datetime.now()).total_seconds()
+        if delta > 0:
+            return int(delta)
+    return None
+
+
+def _sanitize_hint(text: Optional[str]) -> Optional[str]:
+    if not text:
+        return None
+    scrubbed = re.sub(r"\d+\.\d+\.\d+\.\d+", "<ip>", text)
+    return scrubbed.strip()[:200]
+
 
 class _DirectBossSession:
     """BOSS 直连会话：用浏览器 tab 铸造 cookie，用 httpx 调官方接口。
@@ -42,9 +110,12 @@ class _DirectBossSession:
     ``BOSS_ZHIPIN_DIRECT_BUDGET_PER_TOKEN`` 次成功调用，耗尽后自动刷新。
     """
 
-    def __init__(self, tab, http: httpx.Client) -> None:
+    def __init__(self, tab, http: httpx.Client, tab_lock=None) -> None:
         self._tab = tab
         self._http = http
+        # 共享浏览器 tab 的可重入锁：并发>1 时保证同一时刻只有一个会话在导航 tab
+        # 铸造 cookie（tab 非线程安全）。并发=1 时该锁始终空闲，行为与历史一致。
+        self._tab_lock = tab_lock or threading.RLock()
         self._ua: Optional[str] = None
         self._budget = 0
         self._refresh_count = 0
@@ -57,21 +128,31 @@ class _DirectBossSession:
     def tab(self):
         return self._tab
 
-    def _refresh_cookies(self) -> None:
-        """导航 BOSS 搜索页，铸造新的 __zp_stoken__ 并写入 httpx client。"""
-        self._tab.get(
-            f"{SEARCH_PAGE_URL}?{urlencode({'query': 'Java', 'city': 101280600})}"
-        )
-        time.sleep(_settings.BOSS_ZHIPIN_DIRECT_COOKIE_WAIT_SEC)
-        raw = self._tab.cookies(all_domains=True)
-        try:
-            cookies = raw.as_dict()
-        except Exception:
-            cookies = {c.get("name"): c.get("value") for c in raw}
-        if "__zp_stoken__" not in cookies:
-            raise RuntimeError("刷新 cookie 后仍缺少 __zp_stoken__，疑似未登录或被风控")
-        self._ua = self._tab.run_js("return navigator.userAgent;")
+    def _refresh_cookies(self, force: bool = False) -> None:
+        """导航 BOSS 搜索页，铸造新的 __zp_stoken__ 并写入 httpx client。
+
+        并发>1 时用共享 ``tab_lock`` 串行化 tab 导航；进锁后若发现配额已被其它
+        会话恰好刷新（且非 force），直接跳过，避免重复导航空耗 tab。
+        """
+        with self._tab_lock:
+            if not force and self._budget > 0:
+                return
+            self._tab.get(
+                f"{SEARCH_PAGE_URL}?{urlencode({'query': 'Java', 'city': 101280600})}"
+            )
+            time.sleep(_settings.BOSS_ZHIPIN_DIRECT_COOKIE_WAIT_SEC)
+            raw = self._tab.cookies(all_domains=True)
+            try:
+                cookies = raw.as_dict()
+            except Exception:
+                cookies = {c.get("name"): c.get("value") for c in raw}
+            if "__zp_stoken__" not in cookies:
+                raise BossAccessLimitedError(
+                    "刷新 cookie 后仍缺少 __zp_stoken__，疑似未登录或被风控"
+                )
+            self._ua = self._tab.run_js("return navigator.userAgent;")
         # httpx Client 的 cookie jar 是累积的，先清空避免旧 stoken 残留覆盖。
+        # 每个会话有独立 http client/jar，无需担心跨会话污染。
         self._http.cookies.clear()
         for name, value in cookies.items():
             self._http.cookies.set(name, value, domain=".zhipin.com")
@@ -94,9 +175,15 @@ class _DirectBossSession:
         try:
             body = resp.json()
         except Exception as exc:
-            preview = (resp.text or "")[:200]
+            preview = (resp.text or "")[:500]
+            if _looks_access_limited(preview) or resp.status_code in (403, 412, 429):
+                raise BossAccessLimitedError(
+                    f"BOSS 访问受限（非 JSON 风控页）: status={resp.status_code}",
+                    retry_after_seconds=_parse_recovery_seconds(preview),
+                    raw_hint=_sanitize_hint(preview),
+                ) from exc
             raise RuntimeError(
-                f"BOSS 直连返回非 JSON: status={resp.status_code}, preview={preview!r}"
+                f"BOSS 直连返回非 JSON: status={resp.status_code}, preview={preview[:200]!r}"
             ) from exc
         if not isinstance(body, dict):
             raise RuntimeError(f"BOSS 直连返回非对象: type={type(body).__name__}")
@@ -110,20 +197,30 @@ class _DirectBossSession:
         body = self._raw_get(url, params, referer)
         if body.get("code") == _BOSS_ENV_ERROR_CODE:
             logger.info("BOSS 直连命中 code=37（token 失效），刷新 cookie 后重试一次")
-            self._refresh_cookies()
+            self._refresh_cookies(force=True)
             body = self._raw_get(url, params, referer)
+            if body.get("code") == _BOSS_ENV_ERROR_CODE:
+                raise BossAccessLimitedError(
+                    "BOSS 连续返回 code=37（环境异常/风控），已停止重试"
+                )
 
         if body.get("code") == 0:
             self._budget -= 1
         return body
 
-    def fetch_list(self, keyword: str, city_code: int, page_num: int) -> Dict[str, Any]:
+    def fetch_list(
+        self,
+        keyword: str,
+        city_code: int,
+        page_num: int,
+        page_size: Optional[int] = None,
+    ) -> Dict[str, Any]:
         params = {
             "scene": 1,
             "query": keyword,
             "city": city_code,
             "page": page_num,
-            "pageSize": 30,
+            "pageSize": page_size or _settings.BOSS_ZHIPIN_DIRECT_PAGE_SIZE,
         }
         referer = (
             f"{SEARCH_PAGE_URL}?{urlencode({'query': keyword, 'city': city_code})}"
@@ -155,14 +252,35 @@ class BossZhipinClient:
 
     浏览器 tab、httpx client、直连会话都是持久化复用的：首次调用时惰性创建，
     之后跨多次 ``scrape_many`` 复用，省掉每次建/关 tab 的开销；tab 失效时
-    自动重建。所有浏览器操作由 ``self._lock`` 串行化。
+    自动重建。
+
+    并发模型（``BOSS_ZHIPIN_MAX_CONCURRENCY``）：默认 1=严格串行（历史行为）。
+    >1 时 ``scrape_many`` 由 ``self._sema`` 放行 N 个并发，每个并发槽从会话池借一个
+    独立会话（独立 httpx client + 独立 __zp_stoken__ 配额）跑直连 API；唯一共享的
+    浏览器 tab（铸造 cookie / 浏览器回退）由可重入的 ``self._tab_lock`` 串行化。
+
+    并发硬上限 = 2（实测结论，勿调高）：单浏览器 profile 的 cookie 是浏览器级共享的，
+    多个并发会话铸造的 ``__zp_stoken__`` 会互相挤失效（N=2 真实 50 详情实测每 unit 铸
+    ~18 次 token，远超 BUDGET_PER_TOKEN=5，靠 code=37 自动重铸兜住）。N=3 时 stoken
+    交叉失效的 churn 超过自愈能力，直连列表连续失败 → 回退单 tab 的浏览器 listen 拦截
+    → 3 并发争用同一 tab 全部超时，整 unit 报错。要突破 2 只能上「N 个独立 Chrome
+    实例（独立 profile + 各自登录）」，代价与风控面都不值。故本客户端并发上限锁定 2。
     """
 
     def __init__(self) -> None:
+        # 并发闸门：默认 1=严格串行（历史行为）。>1 时允许 N 个 scrape 并发。
+        self._sema = asyncio.Semaphore(
+            max(1, int(_settings.BOSS_ZHIPIN_MAX_CONCURRENCY))
+        )
+        # 仅 shutdown 使用；scrape 的并发由 _sema 控制。
         self._lock = asyncio.Lock()
+        # 共享浏览器 tab 的可重入锁（worker 线程内使用）。
+        self._tab_lock = threading.RLock()
         self._page = None
-        self._http: Optional[httpx.Client] = None
-        self._session: Optional[_DirectBossSession] = None
+        # 每个并发槽独立的 httpx client + 直连会话，避免共享 cookie jar 相互污染。
+        self._http_clients: List[httpx.Client] = []
+        self._session_pool: Optional["queue.Queue[_DirectBossSession]"] = None
+        self._pool_size = 0
 
     async def scrape_many(
         self,
@@ -172,9 +290,19 @@ class BossZhipinClient:
         max_items_per_query: Optional[int],
         include_raw: bool,
         include_description: bool,
+        start_page: int = 1,
+        page_size: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """串行采集多个关键词和城市组合。"""
-        async with self._lock:
+        """串行采集多个关键词和城市组合。
+
+        ``start_page`` 为翻页游标起始页（默认 1）：上层应用（data_server）按 unit 记录
+        ``next_page``，每轮从上次的下一页继续，配合 summary 里返回的
+        ``next_page`` / ``has_more`` / ``total_count`` 实现多轮精确累积。
+
+        ``page_size`` 覆盖单页条数（默认走 settings）：逐条详情累积时用较小页保证单轮
+        时间可控；summary 快路径不传，沿用默认页大小，外部 workflow 行为不变。
+        """
+        async with self._sema:
             return await asyncio.to_thread(
                 self._scrape_many_sync,
                 keywords,
@@ -183,6 +311,8 @@ class BossZhipinClient:
                 max_items_per_query,
                 include_raw,
                 include_description,
+                start_page,
+                page_size,
             )
 
     async def shutdown(self) -> None:
@@ -202,43 +332,66 @@ class BossZhipinClient:
             return False
 
     def _ensure_resources(self, direct_enabled: bool) -> None:
-        """惰性创建/复用持久化 tab、httpx client、直连会话；tab 失效则重建。"""
-        if not self._page_alive():
-            self._close_page()
-            from DrissionPage import ChromiumPage
+        """惰性创建/复用持久化 tab + 直连会话池；tab 失效或并发数变化则重建。
 
-            logger.info("BOSS 持久化 tab 初始化 …")
-            self._page = ChromiumPage(
-                _settings.BOSS_ZHIPIN_BROWSER_HOST_PORT
-            ).new_tab()
-            # tab 重建后旧会话失效，强制重建以绑定新 tab。
-            self._session = None
+        用 ``_tab_lock``（可重入）串行化资源创建：并发>1 时多个 worker 线程会同时
+        进入此方法，锁保证只建一次 tab / 一份会话池。
+        """
+        with self._tab_lock:
+            if not self._page_alive():
+                self._close_page_locked()
+                from DrissionPage import ChromiumPage
 
-        if direct_enabled:
-            if self._http is None:
-                self._http = httpx.Client(
-                    timeout=_settings.BOSS_ZHIPIN_DIRECT_HTTP_TIMEOUT
-                )
-            if self._session is None or self._session.tab is not self._page:
-                self._session = _DirectBossSession(self._page, self._http)
+                logger.info("BOSS 持久化 tab 初始化 …")
+                self._page = ChromiumPage(
+                    _settings.BOSS_ZHIPIN_BROWSER_HOST_PORT
+                ).new_tab()
+                # tab 重建后旧会话池作废，强制重建以绑定新 tab。
+                self._drain_pool_locked()
+
+            if direct_enabled:
+                concurrency = max(1, int(_settings.BOSS_ZHIPIN_MAX_CONCURRENCY))
+                if self._session_pool is None or self._pool_size != concurrency:
+                    self._build_pool_locked(concurrency)
+
+    def _build_pool_locked(self, concurrency: int) -> None:
+        """（持有 tab_lock 时调用）为每个并发槽建独立 httpx client + 会话。"""
+        self._drain_pool_locked()
+        pool: "queue.Queue[_DirectBossSession]" = queue.Queue()
+        for _ in range(concurrency):
+            http = httpx.Client(timeout=_settings.BOSS_ZHIPIN_DIRECT_HTTP_TIMEOUT)
+            self._http_clients.append(http)
+            pool.put(_DirectBossSession(self._page, http, self._tab_lock))
+        self._session_pool = pool
+        self._pool_size = concurrency
+        logger.info("BOSS 直连会话池就绪：并发槽=%s", concurrency)
+
+    def _drain_pool_locked(self) -> None:
+        """（持有 tab_lock 时调用）关闭并清空会话池与其 httpx client。"""
+        for http in self._http_clients:
+            try:
+                http.close()
+            except Exception as exc:
+                logger.debug(f"关闭 BOSS httpx client 失败: {exc}")
+        self._http_clients = []
+        self._session_pool = None
+        self._pool_size = 0
 
     def _close_page(self) -> None:
+        with self._tab_lock:
+            self._close_page_locked()
+
+    def _close_page_locked(self) -> None:
         if self._page is not None:
             try:
                 self._page.close()
             except Exception as exc:
                 logger.debug(f"关闭 BOSS 持久化 tab 失败: {exc}")
             self._page = None
-        self._session = None
+        self._drain_pool_locked()
 
     def _shutdown_sync(self) -> None:
         self._close_page()
-        if self._http is not None:
-            try:
-                self._http.close()
-            except Exception as exc:
-                logger.debug(f"关闭 BOSS httpx client 失败: {exc}")
-            self._http = None
         logger.info("BOSS 持久化资源已释放")
 
     def _scrape_many_sync(
@@ -249,11 +402,15 @@ class BossZhipinClient:
         max_items_per_query: Optional[int],
         include_raw: bool,
         include_description: bool,
+        start_page: int = 1,
+        page_size: Optional[int] = None,
     ) -> Dict[str, Any]:
         direct_enabled = _settings.BOSS_ZHIPIN_DIRECT_ENABLED
         self._ensure_resources(direct_enabled)
         page = self._page
-        session = self._session
+        # 从会话池借一个独立会话（并发>1 时每个 worker 各用一个，互不污染 cookie）。
+        pool_local = self._session_pool if direct_enabled else None
+        session = pool_local.get() if pool_local is not None else None
         refreshes_before = session.refresh_count if session is not None else 0
 
         jobs: List[Dict[str, Any]] = []
@@ -261,24 +418,39 @@ class BossZhipinClient:
         warnings: List[str] = []
         combos = 0
         pages_fetched = 0
+        start_page = max(1, int(start_page or 1))
+        # 翻页游标元数据（单 keyword×city 组合时才有明确意义）。
+        total_count: Optional[int] = None
+        res_count: Optional[int] = None
+        any_has_more = False
+        last_page_done = start_page - 1
 
         try:
             for keyword in keywords:
                 for city_code in city_codes:
                     combos += 1
                     query_count = 0
-                    for page_num in range(1, max_pages + 1):
+                    combo_has_more = False
+                    for page_num in range(start_page, start_page + max_pages):
                         body = self._fetch_list(
-                            page, session, keyword, city_code, page_num, warnings
+                            page, session, keyword, city_code, page_num, warnings,
+                            page_size,
                         )
                         zp_data = body.get("zpData") or {}
                         raw_jobs = zp_data.get("jobList") or []
                         pages_fetched += 1
+                        last_page_done = page_num
+                        if zp_data.get("totalCount") is not None:
+                            total_count = zp_data.get("totalCount")
+                        if zp_data.get("resCount") is not None:
+                            res_count = zp_data.get("resCount")
+                        combo_has_more = bool(zp_data.get("hasMore"))
 
                         if not raw_jobs:
                             warnings.append(
                                 f"{keyword}/{city_code}/page={page_num} 未返回职位，停止该组合后续页。"
                             )
+                            combo_has_more = False
                             break
 
                         for raw_job in raw_jobs:
@@ -303,17 +475,25 @@ class BossZhipinClient:
                         if max_items_per_query and query_count >= max_items_per_query:
                             break
 
-                        has_more = bool(zp_data.get("hasMore"))
-                        if not has_more:
+                        if not combo_has_more:
                             break
 
                         self._sleep_between_calls(direct_enabled)
+                    any_has_more = any_has_more or combo_has_more
         except Exception:
             # 仅当 tab 确实失效时才丢弃（下次调用重建）；瞬时错误保留健康 tab 复用。
             if not self._page_alive():
                 self._close_page()
             raise
+        finally:
+            # 归还会话到池（若 tab 已重建导致池被换，归还到旧池无害，旧池会被丢弃）。
+            if session is not None and pool_local is not None:
+                try:
+                    pool_local.put(session)
+                except Exception:
+                    pass
 
+        single_combo = len(keywords) == 1 and len(city_codes) == 1
         summary = {
             "keywords": keywords,
             "city_codes": city_codes,
@@ -325,6 +505,13 @@ class BossZhipinClient:
             "pages_fetched": pages_fetched,
             "total_jobs": len(jobs),
             "mode": "direct" if direct_enabled else "browser",
+            "page_size": page_size or _settings.BOSS_ZHIPIN_DIRECT_PAGE_SIZE,
+            # 翻页游标：next_page 仅在单组合时有明确意义；has_more/total 供上层判界。
+            "start_page": start_page,
+            "next_page": (last_page_done + 1) if single_combo else None,
+            "has_more": any_has_more,
+            "total_count": total_count,
+            "res_count": res_count,
         }
         if session is not None:
             summary["cookie_refreshes"] = session.refresh_count - refreshes_before
@@ -356,11 +543,18 @@ class BossZhipinClient:
         city_code: int,
         page_num: int,
         warnings: List[str],
+        page_size: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """优先直连列表接口，失败时回退浏览器 listen 拦截。"""
+        """优先直连列表接口，失败时回退浏览器 listen 拦截。
+
+        命中风控（``BossAccessLimitedError``）时直接向上抛，不回退浏览器：
+        继续用浏览器导航同一个被封站点只会加重风控。
+        """
         if session is not None:
             try:
-                return session.fetch_list(keyword, city_code, page_num)
+                return session.fetch_list(keyword, city_code, page_num, page_size)
+            except BossAccessLimitedError:
+                raise
             except Exception as exc:
                 msg = (
                     f"{keyword}/{city_code}/page={page_num} 直连失败，"
@@ -393,6 +587,8 @@ class BossZhipinClient:
                 logger.info(
                     "BOSS 直连详情为空，回退浏览器: %s", job.get("detail_url")
                 )
+            except BossAccessLimitedError:
+                raise
             except Exception as exc:
                 logger.warning(
                     "BOSS 直连详情失败，回退浏览器 [%s]: %s",
@@ -405,18 +601,20 @@ class BossZhipinClient:
         url = self._build_search_url(keyword, city_code, page_num)
         logger.info(f"BOSS 搜索: keyword={keyword}, city={city_code}, page={page_num}")
 
-        try:
-            page.listen.clear()
-        except Exception:
-            pass
-        page.listen.start(SEARCH_API_PATTERN)
-        page.get(url)
+        # 浏览器回退：独占共享 tab（并发>1 时避免与其它会话的 tab 操作交叉）。
+        with self._tab_lock:
+            try:
+                page.listen.clear()
+            except Exception:
+                pass
+            page.listen.start(SEARCH_API_PATTERN)
+            page.get(url)
 
-        packet = page.listen.wait(timeout=_settings.BOSS_ZHIPIN_LISTEN_TIMEOUT_SEC)
-        try:
-            page.listen.stop()
-        except Exception:
-            pass
+            packet = page.listen.wait(timeout=_settings.BOSS_ZHIPIN_LISTEN_TIMEOUT_SEC)
+            try:
+                page.listen.stop()
+            except Exception:
+                pass
 
         if not packet or not getattr(packet, "response", None):
             raise RuntimeError(
@@ -477,12 +675,14 @@ class BossZhipinClient:
 
         try:
             logger.info(f"BOSS 详情: {detail_url}")
-            page.get(detail_url)
-            time.sleep(uniform(
-                _settings.BOSS_ZHIPIN_DETAIL_MIN_DELAY_SEC,
-                _settings.BOSS_ZHIPIN_DETAIL_MAX_DELAY_SEC,
-            ))
-            description = self._extract_detail_text(page)
+            # 浏览器回退：独占共享 tab，导航 + DOM 提取全程串行。
+            with self._tab_lock:
+                page.get(detail_url)
+                time.sleep(uniform(
+                    _settings.BOSS_ZHIPIN_DETAIL_MIN_DELAY_SEC,
+                    _settings.BOSS_ZHIPIN_DETAIL_MAX_DELAY_SEC,
+                ))
+                description = self._extract_detail_text(page)
             job["job_description"] = description
             parts = self._split_description(description)
             job["responsibilities"] = parts.get("responsibilities")

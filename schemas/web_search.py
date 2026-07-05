@@ -129,10 +129,41 @@ class TavilyOverrides(BaseModel):
 
 class SearchAPIGoogleOverrides(BaseModel):
     """SearchAPI Google 独有能力。直通到 GET /api/v1/search?engine=google 同名 query 参数。"""
+    engine: Optional[
+        Literal[
+            "google",
+            "google_light",
+            "google_news",
+            "google_news_light",
+            "duckduckgo",
+            "duckduckgo_light",
+            "bing",
+        ]
+    ] = Field(
+        None,
+        description=(
+            "SearchAPI engine；默认 google。政策补漏可按需使用 google_news；"
+            "路径级 site: 检索推荐 duckduckgo（对 gov.cn 子路径召回稳定）。"
+        ),
+    )
     device: Optional[Literal["desktop", "mobile", "tablet"]] = None
     location: Optional[str] = None
     uule: Optional[str] = None
     nfpr: Optional[bool] = None
+    filter: Optional[Literal[0, 1]] = Field(
+        None, description="Google duplicate/host crowding filter；1=启用，0=关闭",
+    )
+    lr: Optional[str] = Field(None, description="按文档语言过滤，如 lang_zh-CN / lang_en")
+    time_period: Optional[str] = Field(
+        None,
+        description="SearchAPI 原生时间窗，如 last_day / last_week / last_month / last_year",
+    )
+    time_period_min: Optional[str] = Field(
+        None, description="SearchAPI 原生起始日期，MM/DD/YYYY",
+    )
+    time_period_max: Optional[str] = Field(
+        None, description="SearchAPI 原生结束日期，MM/DD/YYYY",
+    )
     verbatim: Optional[bool] = None
     optimization_strategy: Optional[Literal["performance", "ads"]] = None
     page: Optional[int] = Field(None, ge=1, le=10, description="分页（Google 锁 num=10）")
@@ -243,6 +274,49 @@ class WebFetchRequest(BaseModel):
         False,
         description="是否在 data.meta.request 返回规范化后的请求回显（仅调试/审计）",
     )
+
+
+class TavilyExtractRequest(BaseModel):
+    urls: List[HttpUrl] = Field(..., min_length=1, max_length=20, description="待抽取 URL（≤20）")
+    extract_depth: Literal["basic", "advanced"] = "basic"
+    format: Literal["markdown", "text"] = "markdown"
+    include_images: bool = False
+    include_favicon: bool = False
+    timeout: Optional[float] = Field(None, ge=1.0, le=60.0)
+    query: Optional[str] = Field(None, max_length=500, description="query-focused extraction 的重排意图")
+    chunks_per_source: Optional[int] = Field(None, ge=1, le=5)
+    include_usage: bool = True
+    include_request_echo: bool = False
+
+
+class TavilyCrawlRequest(BaseModel):
+    url: HttpUrl
+    instructions: Optional[str] = Field(None, max_length=1000)
+    max_depth: int = Field(1, ge=1, le=5)
+    max_breadth: int = Field(20, ge=1, le=500)
+    limit: int = Field(10, ge=1, le=200)
+    select_paths: List[str] = Field(default_factory=list, max_length=50)
+    exclude_paths: List[str] = Field(default_factory=list, max_length=50)
+    allow_external: bool = False
+    extract_depth: Literal["basic", "advanced"] = "basic"
+    format: Literal["markdown", "text"] = "markdown"
+    timeout: Optional[float] = Field(None, ge=10.0, le=150.0)
+    chunks_per_source: Optional[int] = Field(None, ge=1, le=5)
+    include_usage: bool = True
+    include_request_echo: bool = False
+
+
+class TavilyMapRequest(BaseModel):
+    url: HttpUrl
+    instructions: Optional[str] = Field(None, max_length=1000)
+    max_depth: int = Field(1, ge=1, le=5)
+    max_breadth: int = Field(20, ge=1, le=500)
+    limit: int = Field(50, ge=1, le=500)
+    select_paths: List[str] = Field(default_factory=list, max_length=50)
+    exclude_paths: List[str] = Field(default_factory=list, max_length=50)
+    allow_external: bool = False
+    include_usage: bool = True
+    include_request_echo: bool = False
 
 
 # =====================================================================

@@ -12,6 +12,8 @@
 from datetime import datetime
 from typing import Any, Optional
 
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -49,4 +51,34 @@ def create_standard_response(
     return JSONResponse(status_code=code, content=content)
 
 
-__all__ = ["StandardResponse", "create_standard_response"]
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """把 FastAPI 默认的 422 校验错误统一成标准信封。
+
+    - 保留 HTTP 422（4xx 语义），使按 ``status_code`` 判断参数错误的调用方
+      （如 Dify workflow 的 response_envelope 节点）无需改动。
+    - body 从默认的 ``{"detail": [...]}`` 收敛为 ``{code, message, data:{errors:[...]}, timestamp}``，
+      让调用方对成功和失败都用同一套信封解析。
+    """
+    errors = [
+        {
+            "loc": [str(item) for item in err.get("loc", [])],
+            "msg": err.get("msg"),
+            "type": err.get("type"),
+        }
+        for err in exc.errors()
+    ]
+    return create_standard_response(
+        code=422,
+        message="请求参数错误",
+        data={"errors": errors},
+    )
+
+
+__all__ = [
+    "StandardResponse",
+    "create_standard_response",
+    "validation_exception_handler",
+]

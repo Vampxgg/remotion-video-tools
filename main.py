@@ -10,6 +10,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
     job_search, job_search_v2, boss_zhipin, jobs_region, fish_asr, fenbi_gateway, video_compress, gemini_live, \
@@ -148,6 +149,12 @@ app.add_middleware(
     allow_methods=settings.CORS_ALLOW_METHODS,
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
+
+# 请求体校验失败统一走标准信封（保留 HTTP 422），避免调用方同时兼容
+# FastAPI 默认 {detail:[...]} 和业务 {code,message,data} 两套格式。
+from utils.responses import validation_exception_handler  # noqa: E402
+
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 # app.include_router(process_uploads.router)
 # app.include_router(Online_search.router, prefix="/api", tags=["Source Parser"])

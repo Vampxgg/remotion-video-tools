@@ -39,12 +39,28 @@ from utils.settings import settings as _settings
 logger = logging.getLogger(__name__)
 
 
+# Google 系引擎的时间窗词表
 _TIME_RANGE_TO_PERIOD = {
     WebSearchTimeRange.DAY: "last_day",
     WebSearchTimeRange.WEEK: "last_week",
     WebSearchTimeRange.MONTH: "last_month",
     WebSearchTimeRange.YEAR: "last_year",
 }
+
+# DuckDuckGo 引擎用的是 past_* 词表，与 Google 的 last_* 不同；用错会静默失效
+_TIME_RANGE_TO_PERIOD_DDG = {
+    WebSearchTimeRange.DAY: "past_day",
+    WebSearchTimeRange.WEEK: "past_week",
+    WebSearchTimeRange.MONTH: "past_month",
+    WebSearchTimeRange.YEAR: "past_year",
+}
+
+
+def _period_map_for_engine(engine: str) -> dict:
+    """按 engine 选择 time_range -> time_period 词表。"""
+    if engine.startswith("duckduckgo"):
+        return _TIME_RANGE_TO_PERIOD_DDG
+    return _TIME_RANGE_TO_PERIOD
 
 
 class SearchAPIGoogleProvider(BaseSearchProvider):
@@ -165,18 +181,26 @@ def _build_params(
 ) -> Dict[str, Any]:
     q = _decorate_query(common)
 
+    engine = overrides.engine if overrides and overrides.engine else "google"
     params: Dict[str, Any] = {
-        "engine": "google",
+        "engine": engine,
         "q": q,
         "safe": "active" if common.safe_search else "off",
     }
 
-    # 时间窗
-    if common.start_date and common.end_date:
+    # 时间窗（按 engine 选择 last_* / past_* 词表）
+    if overrides and (overrides.time_period or overrides.time_period_min or overrides.time_period_max):
+        if overrides.time_period:
+            params["time_period"] = overrides.time_period
+        if overrides.time_period_min:
+            params["time_period_min"] = overrides.time_period_min
+        if overrides.time_period_max:
+            params["time_period_max"] = overrides.time_period_max
+    elif common.start_date and common.end_date:
         params["time_period_min"] = _to_mdy(common.start_date)
         params["time_period_max"] = _to_mdy(common.end_date)
     else:
-        period = _TIME_RANGE_TO_PERIOD.get(common.time_range)
+        period = _period_map_for_engine(engine).get(common.time_range)
         if period:
             params["time_period"] = period
 

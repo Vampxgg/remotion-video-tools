@@ -25,6 +25,9 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from schemas.web_search import (
+    TavilyCrawlRequest,
+    TavilyExtractRequest,
+    TavilyMapRequest,
     WebFetchRequest,
     WebSearchAndFetchRequest,
     WebSearchRequest,
@@ -267,6 +270,53 @@ def _add_fetch_meta(
 ) -> None:
     if payload.include_request_echo:
         data["meta"] = {"request": _request_echo_for_fetch(payload, url_strs)}
+
+
+def _tavily_headers() -> Dict[str, str]:
+    return {
+        "Authorization": f"Bearer {_settings.TAVILY_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+
+async def _post_tavily_endpoint(
+    endpoint: str,
+    payload: Dict[str, Any],
+    *,
+    timeout_sec: float,
+) -> Tuple[Dict[str, Any] | None, int, str]:
+    if not _settings.TAVILY_API_KEY:
+        return None, 422, "provider_unconfigured: TAVILY_API_KEY 未配置"
+    url = f"{_settings.WEB_SEARCH_TAVILY_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+    try:
+        resp = await asyncio.wait_for(
+            _get_client().post(url, json=payload, headers=_tavily_headers()),
+            timeout=timeout_sec,
+        )
+    except asyncio.TimeoutError:
+        return None, 504, f"tavily_{endpoint}_timeout: 调用超过 {timeout_sec:g}s"
+    except httpx.HTTPError as exc:
+        return None, 502, f"tavily_{endpoint}_network: {type(exc).__name__}: {exc}"
+    try:
+        data = resp.json()
+    except Exception:
+        data = {"raw_text": resp.text[:2000]}
+    if resp.status_code != 200:
+        return data if isinstance(data, dict) else {"raw": data}, 502, (
+            f"tavily_{endpoint}_failed: HTTP {resp.status_code}"
+        )
+    return data if isinstance(data, dict) else {"raw": data}, 200, f"tavily_{endpoint}_ok"
+
+
+def _dump_tavily_payload(payload) -> Dict[str, Any]:
+    data = payload.model_dump(mode="json", exclude_none=True)
+    data.pop("include_request_echo", None)
+    return data
+
+
+def _add_tavily_echo(data: Dict[str, Any], payload) -> None:
+    if getattr(payload, "include_request_echo", False):
+        data.setdefault("meta", {})["request"] = _dump_tavily_payload(payload)
 
 
 def _normalize_cached_search_data(
@@ -570,3 +620,70 @@ async def web_fetch(payload: WebFetchRequest):
         data=data,
         message=f"web fetch 完成，OK {summary['ok']}/{summary['requested']}",
     )
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Tavily 原生站点能力：/extract /crawl /map
+# ══════════════════════════════════════════════════════════════════════
+
+@router.post(
+    "/web/tavily/extract",
+    summary="Tavily Extract：按 URL 批量抽取正文",
+    description="直连 Tavily /extract，用于已知 URL 的 markdown/text 正文抽取。",
+    dependencies=[Depends(require_api_key("WEB_SEARCH_API_KEY"))],
+)
+async def tavily_extract(payload: TavilyExtractRequest):
+    started = time.monotonic()
+    body = _dump_tavily_payload(payload)
+    data, code, message = await _post_tavily_endpoint(
+        "extract",
+        body,
+        timeout_sec=payload.timeout or _settings.WEB_SEARCH_REQUEST_TIMEOUT_FETCH_SEC,
+    )
+    out = data or {}
+    out.setdefault("provider", {"selected": "tavily", "elapsed_ms": 0})
+    out["provider"]["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+    _add_tavily_echo(out, payload)
+    return create_standard_response(code=code, message=message, data=out)
+
+
+@router.post(
+    "/web/tavily/crawl",
+    summary="Tavily Crawl：站点定向抓取与正文抽取",
+    description="直连 Tavily /crawl，用于权威政策栏目定向抓取。",
+    dependencies=[Depends(require_api_key("WEB_SEARCH_API_KEY"))],
+)
+async def tavily_crawl(payload: TavilyCrawlRequest):
+    started = time.monotonic()
+    body = _dump_tavily_payload(payload)
+    data, code, message = await _post_tavily_endpoint(
+        "crawl",
+        body,
+        timeout_sec=payload.timeout or _settings.WEB_SEARCH_REQUEST_TIMEOUT_TAVILY_SITE_SEC,
+    )
+    out = data or {}
+    out.setdefault("provider", {"selected": "tavily", "elapsed_ms": 0})
+    out["provider"]["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+    _add_tavily_echo(out, payload)
+    return create_standard_response(code=code, message=message, data=out)
+
+
+@router.post(
+    "/web/tavily/map",
+    summary="Tavily Map：站点 URL 发现",
+    description="直连 Tavily /map，用于低成本发现权威政策栏目 URL。",
+    dependencies=[Depends(require_api_key("WEB_SEARCH_API_KEY"))],
+)
+async def tavily_map(payload: TavilyMapRequest):
+    started = time.monotonic()
+    body = _dump_tavily_payload(payload)
+    data, code, message = await _post_tavily_endpoint(
+        "map",
+        body,
+        timeout_sec=_settings.WEB_SEARCH_REQUEST_TIMEOUT_TAVILY_SITE_SEC,
+    )
+    out = data or {}
+    out.setdefault("provider", {"selected": "tavily", "elapsed_ms": 0})
+    out["provider"]["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+    _add_tavily_echo(out, payload)
+    return create_standard_response(code=code, message=message, data=out)

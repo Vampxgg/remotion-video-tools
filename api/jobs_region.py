@@ -3,15 +3,19 @@
 
 import asyncio
 import re
-from datetime import datetime
+import smtplib
+import time
+from datetime import datetime, timedelta
+from email.message import EmailMessage
 from enum import Enum
+from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from api.job_search_v2 import get_search_client as get_zhilian_client
-from services.boss_zhipin_client import get_boss_client
+from services.boss_zhipin_client import BossAccessLimitedError, get_boss_client
 from utils import region_map
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
@@ -22,6 +26,69 @@ logger = setup_module_logger(__name__, "logs/jobs/region_search.log")
 
 router = APIRouter()
 _boss_client = get_boss_client()
+
+
+class _BossCircuitBreaker:
+    """BOSS 来源进程内熔断器。
+
+    命中访问受限 / IP 异常 / 验证码 / 连续 code=37 / 采集超时后短暂拉闸，冷却期内
+    BOSS 请求直接快速返回，不再触碰浏览器和 BOSS 接口，避免越采越封，也给可能仍在
+    运行的旧同步线程留出自然收尾的时间。进程内共享（模块级单例），线程安全。
+    """
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._blocked_until: Optional[datetime] = None
+        self._reason: Optional[str] = None
+
+    def trip(self, *, seconds: int, reason: str) -> None:
+        seconds = max(1, int(seconds))
+        until = datetime.now() + timedelta(seconds=seconds)
+        with self._lock:
+            if self._blocked_until is None or until > self._blocked_until:
+                self._blocked_until = until
+                self._reason = reason
+        logger.warning(
+            "[region-search][boss_zhipin] 熔断开启，冷却 %ss，原因：%s", seconds, reason
+        )
+
+    def state(self) -> Tuple[bool, Optional[str], Optional[int], Optional[str]]:
+        """返回 (是否处于冷却, blocked_until_iso, retry_after_seconds, reason)。"""
+        with self._lock:
+            if self._blocked_until is None:
+                return False, None, None, None
+            now = datetime.now()
+            if now >= self._blocked_until:
+                self._blocked_until = None
+                self._reason = None
+                return False, None, None, None
+            retry_after = int((self._blocked_until - now).total_seconds())
+            return True, self._blocked_until.isoformat(timespec="seconds"), retry_after, self._reason
+
+    def reset(self) -> None:
+        with self._lock:
+            self._blocked_until = None
+            self._reason = None
+
+
+_boss_circuit = _BossCircuitBreaker()
+
+
+# 账户需要登录 / 命中风控时向管理员发提醒邮件的进程内冷却状态（按来源分别冷却）。
+_notify_lock = Lock()
+_last_notify_ts: Dict[str, float] = {}
+
+# 智联采集异常里「账户需登录 / 命中风控」的文本特征；命中才发提醒邮件，
+# 避免为普通瞬时错误（超时/结构异常等）误报打扰管理员。
+_LOGIN_OR_BLOCK_MARKERS = (
+    "登录",
+    "扫码",
+    "验证码",
+    "风控",
+    "访问受限",
+    "人机验证",
+    "受限",
+)
 
 
 class SourceName(str, Enum):
@@ -89,6 +156,22 @@ class QuerySpec(BaseModel):
         description="关键词匹配模式；第一版仅支持 any",
     )
 
+    @field_validator("keywords")
+    @classmethod
+    def _normalize_keywords(cls, value: List[str]) -> List[str]:
+        """逐项 strip、去空、去重（保序）；清洗后为空则视为参数错误。"""
+        cleaned: List[str] = []
+        seen: set[str] = set()
+        for item in value:
+            kw = (item or "").strip()
+            if not kw or kw in seen:
+                continue
+            seen.add(kw)
+            cleaned.append(kw)
+        if not cleaned:
+            raise ValueError("keywords 不能为空（去除空白后无有效关键词）")
+        return cleaned
+
 
 class CollectionOptions(BaseModel):
     max_pages_per_source: int = Field(
@@ -99,7 +182,12 @@ class CollectionOptions(BaseModel):
     max_records_per_source: int = Field(
         20,
         ge=1,
-        description="每个来源最多返回职位数",
+        description="每个来源最多返回职位数（BOSS 逐条详情时另受服务端安全上限约束）",
+    )
+    start_page: int = Field(
+        1,
+        ge=1,
+        description="翻页游标起始页（当前仅 BOSS 生效）；配合响应里的 next_page/has_more 多轮累积",
     )
     detail_level: DetailLevel = Field(
         DetailLevel.SUMMARY,
@@ -152,6 +240,16 @@ class RegionJobSearchPayload(BaseModel):
     collection: CollectionOptions = Field(default_factory=CollectionOptions)
     output: OutputOptions = Field(default_factory=OutputOptions)
 
+    @field_validator("sources")
+    @classmethod
+    def _dedupe_sources(cls, value: List[SourceName]) -> List[SourceName]:
+        """去重并保序，避免重复来源虚增 combinations / 重复采集同一源。"""
+        deduped: List[SourceName] = []
+        for source in value:
+            if source not in deduped:
+                deduped.append(source)
+        return deduped
+
     @model_validator(mode="after")
     def _check_combinations(self):
         combinations = len(self.query.keywords) * len(self.sources)
@@ -173,11 +271,129 @@ class SourceRunResult(BaseModel):
     region_code: Optional[Any] = None
     error: Optional[str] = None
     warnings: List[str] = Field(default_factory=list)
+    # 扩展字段（向后兼容，不替换 ok/error/warnings）：
+    # error_code    机器可读的失败类型（如 boss_access_limited / boss_cooling_down）
+    # retry_after_seconds / blocked_until  BOSS 熔断/风控恢复提示
+    # retryable     该失败是否值得上游自动重试；BOSS 风控/冷却为 False
+    error_code: Optional[str] = None
+    retry_after_seconds: Optional[int] = None
+    blocked_until: Optional[str] = None
+    retryable: bool = True
+    # 翻页游标（当前仅 BOSS 提供）：total=可翻页总数上限，has_more=是否还有下一页，
+    # next_page=下一轮应传的起始页；上层应用据此多轮累积到目标量。
+    total: Optional[int] = None
+    has_more: Optional[bool] = None
+    next_page: Optional[int] = None
 
 
 def _province_for_city(city: Optional[str], province: Optional[str] = None) -> Optional[str]:
     """按城市名查省份；走全量城市表（缺文件时回退种子）。"""
     return region_map.province_for_city(city, province)
+
+
+def _looks_login_or_blocked(text: Optional[str]) -> bool:
+    """判断错误文本是否属于「账户需登录 / 命中风控」，据此决定是否提醒管理员。"""
+    if not text:
+        return False
+    return any(marker in text for marker in _LOGIN_OR_BLOCK_MARKERS)
+
+
+def _notify_admin_source_blocked(
+    source: SourceName,
+    reason: str,
+    *,
+    error_code: str,
+    blocked_until: Optional[str] = None,
+) -> bool:
+    """来源账户需登录 / 命中风控时邮件提醒管理员，保证接口稳定在线。
+
+    复用 JOB_SEARCH_SMTP_* 邮件配置，收件人为 REGION_JOBS_ADMIN_EMAIL；按来源做
+    冷却，避免风控冷却期内对同一来源重复轰炸。SMTP 为阻塞调用，调用方应放到线程执行。
+    """
+    smtp_host = _settings.JOB_SEARCH_SMTP_HOST
+    smtp_username = _settings.JOB_SEARCH_SMTP_USERNAME
+    smtp_password = _settings.JOB_SEARCH_SMTP_PASSWORD
+    smtp_from = _settings.JOB_SEARCH_SMTP_FROM or smtp_username
+    admin_email = _settings.REGION_JOBS_ADMIN_EMAIL
+    if not all([smtp_host, smtp_username, smtp_password, smtp_from, admin_email]):
+        logger.warning(
+            "[region-search] 风控/登录提醒邮件未发送：缺少 JOB_SEARCH_SMTP_HOST / "
+            "JOB_SEARCH_SMTP_USERNAME / JOB_SEARCH_SMTP_PASSWORD / "
+            "JOB_SEARCH_SMTP_FROM / REGION_JOBS_ADMIN_EMAIL 配置。"
+        )
+        return False
+
+    now = time.monotonic()
+    cooldown = max(0, _settings.REGION_JOBS_NOTIFY_COOLDOWN_SEC)
+    with _notify_lock:
+        last = _last_notify_ts.get(source.value, 0.0)
+        if cooldown and now - last < cooldown:
+            logger.info(
+                "[region-search][%s] 风控/登录提醒邮件仍在冷却期内，本次不重复发送。",
+                source.value,
+            )
+            return False
+        _last_notify_ts[source.value] = now
+
+    subject = f"【script_tools】区域岗位接口需处理：{source.value} 需要登录 / 命中风控"
+    lines = [
+        "区域岗位统一搜索接口检测到来源需要人工处理，接口稳定性受影响。",
+        "",
+        f"来源：{source.value}",
+        f"类型：{error_code}",
+        f"原因：{reason}",
+    ]
+    if blocked_until:
+        lines.append(f"预计恢复：{blocked_until}")
+    lines.extend([
+        f"服务地址：{_settings.APP_PUBLIC_BASE_URL}",
+        f"浏览器调试端口：{_settings.JOB_SEARCH_BROWSER_HOST_PORT}",
+        f"触发时间：{datetime.now().isoformat(timespec='seconds')}",
+        "",
+        "处理方式：",
+        "1. 打开正在运行的调试 Chrome 浏览器。",
+        "2. 在对应平台完成扫码 / 短信验证码登录或人机验证。",
+        "3. 处理完成后，熔断冷却结束接口会自动恢复采集。",
+    ])
+    body = "\n".join(lines)
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = smtp_from
+    msg["To"] = admin_email
+    msg.set_content(body)
+
+    try:
+        if _settings.JOB_SEARCH_SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(
+                smtp_host,
+                _settings.JOB_SEARCH_SMTP_PORT,
+                timeout=15,
+            ) as smtp:
+                smtp.login(smtp_username, smtp_password)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(
+                smtp_host,
+                _settings.JOB_SEARCH_SMTP_PORT,
+                timeout=15,
+            ) as smtp:
+                if _settings.JOB_SEARCH_SMTP_STARTTLS:
+                    smtp.starttls()
+                smtp.login(smtp_username, smtp_password)
+                smtp.send_message(msg)
+        logger.info(
+            "[region-search][%s] 已发送风控/登录提醒邮件至 %s。", source.value, admin_email
+        )
+        return True
+    except Exception as exc:
+        logger.error(
+            "[region-search][%s] 发送风控/登录提醒邮件失败: %s",
+            source.value,
+            exc,
+            exc_info=True,
+        )
+        return False
 
 
 @router.post(
@@ -205,25 +421,38 @@ async def search_region_jobs(payload: RegionJobSearchPayload):
         tasks.append(_run_boss(payload))
 
     results = await asyncio.gather(*tasks)
-    if payload.collection.on_source_error == SourceErrorMode.FAIL:
-        failed = [r for r in results if not r.ok]
-        if failed:
-            return create_standard_response(
-                code=503,
-                message="区域岗位来源采集失败",
-                data=_build_response_data(results, payload),
-            )
+    failed = [r for r in results if not r.ok]
+
+    if payload.collection.on_source_error == SourceErrorMode.FAIL and failed:
+        return create_standard_response(
+            code=_failure_status_code(failed),
+            message="区域岗位来源采集失败",
+            data=_build_response_data(results, payload),
+        )
 
     succeeded = [r for r in results if r.ok]
     if not succeeded:
         return create_standard_response(
-            code=503,
+            code=_failure_status_code(failed),
             message="所有区域岗位来源均采集失败",
             data=_build_response_data(results, payload),
         )
 
     data = _build_response_data(results, payload)
     return create_standard_response(data=data, message=f"区域岗位搜索完成，共 {len(data['jobs'])} 条")
+
+
+def _failure_status_code(failed: List["SourceRunResult"]) -> int:
+    """决定「全部/整体失败」时返回的 HTTP 状态码。
+
+    - 只要有一个失败来源是可重试的瞬时错误（超时/上游 5xx 等），返回 503，
+      让调用方按既有重试策略处理。
+    - 若所有失败都是**非重试型**（BOSS 风控/冷却/城市未解析等），返回 409：
+      避免 data_server 的 script_tools client 把它当 503 自动重试而加重风控。
+    """
+    if any(r.retryable for r in failed):
+        return 503
+    return 409
 
 
 async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
@@ -263,15 +492,41 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
             )
             for index, raw in enumerate(limited, start=1)
         ]
+
+        # scrape_many 内部对每个 keyword×city 组合做 try/except，只累计
+        # failed_combinations 而不抛出。这里据此区分「真实无岗位」和「采集异常」，
+        # 避免所有组合都失败时仍被当成成功的空结果返回给调用方。
+        combinations = int(summary.get("combinations") or len(payload.query.keywords))
+        failed_combinations = int(summary.get("failed_combinations") or 0)
+        if combinations and failed_combinations >= combinations and not jobs:
+            error = f"智联全部关键词组合采集失败（{failed_combinations}/{combinations}）"
+            logger.warning(f"[region-search][zhilian] 失败: {error}")
+            return SourceRunResult(
+                source=SourceName.ZHILIAN,
+                ok=False,
+                error=error,
+                error_code="zhilian_all_failed",
+                pages_fetched=int(summary.get("pages_fetched") or 0),
+                queries_attempted=combinations,
+                pages_requested=int(summary.get("pages_requested") or 0),
+                region_code=city_id,
+            )
+
+        warnings = _empty_result_warnings(SourceName.ZHILIAN, jobs)
+        if failed_combinations:
+            warnings.append(
+                f"智联部分关键词组合采集失败（{failed_combinations}/{combinations}），"
+                f"返回结果可能不完整"
+            )
         return SourceRunResult(
             source=SourceName.ZHILIAN,
             ok=True,
             jobs=jobs,
             pages_fetched=int(summary.get("pages_fetched") or 0),
-            queries_attempted=int(summary.get("combinations") or len(payload.query.keywords)),
+            queries_attempted=combinations,
             pages_requested=int(summary.get("pages_requested") or 0),
             region_code=city_id,
-            warnings=_empty_result_warnings(SourceName.ZHILIAN, jobs),
+            warnings=warnings,
         )
     except asyncio.TimeoutError:
         error = f"智联采集超时: {payload.collection.timeout_seconds:g}s"
@@ -283,10 +538,18 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
             pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
             region_code=city_id,
             error=error,
+            error_code="zhilian_timeout",
         )
     except Exception as exc:
         error = _source_error_message(exc, "智联采集异常")
         logger.warning(f"[region-search][zhilian] 失败: {error}", exc_info=True)
+        if _looks_login_or_blocked(error):
+            await asyncio.to_thread(
+                _notify_admin_source_blocked,
+                SourceName.ZHILIAN,
+                error,
+                error_code="zhilian_login_required",
+            )
         return SourceRunResult(
             source=SourceName.ZHILIAN,
             ok=False,
@@ -294,23 +557,71 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
             pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
             region_code=city_id,
             error=error,
+            error_code="zhilian_error",
         )
 
 
 async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
+    pages_requested = len(payload.query.keywords) * payload.collection.max_pages_per_source
     city_code = _resolve_boss_city_code(payload.region)
     if city_code is None:
+        # 城市编码缺失是配置问题，不是瞬时错误 → 非重试
         return SourceRunResult(
             source=SourceName.BOSS_ZHIPIN,
             ok=False,
             error=f"无法解析 BOSS 城市编码: {payload.region.city}",
+            error_code="boss_city_unresolved",
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=pages_requested,
+            retryable=False,
+        )
+
+    # 熔断优先：冷却期内不触碰浏览器 / BOSS 接口
+    is_open, blocked_until, retry_after, reason = _boss_circuit.state()
+    if is_open:
+        logger.info(
+            "[region-search][boss_zhipin] 冷却中，跳过采集（%ss 后恢复）：%s",
+            retry_after,
+            reason,
+        )
+        return SourceRunResult(
+            source=SourceName.BOSS_ZHIPIN,
+            ok=False,
+            error=f"BOSS 冷却中：{reason}",
+            error_code="boss_cooling_down",
+            retry_after_seconds=retry_after,
+            blocked_until=blocked_until,
+            region_code=city_code,
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=pages_requested,
+            retryable=False,
         )
 
     try:
         include_description = payload.collection.detail_level == DetailLevel.DESCRIPTION
+        # BOSS 串行 + 慢节奏：逐条拉详情耗时随记录数线性增长。为保证单轮能在
+        # timeout_seconds 内收尾（超时->熔断反而拿不到数据），当需要详情时对本轮实际
+        # 抓取的记录数做服务端安全上限；调用方仍可要更多，由上层应用分多轮"慢慢"累积。
+        effective_max_records = payload.collection.max_records_per_source
+        boss_detail_cap = _settings.REGION_JOBS_BOSS_MAX_DETAIL_RECORDS
+        capped_warning: Optional[str] = None
+        if include_description and boss_detail_cap > 0 and effective_max_records > boss_detail_cap:
+            capped_warning = (
+                f"BOSS 逐条详情串行慢采，本轮记录数由 {effective_max_records} "
+                f"收敛到服务端安全上限 {boss_detail_cap}，其余请分多轮累积。"
+            )
+            effective_max_records = boss_detail_cap
         max_items_per_query = _per_keyword_record_budget(
-            payload.collection.max_records_per_source,
+            effective_max_records,
             payload.query.keywords,
+        )
+        # 逐条详情累积路径：用较小 pageSize（=本轮每关键词预算，封顶默认页大小）保证
+        # "每轮 1 页带详情"的串行慢采单轮时间可控，并与 next_page 页游标对齐。
+        # summary 快路径不覆盖，沿用默认页大小，外部 workflow 行为不变。
+        boss_page_size = (
+            min(max_items_per_query, _settings.BOSS_ZHIPIN_DIRECT_PAGE_SIZE)
+            if include_description
+            else None
         )
         raw_result = await asyncio.wait_for(
             _boss_client.scrape_many(
@@ -320,13 +631,15 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
                 max_items_per_query,
                 payload.output.include_raw,
                 include_description,
+                payload.collection.start_page,
+                boss_page_size,
             ),
             timeout=payload.collection.timeout_seconds,
         )
         raw_jobs = (raw_result or {}).get("jobs") or []
         limited = _limit_jobs_by_keyword(
             raw_jobs,
-            payload.collection.max_records_per_source,
+            effective_max_records,
             payload.query.keywords,
             keyword_key="keyword",
         )
@@ -336,29 +649,73 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
         ]
         summary = (raw_result or {}).get("summary") or {}
         warnings = (raw_result or {}).get("warnings") or []
+        if capped_warning:
+            warnings.append(capped_warning)
         warnings.extend(_boss_city_hint_warnings(payload.region, city_code))
         warnings.extend(_multi_keyword_page_warnings(summary, payload))
         warnings.extend(_empty_result_warnings(SourceName.BOSS_ZHIPIN, jobs))
+        total_val = summary.get("total_count")
+        if total_val is None:
+            total_val = summary.get("res_count")
         return SourceRunResult(
             source=SourceName.BOSS_ZHIPIN,
             ok=True,
             jobs=jobs,
             pages_fetched=int(summary.get("pages_fetched") or 0),
             queries_attempted=int(summary.get("combinations") or len(payload.query.keywords)),
-            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
+            pages_requested=pages_requested,
             region_code=city_code,
             warnings=warnings,
+            total=int(total_val) if total_val is not None else None,
+            has_more=bool(summary.get("has_more")),
+            next_page=summary.get("next_page"),
         )
-    except asyncio.TimeoutError:
-        error = f"BOSS 采集超时: {payload.collection.timeout_seconds:g}s"
-        logger.warning(f"[region-search][boss_zhipin] 失败: {error}", exc_info=True)
+    except BossAccessLimitedError as exc:
+        # 命中风控 → 拉闸冷却（优先用风控页给出的恢复时间），返回非重试型失败
+        cooldown_sec = exc.retry_after_seconds or _settings.REGION_JOBS_BOSS_COOLDOWN_MINUTES * 60
+        _boss_circuit.trip(seconds=cooldown_sec, reason=str(exc))
+        _, blocked_until, retry_after, _ = _boss_circuit.state()
+        logger.warning("[region-search][boss_zhipin] 访问受限：%s", exc)
+        await asyncio.to_thread(
+            _notify_admin_source_blocked,
+            SourceName.BOSS_ZHIPIN,
+            str(exc),
+            error_code="boss_access_limited",
+            blocked_until=blocked_until,
+        )
         return SourceRunResult(
             source=SourceName.BOSS_ZHIPIN,
             ok=False,
-            queries_attempted=len(payload.query.keywords),
-            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
+            error=str(exc),
+            error_code="boss_access_limited",
+            retry_after_seconds=retry_after,
+            blocked_until=blocked_until,
             region_code=city_code,
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=pages_requested,
+            retryable=False,
+        )
+    except asyncio.TimeoutError:
+        # 超时：底层同步线程可能仍在跑同一个共享 tab / httpx 会话，
+        # 拉闸一小段时间让它自然收尾，避免下个请求进来抢资源。
+        _boss_circuit.trip(
+            seconds=_settings.REGION_JOBS_BOSS_TIMEOUT_COOLDOWN_SEC,
+            reason="BOSS 采集超时，暂停以保护共享浏览器资源",
+        )
+        _, blocked_until, retry_after, _ = _boss_circuit.state()
+        error = f"BOSS 采集超时: {payload.collection.timeout_seconds:g}s"
+        logger.warning(f"[region-search][boss_zhipin] 失败: {error}")
+        return SourceRunResult(
+            source=SourceName.BOSS_ZHIPIN,
+            ok=False,
             error=error,
+            error_code="boss_timeout",
+            retry_after_seconds=retry_after,
+            blocked_until=blocked_until,
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=pages_requested,
+            region_code=city_code,
+            retryable=False,
         )
     except Exception as exc:
         error = _source_error_message(exc, "BOSS 采集异常")
@@ -366,10 +723,11 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
         return SourceRunResult(
             source=SourceName.BOSS_ZHIPIN,
             ok=False,
-            queries_attempted=len(payload.query.keywords),
-            pages_requested=len(payload.query.keywords) * payload.collection.max_pages_per_source,
-            region_code=city_code,
             error=error,
+            error_code="boss_error",
+            queries_attempted=len(payload.query.keywords),
+            pages_requested=pages_requested,
+            region_code=city_code,
         )
 
 
@@ -710,6 +1068,15 @@ def _build_source_status(
             "detail_level_applied": payload.collection.detail_level.value,
             "error": "not_requested",
             "warnings": [],
+            # 扩展字段（向后兼容）：
+            "error_code": None,
+            "retry_after_seconds": None,
+            "blocked_until": None,
+            "retryable": True,
+            # 翻页游标（当前仅 BOSS 提供）：
+            "total": None,
+            "has_more": None,
+            "next_page": None,
         }
         for source in payload.sources
     }
@@ -724,6 +1091,15 @@ def _build_source_status(
             "detail_level_applied": payload.collection.detail_level.value,
             "error": result.error,
             "warnings": result.warnings,
+            # 扩展字段（向后兼容，不替换 ok/error/warnings）：
+            "error_code": result.error_code,
+            "retry_after_seconds": result.retry_after_seconds,
+            "blocked_until": result.blocked_until,
+            "retryable": result.retryable,
+            # 翻页游标（当前仅 BOSS 提供）：
+            "total": result.total,
+            "has_more": result.has_more,
+            "next_page": result.next_page,
         }
     return status_map
 

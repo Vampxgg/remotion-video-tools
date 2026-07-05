@@ -38,7 +38,7 @@ class _Base(BaseSettings):
 class AppSettings(_Base):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 2906
-    APP_WORKERS: int = 4
+    APP_WORKERS: int = 1
     APP_PUBLIC_BASE_URL: str = "http://127.0.0.1:2906"
     CORS_ALLOW_ORIGINS: List[str] = ["*"]
     # 当 CORS_ALLOW_ORIGINS=["*"] 时，CORS 规范要求 allow_credentials 必须为 False
@@ -569,10 +569,21 @@ class BossZhipinSettings(_Base):
     # 单个 __zp_stoken__ 的安全调用配额；实测一次浏览器导航刷新后恰好支持 5 次
     # 成功调用（列表/详情共享），第 6 次必返回 code=37。留 1 次余量取 5。
     BOSS_ZHIPIN_DIRECT_BUDGET_PER_TOKEN: int = 5
+    BOSS_ZHIPIN_MAX_CONCURRENCY: int = 2
+    # BOSS 单例客户端允许的并发 scrape 数。1=严格串行（历史行为）；2=实测可真并行且未风控。
+    # >1 时：每个并发槽有独立 httpx client + 独立 __zp_stoken__ 配额，互不污染 cookie；
+    # 唯一共享的浏览器 tab（铸造 cookie / 浏览器回退）用可重入锁串行，避免 tab 被并发搞崩。
+    # 注意：这是把风控暴露给 BOSS，若频繁 access_limited 请改回 1。
     BOSS_ZHIPIN_DIRECT_HTTP_TIMEOUT: float = 15.0
-    # 直连模式下两次 httpx 调用之间的随机延时（远小于浏览器导航延时）。
-    BOSS_ZHIPIN_DIRECT_MIN_DELAY_SEC: float = 0.2
-    BOSS_ZHIPIN_DIRECT_MAX_DELAY_SEC: float = 0.5
+    # 直连列表默认每页条数（summary 快路径用，保持与历史一致=30，不影响外部 workflow）。
+    # 官方实测 15/30 均遵守。逐条详情(description)累积路径会按"单轮记录预算"临时用更小
+    # 的 pageSize（见 jobs_region._run_boss），让每轮 1 页带详情的串行慢采时间可控。
+    BOSS_ZHIPIN_DIRECT_PAGE_SIZE: int = 30
+    # 直连模式下两次 httpx 调用（列表翻页 / 逐条详情）之间的随机延时。
+    # BOSS 全程串行，这里刻意放慢节奏（"串行慢慢采集"）以显著降低风控概率；
+    # 是控制 BOSS 抓取速率的主要旋钮，调大更稳、调小更快。
+    BOSS_ZHIPIN_DIRECT_MIN_DELAY_SEC: float = 1.2
+    BOSS_ZHIPIN_DIRECT_MAX_DELAY_SEC: float = 3.0
     # 铸造 cookie 时导航后等待 JS 生成 stoken 的时间。实测 <1.2s 偏早会 code=37，
     # 取 1.5s 留安全余量。
     BOSS_ZHIPIN_DIRECT_COOKIE_WAIT_SEC: float = 1.5
@@ -584,6 +595,24 @@ class RegionJobsSettings(_Base):
     REGION_JOBS_MAX_PAGES_PER_SOURCE: int = 3
     REGION_JOBS_MAX_RECORDS_PER_SOURCE: int = 50
     REGION_JOBS_MAX_COMBINATIONS: int = 20
+    # BOSS 命中访问受限 / IP 异常 / 验证码 / 连续 code=37 时，进程内熔断的默认冷却分钟数
+    # （页面自带「将于 X 恢复正常」时优先用页面时间）。冷却期间 BOSS 来源直接快速返回，
+    # 不触碰浏览器和 BOSS 接口，避免越采越封。
+    REGION_JOBS_BOSS_COOLDOWN_MINUTES: int = 120
+    # BOSS 单来源采集超时后，为保护共享浏览器 tab / httpx 会话（旧线程可能仍在运行），
+    # 熔断 BOSS 的秒数；短于风控冷却，仅用于让在跑的同步线程自然收尾。
+    REGION_JOBS_BOSS_TIMEOUT_COOLDOWN_SEC: int = 60
+    # BOSS 串行 + 慢节奏，逐条拉详情（detail_level=description）耗时随记录数线性增长。
+    # 为保证单轮请求能在 timeout_seconds 内收尾（否则超时->熔断->反而拿不到数据），
+    # 当 BOSS 需要详情时，对单来源实际抓取的记录数做服务端安全上限：调用方仍可要更多，
+    # 由上层应用（如 data_server）分多轮"慢慢"累积。仅在 detail_level=description 时生效，
+    # summary 快速路径不受影响。设为 0 表示不限制。
+    REGION_JOBS_BOSS_MAX_DETAIL_RECORDS: int = 15
+    # 账户需要登录 / 命中风控时，向该管理员邮箱发送提醒邮件，保证接口稳定在线。
+    # 复用 JOB_SEARCH_SMTP_* 邮件配置（HOST/PORT/USERNAME/PASSWORD/FROM/USE_SSL/STARTTLS）。
+    REGION_JOBS_ADMIN_EMAIL: str = "hx1561958968@gmail.com"
+    # 同一来源风控/登录提醒邮件的冷却秒数，避免风控冷却期内重复轰炸管理员。
+    REGION_JOBS_NOTIFY_COOLDOWN_SEC: int = 600
 
 
 class WebSearchSettings(_Base):
@@ -626,6 +655,7 @@ class WebSearchSettings(_Base):
     WEB_SEARCH_REQUEST_TIMEOUT_SEARCH_SEC: float = 35.0
     WEB_SEARCH_REQUEST_TIMEOUT_SEARCH_AND_FETCH_SEC: float = 90.0
     WEB_SEARCH_REQUEST_TIMEOUT_FETCH_SEC: float = 120.0
+    WEB_SEARCH_REQUEST_TIMEOUT_TAVILY_SITE_SEC: float = 150.0
 
 
 class TianyanchaSettings(_Base):
