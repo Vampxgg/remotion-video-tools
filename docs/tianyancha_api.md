@@ -64,7 +64,7 @@ TIANYANCHA_ENABLE_REMOTE=true
 | `TIANYANCHA_AREA_CODE_URL` | `https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/newAreaCodeV2024.json` | 地区代码字典 |
 | `TIANYANCHA_CATEGORY_URL` | `https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/category.json` | 行业代码字典 |
 | `TIANYANCHA_HTTP_TIMEOUT` | `15.0` | 远程 HTTP 超时秒数 |
-| `TIANYANCHA_SEARCH_CACHE_TTL_SECONDS` | `86400` | 搜索缓存 TTL，默认 1 天 |
+| `TIANYANCHA_SEARCH_CACHE_TTL_SECONDS` | `2592000` | 搜索缓存 TTL，默认 30 天（企业名单为低频数据，长 TTL 提高命中、降低成本） |
 | `TIANYANCHA_BASEINFO_TTL_DAYS` | `3650` | 企业详情缓存 TTL，默认 10 年 |
 | `TIANYANCHA_MAX_PAGE_SIZE` | `20` | 搜索每页最大条数 |
 | `TIANYANCHA_MAX_PAGES_PER_REQUEST` | `5` | 单次请求允许的最大页码 |
@@ -349,7 +349,7 @@ curl "http://127.0.0.1:2906/api/tianyancha/companies?keyword=百度&limit=20&enr
 
 1. 解析地区代码。
 2. 解析行业代码。
-3. 多关键词、多页搜索企业。
+3. 按「企业池」语义检索：以 `(word, area, category)` 三元组为身份维护累积去重的企业池，翻页作为进度（`max_page_fetched`）而非身份的一部分。池够所需数量则零远程调用；不足且未翻完则从上次页码断点续翻。
 4. 对企业去重。
 5. 写入本地企业库。
 6. 根据 `detail_level` 控制是否补拉详情。

@@ -324,6 +324,53 @@ class CreImageSettings(_Base):
     CRE_IMAGE_ALLOWED_URL_HOSTS: str = ""
 
 
+class CreImageAzureSettings(_Base):
+    """对应 api/cre_image_azure.py（Azure OpenAI gpt-image-2 文/图生图）。
+
+    与 cre_image.py（Vertex Gemini）物理隔离：独立前缀、独立 GCS 子目录，
+    仅共享 GCS 存储桶/公网前缀等基础设施配置（CommonSettings）。
+    鉴权走 Azure OpenAI 的 api-key 头；生成走 REST（httpx 直连），不引入 openai SDK。
+    """
+    # 资源 endpoint（形如 https://<resource>.cognitiveservices.azure.com，末尾斜杠可有可无）
+    CRE_IMAGE_AZURE_ENDPOINT: str = "https://x-pilot-6-resource.cognitiveservices.azure.com"
+    # 资源密钥；留空则接口直接拒绝（不下发外部请求）
+    CRE_IMAGE_AZURE_API_KEY: Optional[str] = None
+    # 部署名（Azure 以部署名而非模型名寻址）
+    CRE_IMAGE_AZURE_DEPLOYMENT: str = "gpt-image-2"
+    # REST 接口版本（非模型版本；模型版本 2026-04-21 由部署本身固定）
+    CRE_IMAGE_AZURE_API_VERSION: str = "2025-04-01-preview"
+    # 多区域 endpoint 池，JSON 数组；配置后优先使用，未配置则回退到上面的单 endpoint。
+    # 单项字段：name/endpoint/api_key/deployment/weight/max_concurrency。
+    CRE_IMAGE_AZURE_ENDPOINTS_JSON: str = ""
+    # 生成默认档位（medium 兼顾速度与质量；high 最慢，low 最快）
+    CRE_IMAGE_AZURE_DEFAULT_QUALITY: str = "medium"      # low / medium / high
+    CRE_IMAGE_AZURE_DEFAULT_OUTPUT_FORMAT: str = "png"   # png / jpeg
+    # 生成结果的 GCS 子目录（与 gemini_images 分开，便于区分来源）
+    CRE_IMAGE_AZURE_OUTPUT_DIR: str = "azure_images"
+    # edits 接口单张输入图上限（官方 50MB）
+    CRE_IMAGE_AZURE_MAX_REFERENCE_BYTES: int = 50 * 1024 * 1024
+    # httpx 超时
+    CRE_IMAGE_AZURE_HTTPX_READ_TIMEOUT: float = 180.0
+    CRE_IMAGE_AZURE_HTTPX_CONNECT_TIMEOUT: float = 15.0
+    CRE_IMAGE_AZURE_HTTPX_WRITE_TIMEOUT: float = 60.0
+    CRE_IMAGE_AZURE_HTTPX_POOL_TIMEOUT: float = 30.0
+    # 参考图 URL 主机白名单；留空表示不限制，逗号分隔多个主机
+    CRE_IMAGE_AZURE_ALLOWED_URL_HOSTS: str = ""
+    # 429 限流重试次数（指数退避）
+    CRE_IMAGE_AZURE_MAX_RETRIES: int = 2
+    # 每个 Azure endpoint 的默认并发上限；gpt-image-2 当前每区域 10 RPM，实测 5 并发更稳。
+    CRE_IMAGE_AZURE_ENDPOINT_MAX_CONCURRENCY: int = 5
+    # 单 endpoint 连续瞬时失败达到阈值后短暂熔断，避免高并发时持续命中坏节点。
+    CRE_IMAGE_AZURE_CIRCUIT_FAILURE_THRESHOLD: int = 3
+    CRE_IMAGE_AZURE_CIRCUIT_COOLDOWN_SECONDS: float = 60.0
+    # 出网代理拆分（方案 A）：本模块的 httpx client 一律 trust_env=False，
+    # 不继承进程的 HTTP(S)_PROXY，改由以下两项显式控制，避免代理误掐断长请求。
+    # Azure API 出网代理；留空=直连（Azure 通常可直连，直连最稳）。
+    CRE_IMAGE_AZURE_PROXY_URL: Optional[str] = None
+    # GCS 上传 / gs_uri 下载出网代理；留空=直连（若所在网络需翻墙访问 Google 再填）。
+    CRE_IMAGE_AZURE_GCS_PROXY_URL: Optional[str] = None
+
+
 class GeminiLiveSettings(_Base):
     """对应 api/gemini_live.py + services/gemini_live_client.py + services/sop_assessor.py。
 
@@ -673,7 +720,7 @@ class TianyanchaSettings(_Base):
         "https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/category.json"
     )
     TIANYANCHA_HTTP_TIMEOUT: float = 15.0
-    TIANYANCHA_SEARCH_CACHE_TTL_SECONDS: int = 86400
+    TIANYANCHA_SEARCH_CACHE_TTL_SECONDS: int = 2592000
     TIANYANCHA_BASEINFO_TTL_DAYS: int = 3650
     TIANYANCHA_MAX_PAGE_SIZE: int = 20
     TIANYANCHA_MAX_PAGES_PER_REQUEST: int = 5
@@ -694,7 +741,7 @@ class Settings(
     CreAudioSettings, CreAudioJsonSettings, CreAudioV2Settings,
     CreAudioRefactoredSettings, CreAudioOriginalSpeedSettings,
     TtsSettings, MurfTtsSettings, GoogleTtsSettings, FishAsrSettings,
-    CreImageSettings, GeminiLiveSettings, CreVideoSettings, FenbiSettings,
+    CreImageSettings, CreImageAzureSettings, GeminiLiveSettings, CreVideoSettings, FenbiSettings,
     VideoCompressSettings, ConverterSettings, JobSearchSettings,
     JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings, FileParseSettings,

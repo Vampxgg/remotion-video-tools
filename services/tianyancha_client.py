@@ -102,6 +102,70 @@ def build_search_fingerprint(params: Dict[str, Any]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def build_pool_fingerprint(
+    *,
+    word: Optional[str],
+    category_guobiao: Optional[str],
+    area_code: Optional[str],
+) -> str:
+    """企业池指纹：仅 (word, area, category) 三元组，不含分页。
+
+    加 ``__pool__`` 命名空间，确保与 ``build_search_fingerprint`` 的五元组分页缓存
+    永不碰撞（两者共存于同一张表）。
+    """
+    params = {
+        "__ns__": "pool",
+        "word": word or None,
+        "categoryGuobiao": category_guobiao or None,
+        "areaCode": area_code or None,
+    }
+    params = {k: v for k, v in params.items() if v not in (None, "")}
+    payload = json.dumps(params, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def plan_pool_fetch(
+    *,
+    pool_size: int,
+    need: int,
+    max_page_fetched: int,
+    exhausted: bool,
+    total: Optional[int],
+    page_size: int,
+    max_pages_per_request: int,
+) -> Dict[str, Any]:
+    """企业池取数决策（纯函数，便于单测）。
+
+    输入池的当前状态，输出「本次要从哪一页翻到哪一页」。
+
+    返回 ``{"start_page", "end_page", "remote_needed"}``：
+    - 池已够 need → remote_needed=False（0 成本命中）。
+    - 池已 exhausted → remote_needed=False（翻无可翻，返回现有池）。
+    - 池不足且还有剩余页 → 从 max_page_fetched+1 起，按需页数续翻，
+      但单次不超过 max_pages_per_request，且不超过 total 推算出的总页数。
+    """
+    if pool_size >= need:
+        return {"start_page": 0, "end_page": 0, "remote_needed": False}
+    if exhausted:
+        return {"start_page": 0, "end_page": 0, "remote_needed": False}
+
+    start_page = max(1, max_page_fetched + 1)
+
+    # 还差多少条 → 需要多少页
+    missing = need - pool_size
+    pages_wanted = max(1, (missing + page_size - 1) // page_size)
+    end_page = start_page + min(pages_wanted, max_pages_per_request) - 1
+
+    # 不超过 total 推算出的总页数（若已知 total）
+    if total is not None and total > 0:
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        if start_page > total_pages:
+            return {"start_page": 0, "end_page": 0, "remote_needed": False}
+        end_page = min(end_page, total_pages)
+
+    return {"start_page": start_page, "end_page": end_page, "remote_needed": True}
+
+
 def _candidate_clarification(
     *,
     input_value: Optional[str],
@@ -244,6 +308,130 @@ class TianyanchaClient:
             "warnings": ([] if error_code == 0 else [reason]) + detail_warnings,
         }
 
+    async def search_company_pool(
+        self,
+        db: AsyncSession,
+        *,
+        word: Optional[str],
+        category_guobiao: Optional[str],
+        area_code: Optional[str],
+        need: int,
+        enrich_detail: bool = False,
+        force_remote: bool = False,
+        max_detail_calls: Optional[int] = None,
+        max_allowed_detail_calls: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """企业池检索：以 (word, area, category) 三元组为身份，累积去重企业池。
+
+        与 ``search_companies`` 的单页缓存互补：
+        - 命中且池够 ``need`` → 0 远程调用直接返回。
+        - 池不足且未翻完 → 从 ``max_page_fetched + 1`` 断点续翻，企业并集去重累积。
+        - 池已 ``exhausted`` 或已翻过 ``total`` 全部页 → 返回现有池，不再远程。
+
+        ``force_remote`` 仅影响是否绕过**单页**缓存去真正打天眼查；池进度始终复用。
+        """
+        page_size = _settings.TIANYANCHA_MAX_PAGE_SIZE
+        pool_fp = build_pool_fingerprint(
+            word=word,
+            category_guobiao=category_guobiao,
+            area_code=area_code,
+        )
+
+        pool = await self._get_pool_query(db, pool_fp)
+        pool_ids: List[int] = list(pool.company_ids) if pool and pool.company_ids else []
+        max_page_fetched = int(pool.max_page_fetched) if pool else 0
+        exhausted = bool(pool.exhausted) if pool else False
+        total = int(pool.total) if pool and pool.total is not None else None
+
+        plan = plan_pool_fetch(
+            pool_size=len(pool_ids),
+            need=need,
+            max_page_fetched=max_page_fetched,
+            exhausted=exhausted,
+            total=total,
+            page_size=page_size,
+            max_pages_per_request=_settings.TIANYANCHA_MAX_PAGES_PER_REQUEST,
+        )
+
+        remote_search_calls = 0
+        detail_calls = 0
+        warnings: List[str] = []
+        seen_ids = set(pool_ids)
+
+        if plan["remote_needed"]:
+            now = datetime.now(timezone.utc)
+            for page_num in range(plan["start_page"], plan["end_page"] + 1):
+                remaining_detail = None
+                if max_detail_calls is not None:
+                    remaining_detail = max(0, max_detail_calls - detail_calls)
+                result = await self.search_companies(
+                    db,
+                    word=word,
+                    category_guobiao=category_guobiao,
+                    area_code=area_code,
+                    page_num=page_num,
+                    page_size=page_size,
+                    enrich_detail=enrich_detail,
+                    force_remote=force_remote,
+                    max_detail_calls=remaining_detail,
+                    max_allowed_detail_calls=max_allowed_detail_calls,
+                )
+                if result["remote_called"]:
+                    remote_search_calls += 1
+                detail_calls += result.get("detail_remote_calls", 0)
+                warnings.extend(result.get("warnings") or [])
+                total = result.get("total", total)
+
+                page_companies = result.get("companies") or []
+                for company in page_companies:
+                    cid = company.get("id")
+                    if cid is not None and cid not in seen_ids:
+                        seen_ids.add(cid)
+                        pool_ids.append(cid)
+
+                max_page_fetched = max(max_page_fetched, page_num)
+
+                # 本页不足一整页 → 天眼查已到末页，池翻完。
+                if len(page_companies) < page_size:
+                    exhausted = True
+                    break
+                if total is not None and total > 0:
+                    total_pages = max(1, (total + page_size - 1) // page_size)
+                    if page_num >= total_pages:
+                        exhausted = True
+                        break
+                if len(pool_ids) >= need:
+                    break
+
+            await self._upsert_pool_query(
+                db,
+                fingerprint=pool_fp,
+                word=word,
+                category_guobiao=category_guobiao,
+                area_code=area_code,
+                total=total,
+                company_ids=pool_ids,
+                max_page_fetched=max_page_fetched,
+                exhausted=exhausted,
+                fetched_at=now,
+            )
+            await db.commit()
+
+        companies = await self._load_companies_by_ids(db, pool_ids[:need])
+        return {
+            "source": "remote" if remote_search_calls else "cache",
+            "cache_hit": remote_search_calls == 0,
+            "remote_called": remote_search_calls > 0,
+            "remote_search_calls": remote_search_calls,
+            "detail_remote_calls": detail_calls,
+            "total": total,
+            "pool_size": len(pool_ids),
+            "max_page_fetched": max_page_fetched,
+            "exhausted": exhausted,
+            "companies": [self.company_to_dict(company) for company in companies],
+            "warnings": warnings,
+        }
+
     async def get_company(
         self,
         db: AsyncSession,
@@ -375,11 +563,6 @@ class TianyanchaClient:
             }
 
         safe_limit = min(limit, _settings.TIANYANCHA_DIFY_MAX_LIMIT)
-        page_size = min(safe_limit, _settings.TIANYANCHA_MAX_PAGE_SIZE)
-        max_pages = min(
-            max(1, (safe_limit + page_size - 1) // page_size),
-            _settings.TIANYANCHA_MAX_PAGES_PER_REQUEST,
-        )
         enrich_detail = detail_level == "baseinfo"
         max_detail_calls = min(
             _settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
@@ -394,37 +577,33 @@ class TianyanchaClient:
 
         search_words = keywords or [industry or region]
         for word in search_words:
-            for page_num in range(1, max_pages + 1):
-                result = await self.search_companies(
-                    db,
-                    word=word,
-                    category_guobiao=category_code,
-                    area_code=area_code,
-                    page_num=page_num,
-                    page_size=page_size,
-                    enrich_detail=enrich_detail,
-                    force_remote=force_remote,
-                    max_detail_calls=max_detail_calls - detail_calls,
-                    max_allowed_detail_calls=_settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
-                )
-                query_results.append({
-                    "word": word,
-                    "page_num": page_num,
-                    "cache_hit": result["cache_hit"],
-                    "total": result.get("total"),
-                })
-                if result["remote_called"]:
-                    remote_search_calls += 1
-                detail_calls += result.get("detail_remote_calls", 0)
-                warnings.extend(result.get("warnings") or [])
-                for company in result.get("companies") or []:
-                    company_id = company.get("id")
-                    if company_id is not None:
-                        collected[company_id] = company
-                    if len(collected) >= safe_limit:
-                        break
-                if len(collected) >= safe_limit:
-                    break
+            result = await self.search_company_pool(
+                db,
+                word=word,
+                category_guobiao=category_code,
+                area_code=area_code,
+                need=safe_limit,
+                enrich_detail=enrich_detail,
+                force_remote=force_remote,
+                max_detail_calls=max_detail_calls - detail_calls,
+                max_allowed_detail_calls=_settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
+            )
+            query_results.append({
+                "word": word,
+                "cache_hit": result["cache_hit"],
+                "remote_search_calls": result.get("remote_search_calls", 0),
+                "pool_size": result.get("pool_size"),
+                "max_page_fetched": result.get("max_page_fetched"),
+                "exhausted": result.get("exhausted"),
+                "total": result.get("total"),
+            })
+            remote_search_calls += result.get("remote_search_calls", 0)
+            detail_calls += result.get("detail_remote_calls", 0)
+            warnings.extend(result.get("warnings") or [])
+            for company in result.get("companies") or []:
+                company_id = company.get("id")
+                if company_id is not None:
+                    collected[company_id] = company
             if len(collected) >= safe_limit:
                 break
 
@@ -702,6 +881,62 @@ class TianyanchaClient:
                     })
         self._category_cache = [item for item in flattened if item["code"]]
         return self._category_cache
+
+    async def _get_pool_query(
+        self,
+        db: AsyncSession,
+        fingerprint: str,
+    ) -> Optional[TianyanchaSearchQuery]:
+        """读取企业池记录。
+
+        不做 TTL 硬失效：池是累积去重的企业集合，始终可复用；TTL 仅用于
+        判断是否"陈旧、可选增量补翻"（由上层决定），不在此处丢弃。
+        """
+        result = await db.execute(
+            select(TianyanchaSearchQuery).where(TianyanchaSearchQuery.fingerprint == fingerprint)
+        )
+        return result.scalar_one_or_none()
+
+    async def _upsert_pool_query(
+        self,
+        db: AsyncSession,
+        *,
+        fingerprint: str,
+        word: Optional[str],
+        category_guobiao: Optional[str],
+        area_code: Optional[str],
+        total: Optional[int],
+        company_ids: List[int],
+        max_page_fetched: int,
+        exhausted: bool,
+        fetched_at: datetime,
+    ) -> TianyanchaSearchQuery:
+        result = await db.execute(
+            select(TianyanchaSearchQuery).where(TianyanchaSearchQuery.fingerprint == fingerprint)
+        )
+        query = result.scalar_one_or_none()
+        if query is None:
+            query = TianyanchaSearchQuery(fingerprint=fingerprint)
+            db.add(query)
+        query.word = word
+        query.category_guobiao = category_guobiao
+        query.area_code = area_code
+        query.page_num = max_page_fetched
+        query.page_size = _settings.TIANYANCHA_MAX_PAGE_SIZE
+        query.max_page_fetched = int(max_page_fetched)
+        query.exhausted = bool(exhausted)
+        query.total = int(total) if total is not None else query.total
+        query.company_ids = list(company_ids)
+        query.request_params = {
+            "__ns__": "pool",
+            "word": word,
+            "categoryGuobiao": category_guobiao,
+            "areaCode": area_code,
+        }
+        query.response_error_code = 0
+        query.fetched_at = fetched_at
+        await db.flush()
+        return query
 
     async def _get_cached_query(
         self,

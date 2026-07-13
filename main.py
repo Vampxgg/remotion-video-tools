@@ -12,7 +12,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, voice_models, \
+from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_image, \
+    cre_image_azure, voice_models, \
     job_search, job_search_v2, boss_zhipin, jobs_region, fish_asr, fenbi_gateway, video_compress, gemini_live, \
     tianyancha, web_search, file_parser, file_understand
 from fastapi.staticfiles import StaticFiles
@@ -79,6 +80,7 @@ _LIFESPAN_MODULES = [
     # cre_audio,
     # cre_video,
     # cre_image,
+    cre_image_azure,
     # fish_asr,
     job_search,
     job_search_v2,
@@ -165,6 +167,7 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.include_router(converter.router, prefix="/api", tags=["Converter"])
 # app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
 # app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
+app.include_router(cre_image_azure.router, prefix="/api", tags=["create_azure_image"])
 # app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
 app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
