@@ -628,6 +628,25 @@ class TianyanchaClient:
             if len(collected) >= safe_limit:
                 break
 
+        if len(collected) < safe_limit:
+            fallback_companies = await self._fallback_local_region_search(
+                db,
+                region=region,
+                area_code=area_code,
+                keywords=keywords,
+                industry=industry,
+                exclude_ids=set(collected.keys()),
+                need=safe_limit - len(collected),
+            )
+            if fallback_companies:
+                warnings.append(
+                    f"远程受限或缓存不足，已从本地企业库按区域+关键词补充 {len(fallback_companies)} 家"
+                )
+                for company in fallback_companies:
+                    company_id = company.get("id")
+                    if company_id is not None and company_id not in collected:
+                        collected[company_id] = company
+
         companies = list(collected.values())[:safe_limit]
         detail_complete_count = sum(
             1 for company in companies if company.get("baseinfo_fetched_at")
@@ -665,6 +684,76 @@ class TianyanchaClient:
             },
             "warnings": warnings,
         }
+
+    async def _fallback_local_region_search(
+        self,
+        db: AsyncSession,
+        *,
+        region: str,
+        area_code: Optional[str],
+        keywords: List[str],
+        industry: Optional[str],
+        exclude_ids: Set[int],
+        need: int,
+    ) -> List[Dict[str, Any]]:
+        """远程受限或缓存不足时的本地兜底：按区域 + 关键词直接检索企业主表。
+
+        不依赖 pool 指纹与联网，最大化召回库中已有的相关企业。
+        """
+        if need <= 0:
+            return []
+
+        query = select(TianyanchaCompany).order_by(TianyanchaCompany.updated_at.desc())
+
+        # 区域过滤：优先用行政区划代码前缀（最可靠），并兼容 region 中文名匹配 city/district。
+        area_conditions = []
+        if area_code:
+            digits = re.sub(r"\D", "", area_code)
+            # 兼容多余前导 0（如日志中的 00510100 → 510100）。
+            if len(digits) > 6:
+                digits = digits[-6:]
+            if digits:
+                # 市级代码（后两位为 00，如 510100）取前 4 位做市级前缀匹配；
+                # 区县级代码（如 110105）用完整 6 位精确到区县。
+                if len(digits) == 6 and digits.endswith("00"):
+                    code_prefix = digits[:4]
+                else:
+                    code_prefix = digits
+                area_conditions.append(
+                    TianyanchaCompany.district_code.ilike(f"{code_prefix}%")
+                )
+        if region and not re.fullmatch(r"[0-9A-Za-z]{6,12}", region):
+            like = f"%{region}%"
+            area_conditions.extend([
+                TianyanchaCompany.city.ilike(like),
+                TianyanchaCompany.district.ilike(like),
+                TianyanchaCompany.base.ilike(like),
+            ])
+        if area_conditions:
+            query = query.where(or_(*area_conditions))
+
+        # 关键词过滤：命中经营范围或企业名即算相关（OR 最大化召回）。
+        term_conditions = []
+        for term in [*(keywords or []), industry]:
+            if not term:
+                continue
+            like = f"%{term}%"
+            term_conditions.append(TianyanchaCompany.business_scope.ilike(like))
+            term_conditions.append(TianyanchaCompany.name.ilike(like))
+        if term_conditions:
+            query = query.where(or_(*term_conditions))
+
+        # 在 SQL 层排除已命中的企业，避免仅靠 Python 层过滤导致召回不足。
+        if exclude_ids:
+            query = query.where(TianyanchaCompany.id.notin_(exclude_ids))
+
+        query = query.limit(need)
+        result = await db.execute(query)
+        companies: List[Dict[str, Any]] = [
+            self.company_to_dict(company, include_raw=False)
+            for company in result.scalars().all()
+        ]
+        return companies
 
     async def fetch_baseinfo(self, keyword: str) -> Dict[str, Any]:
         payload = await self._request(_settings.TIANYANCHA_BASEINFO_URL, {"keyword": keyword})
@@ -937,7 +1026,7 @@ class TianyanchaClient:
         )
         query = result.scalar_one_or_none()
         if query is None:
-            query = TianyanchaSearchQuery(fingerprint=fingerprint)
+            query = TianyanchaSearchQuery(fingerprint=fingerprint)      
             db.add(query)
         query.word = word
         query.category_guobiao = category_guobiao
