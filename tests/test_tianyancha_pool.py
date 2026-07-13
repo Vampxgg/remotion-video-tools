@@ -7,6 +7,7 @@
 """
 
 from services.tianyancha_client import (
+    TianyanchaAPIError,
     TianyanchaClient,
     build_pool_fingerprint,
     build_search_fingerprint,
@@ -122,8 +123,11 @@ class _FakePoolRecord:
 
 
 class _FakeDB:
-    """只提供 search_company_pool 用到的 commit（async no-op）。"""
+    """只提供 search_company_pool 用到的 commit / rollback（async no-op）。"""
     async def commit(self):
+        return None
+
+    async def rollback(self):
         return None
 
 
@@ -145,6 +149,9 @@ def _install_pool_stubs(monkeypatch, client, *, initial_pool, pages):
 
     async def fake_search_companies(db, *, page_num, **kwargs):
         page = pages.get(page_num, {"companies": [], "total": 0})
+        err_code = page.get("error")
+        if err_code is not None:
+            raise TianyanchaAPIError(err_code, "")
         return {
             "remote_called": True,
             "detail_remote_calls": 0,
@@ -248,4 +255,60 @@ async def test_pool_no_remote_when_exhausted(monkeypatch):
     )
     assert result["remote_search_calls"] == 0
     assert result["pool_size"] == 3
+
+
+# ─────────────── 远程受限降级（402/429 → 本地缓存） ───────────────
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("error_code", [300004, 300006, 300007])
+async def test_pool_degrades_to_cache_on_quota_error(monkeypatch, error_code):
+    """池已有缓存但不足 need，续翻时远程返回配额/限流类错误 →
+    降级返回已有缓存企业，而非让整个调用因 402/429 失败。"""
+    client = TianyanchaClient()
+    pool = _FakePoolRecord(company_ids=[1, 2, 3], max_page_fetched=1, total=100)
+    pages = {2: {"error": error_code}}
+    state = _install_pool_stubs(monkeypatch, client, initial_pool=pool, pages=pages)
+
+    result = await client.search_company_pool(
+        _FakeDB(), word="新能源", category_guobiao="65", area_code="310100", need=20,
+    )
+    # 缓存里的 3 家企业照常带出，未因远程受限而丢失
+    assert [c["id"] for c in result["companies"]] == [1, 2, 3]
+    assert result["pool_size"] == 3
+    assert any("降级" in w for w in result["warnings"])
+    # 已有积累 → 仍持久化进度，便于配额恢复后断点续翻，且不误标 exhausted
+    assert state["captured"] is not None
+    assert state["captured"]["exhausted"] is False
+
+
+@pytest.mark.asyncio
+async def test_pool_first_fetch_quota_error_returns_empty_without_polluting(monkeypatch):
+    """首次调用（空池）第一页即遇配额错误 → 返回空企业列表 + warning，
+    且不写入误导性的空池缓存记录。"""
+    client = TianyanchaClient()
+    pages = {1: {"error": 300006}}
+    state = _install_pool_stubs(monkeypatch, client, initial_pool=None, pages=pages)
+
+    result = await client.search_company_pool(
+        _FakeDB(), word="新能源", category_guobiao="65", area_code="310100", need=20,
+    )
+    assert result["companies"] == []
+    assert result["pool_size"] == 0
+    assert any("降级" in w for w in result["warnings"])
+    # 空池 + 降级 → 跳过写入，避免污染后续命中
+    assert state["captured"] is None
+
+
+@pytest.mark.asyncio
+async def test_pool_reraises_non_quota_error(monkeypatch):
+    """非配额类错误（如账号失效 300002）不降级，照常抛出。"""
+    client = TianyanchaClient()
+    pages = {1: {"error": 300002}}
+    _install_pool_stubs(monkeypatch, client, initial_pool=None, pages=pages)
+
+    with pytest.raises(TianyanchaAPIError) as exc_info:
+        await client.search_company_pool(
+            _FakeDB(), word="新能源", category_guobiao="65", area_code="310100", need=20,
+        )
+    assert exc_info.value.error_code == 300002
 

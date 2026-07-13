@@ -37,6 +37,10 @@ ERROR_MESSAGES = {
     300012: "报告生成中",
 }
 
+# 配额/计费/限流类错误码：远程受限时降级返回本地缓存企业池，而非让整个调用失败。
+# 300004 访问频率过快（限流）、300006 余额不足、300007 剩余次数不足。
+_DEGRADABLE_TIANYANCHA_ERROR_CODES = frozenset({300004, 300006, 300007})
+
 
 class TianyanchaAPIError(RuntimeError):
     """天眼查远程接口错误。"""
@@ -360,22 +364,36 @@ class TianyanchaClient:
 
         if plan["remote_needed"]:
             now = datetime.now(timezone.utc)
+            degraded = False
             for page_num in range(plan["start_page"], plan["end_page"] + 1):
                 remaining_detail = None
                 if max_detail_calls is not None:
                     remaining_detail = max(0, max_detail_calls - detail_calls)
-                result = await self.search_companies(
-                    db,
-                    word=word,
-                    category_guobiao=category_guobiao,
-                    area_code=area_code,
-                    page_num=page_num,
-                    page_size=page_size,
-                    enrich_detail=enrich_detail,
-                    force_remote=force_remote,
-                    max_detail_calls=remaining_detail,
-                    max_allowed_detail_calls=max_allowed_detail_calls,
-                )
+                try:
+                    result = await self.search_companies(
+                        db,
+                        word=word,
+                        category_guobiao=category_guobiao,
+                        area_code=area_code,
+                        page_num=page_num,
+                        page_size=page_size,
+                        enrich_detail=enrich_detail,
+                        force_remote=force_remote,
+                        max_detail_calls=remaining_detail,
+                        max_allowed_detail_calls=max_allowed_detail_calls,
+                    )
+                except TianyanchaAPIError as exc:
+                    # 配额/计费/限流类错误（余额不足、次数不足、限流）时降级：
+                    # 停止远程翻页，保留已积累的企业池，走本地缓存返回，避免整个调用因 402/429 硬失败。
+                    if exc.error_code not in _DEGRADABLE_TIANYANCHA_ERROR_CODES:
+                        raise
+                    await db.rollback()
+                    warnings.append(
+                        f"天眼查远程受限（error_code={exc.error_code}: {exc.reason}），"
+                        f"已降级返回本地缓存企业池（{len(pool_ids)} 家）"
+                    )
+                    degraded = True
+                    break
                 if result["remote_called"]:
                     remote_search_calls += 1
                 detail_calls += result.get("detail_remote_calls", 0)
@@ -403,19 +421,22 @@ class TianyanchaClient:
                 if len(pool_ids) >= need:
                     break
 
-            await self._upsert_pool_query(
-                db,
-                fingerprint=pool_fp,
-                word=word,
-                category_guobiao=category_guobiao,
-                area_code=area_code,
-                total=total,
-                company_ids=pool_ids,
-                max_page_fetched=max_page_fetched,
-                exhausted=exhausted,
-                fetched_at=now,
-            )
-            await db.commit()
+            # 降级且未积累到任何企业（首次调用即受限）时，跳过池写入，
+            # 避免落一条空池缓存记录污染后续命中；已有积累则照常持久化进度以便断点续翻。
+            if not (degraded and not pool_ids):
+                await self._upsert_pool_query(
+                    db,
+                    fingerprint=pool_fp,
+                    word=word,
+                    category_guobiao=category_guobiao,
+                    area_code=area_code,
+                    total=total,
+                    company_ids=pool_ids,
+                    max_page_fetched=max_page_fetched,
+                    exhausted=exhausted,
+                    fetched_at=now,
+                )
+                await db.commit()
 
         companies = await self._load_companies_by_ids(db, pool_ids[:need])
         return {
