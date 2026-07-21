@@ -45,6 +45,8 @@ class AppSettings(_Base):
     CORS_ALLOW_CREDENTIALS: bool = False
     CORS_ALLOW_METHODS: List[str] = ["*"]
     CORS_ALLOW_HEADERS: List[str] = ["*"]
+    # 应用层 IP 黑名单：命中的来源 IP 一律返回 403，临时封禁只改 .env 即可增删。
+    BLOCKED_IPS: List[str] = []
     LOG_DISABLE_CONSOLE: bool = True
     LOG_DIR: str = "logs"
     LOG_BACKUP_COUNT: int = 90
@@ -720,7 +722,7 @@ class TianyanchaSettings(_Base):
         "https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/category.json"
     )
     TIANYANCHA_HTTP_TIMEOUT: float = 15.0
-    TIANYANCHA_SEARCH_CACHE_TTL_SECONDS: int = 2592000
+    TIANYANCHA_SEARCH_CACHE_TTL_SECONDS: int = 31536000
     TIANYANCHA_BASEINFO_TTL_DAYS: int = 3650
     TIANYANCHA_MAX_PAGE_SIZE: int = 20
     TIANYANCHA_MAX_PAGES_PER_REQUEST: int = 5

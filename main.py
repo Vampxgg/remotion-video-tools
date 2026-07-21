@@ -152,6 +152,26 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
+# IP 黑名单：命中的来源 IP 直接 403，用于临时封禁滥用/异常来源（在 .env 的 BLOCKED_IPS 增删）。
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
+from starlette.responses import JSONResponse  # noqa: E402
+
+_BLOCKED_IPS = set(settings.BLOCKED_IPS)
+if _BLOCKED_IPS:
+    logger.warning("IP 黑名单已启用，将拒绝以下来源: %s", sorted(_BLOCKED_IPS))
+
+
+class BlockedIPMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        client_ip = request.client.host if request.client else None
+        if client_ip in _BLOCKED_IPS:
+            logger.warning("拒绝黑名单 IP 的请求: %s %s %s", client_ip, request.method, request.url.path)
+            return JSONResponse(status_code=403, content={"code": 403, "message": "Forbidden", "data": None})
+        return await call_next(request)
+
+
+app.add_middleware(BlockedIPMiddleware)
+
 # 请求体校验失败统一走标准信封（保留 HTTP 422），避免调用方同时兼容
 # FastAPI 默认 {detail:[...]} 和业务 {code,message,data} 两套格式。
 from utils.responses import validation_exception_handler  # noqa: E402

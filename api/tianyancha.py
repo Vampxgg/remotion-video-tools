@@ -85,6 +85,13 @@ class RegionCompanyResearchPayload(BaseModel):
         description="summary 返回搜索摘要；baseinfo 会尽量补齐企业基本信息",
     )
     force_remote: bool = Field(False, description="是否跳过搜索缓存并强制远程搜索")
+    exhaustive: bool = Field(
+        False,
+        description=(
+            "是否穷尽翻页：True 时忽略 limit 的够量即停，持续续翻直到该组合企业翻完"
+            "（全量建档场景，如 data_server 采集）；False（默认）够 limit 即停，适合 agent 取样。"
+        ),
+    )
 
     @model_validator(mode="after")
     def _check_limits(self):
@@ -240,6 +247,7 @@ async def research_region_companies(
             limit=payload.limit,
             detail_level=payload.detail_level.value,
             force_remote=payload.force_remote,
+            exhaustive=payload.exhaustive,
         )
     except Exception as exc:
         return _error_response(exc)

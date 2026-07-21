@@ -41,6 +41,24 @@ ERROR_MESSAGES = {
 # 300004 访问频率过快（限流）、300006 余额不足、300007 剩余次数不足。
 _DEGRADABLE_TIANYANCHA_ERROR_CODES = frozenset({300004, 300006, 300007})
 
+# detail_level=summary 时对外返回的精简字段白名单（供 Dify agent 省 token）。
+# 底层始终已补全详情，这里只裁剪 API 返回形态，不影响落库数据的完整性。
+_SUMMARY_COMPANY_FIELDS = frozenset({
+    "id", "tianyancha_id", "name", "credit_code", "reg_number", "org_number",
+    "tax_number", "reg_status", "reg_capital", "legal_person_name",
+    "base", "city", "district", "district_code", "industry", "category",
+    "established_at", "tags", "search_seen_at", "baseinfo_fetched_at",
+})
+
+
+def _project_company_by_detail_level(
+    company: Dict[str, Any], detail_level: str,
+) -> Dict[str, Any]:
+    """按 detail_level 裁剪对外返回字段：summary 精简、baseinfo 完整。"""
+    if detail_level == "baseinfo":
+        return company
+    return {k: v for k, v in company.items() if k in _SUMMARY_COMPANY_FIELDS}
+
 
 class TianyanchaAPIError(RuntimeError):
     """天眼查远程接口错误。"""
@@ -324,6 +342,7 @@ class TianyanchaClient:
         force_remote: bool = False,
         max_detail_calls: Optional[int] = None,
         max_allowed_detail_calls: Optional[int] = None,
+        exhaustive: bool = False,
     ) -> Dict[str, Any]:
         """企业池检索：以 (word, area, category) 三元组为身份，累积去重企业池。
 
@@ -331,6 +350,9 @@ class TianyanchaClient:
         - 命中且池够 ``need`` → 0 远程调用直接返回。
         - 池不足且未翻完 → 从 ``max_page_fetched + 1`` 断点续翻，企业并集去重累积。
         - 池已 ``exhausted`` 或已翻过 ``total`` 全部页 → 返回现有池，不再远程。
+
+        ``exhaustive=True``（全量建档）：忽略 ``need`` 的"够量即停"，持续续翻直到
+        ``exhausted``（该组合企业翻完）、远程降级或无更多页，用于把整片区域企业翻全。
 
         ``force_remote`` 仅影响是否绕过**单页**缓存去真正打天眼查；池进度始终复用。
         """
@@ -347,24 +369,29 @@ class TianyanchaClient:
         exhausted = bool(pool.exhausted) if pool else False
         total = int(pool.total) if pool and pool.total is not None else None
 
-        plan = plan_pool_fetch(
-            pool_size=len(pool_ids),
-            need=need,
-            max_page_fetched=max_page_fetched,
-            exhausted=exhausted,
-            total=total,
-            page_size=page_size,
-            max_pages_per_request=_settings.TIANYANCHA_MAX_PAGES_PER_REQUEST,
-        )
-
         remote_search_calls = 0
         detail_calls = 0
         warnings: List[str] = []
         seen_ids = set(pool_ids)
 
-        if plan["remote_needed"]:
+        while True:
+            plan = plan_pool_fetch(
+                pool_size=len(pool_ids),
+                # 穷尽模式用一个大 need 迫使 plan 持续要求翻页，直到 exhausted / total 翻完。
+                need=(page_size * _settings.TIANYANCHA_MAX_PAGES_PER_REQUEST + len(pool_ids))
+                if exhaustive else need,
+                max_page_fetched=max_page_fetched,
+                exhausted=exhausted,
+                total=total,
+                page_size=page_size,
+                max_pages_per_request=_settings.TIANYANCHA_MAX_PAGES_PER_REQUEST,
+            )
+            if not plan["remote_needed"]:
+                break
+
             now = datetime.now(timezone.utc)
             degraded = False
+            batch_exhausted = False
             for page_num in range(plan["start_page"], plan["end_page"] + 1):
                 remaining_detail = None
                 if max_detail_calls is not None:
@@ -412,13 +439,16 @@ class TianyanchaClient:
                 # 本页不足一整页 → 天眼查已到末页，池翻完。
                 if len(page_companies) < page_size:
                     exhausted = True
+                    batch_exhausted = True
                     break
                 if total is not None and total > 0:
                     total_pages = max(1, (total + page_size - 1) // page_size)
                     if page_num >= total_pages:
                         exhausted = True
+                        batch_exhausted = True
                         break
-                if len(pool_ids) >= need:
+                # 非穷尽模式：够量即停；穷尽模式忽略 need，翻完为止。
+                if not exhaustive and len(pool_ids) >= need:
                     break
 
             # 降级且未积累到任何企业（首次调用即受限）时，跳过池写入，
@@ -438,7 +468,12 @@ class TianyanchaClient:
                 )
                 await db.commit()
 
-        companies = await self._load_companies_by_ids(db, pool_ids[:need])
+            # 非穷尽模式只翻一批即返回；穷尽模式在翻完/降级前持续续翻。
+            if not exhaustive or degraded or batch_exhausted:
+                break
+
+        load_ids = pool_ids if exhaustive else pool_ids[:need]
+        companies = await self._load_companies_by_ids(db, load_ids)
         return {
             "source": "remote" if remote_search_calls else "cache",
             "cache_hit": remote_search_calls == 0,
@@ -553,6 +588,7 @@ class TianyanchaClient:
         limit: int,
         detail_level: str,
         force_remote: bool,
+        exhaustive: bool = False,
     ) -> Dict[str, Any]:
         area_code, area_candidates = await self.resolve_area_code(region)
         category_code, category_candidates = await self.resolve_category_code(industry)
@@ -584,11 +620,23 @@ class TianyanchaClient:
             }
 
         safe_limit = min(limit, _settings.TIANYANCHA_DIFY_MAX_LIMIT)
-        enrich_detail = detail_level == "baseinfo"
-        max_detail_calls = min(
-            _settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
-            safe_limit,
-        )
+        # 数据请求层面始终补全企业详情（baseinfo）：detail_level 只决定 API 返回字段丰俭，
+        # 不再决定是否补详情。这样无论 summary/baseinfo，落库企业都是带完整工商信息的档案。
+        enrich_detail = True
+        # 穷尽模式（data_server 全量建档）：把该组合企业翻到 exhausted 为止，need 拉满到
+        # 每组合最大页数能覆盖的企业数，并放开单次补详情上限，逐家补齐。
+        if exhaustive:
+            pool_need = (
+                _settings.TIANYANCHA_MAX_PAGE_SIZE
+                * _settings.TIANYANCHA_MAX_PAGES_PER_REQUEST
+            )
+            max_detail_calls = _settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST
+        else:
+            pool_need = safe_limit
+            max_detail_calls = min(
+                _settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
+                safe_limit,
+            )
 
         collected: Dict[int, Dict[str, Any]] = {}
         remote_search_calls = 0
@@ -603,11 +651,12 @@ class TianyanchaClient:
                 word=word,
                 category_guobiao=category_code,
                 area_code=area_code,
-                need=safe_limit,
+                need=pool_need,
                 enrich_detail=enrich_detail,
                 force_remote=force_remote,
                 max_detail_calls=max_detail_calls - detail_calls,
                 max_allowed_detail_calls=_settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
+                exhaustive=exhaustive,
             )
             query_results.append({
                 "word": word,
@@ -625,10 +674,13 @@ class TianyanchaClient:
                 company_id = company.get("id")
                 if company_id is not None:
                     collected[company_id] = company
-            if len(collected) >= safe_limit:
+            # 非穷尽模式够量即停；穷尽模式遍历所有关键词，各自翻完为止。
+            if not exhaustive and len(collected) >= safe_limit:
                 break
 
-        if len(collected) < safe_limit:
+        # 穷尽模式返回官方翻页的全量精确结果，不做本地 ilike 兜底（避免污染精确性）；
+        # 非穷尽模式在数量不足时用本地库补充，最大化召回。
+        if not exhaustive and len(collected) < safe_limit:
             fallback_companies = await self._fallback_local_region_search(
                 db,
                 region=region,
@@ -647,7 +699,10 @@ class TianyanchaClient:
                     if company_id is not None and company_id not in collected:
                         collected[company_id] = company
 
-        companies = list(collected.values())[:safe_limit]
+        # 穷尽模式返回全部翻到的企业；非穷尽模式截断到 safe_limit。
+        companies = list(collected.values())
+        if not exhaustive:
+            companies = companies[:safe_limit]
         detail_complete_count = sum(
             1 for company in companies if company.get("baseinfo_fetched_at")
         )
@@ -656,6 +711,11 @@ class TianyanchaClient:
             warnings.append(
                 f"仍有 {missing_detail_count} 条企业未取得详情，可稍后重试或提高详情额度"
             )
+        # 落库/统计基于完整字段；对外返回按 detail_level 裁剪形态。
+        response_companies = [
+            _project_company_by_detail_level(company, detail_level)
+            for company in companies
+        ]
         return {
             "need_clarification": False,
             "summary": {
@@ -667,7 +727,7 @@ class TianyanchaClient:
                 "requested_limit": limit,
                 "returned_count": len(companies),
             },
-            "companies": companies,
+            "companies": response_companies,
             "cache": {
                 "query_results": query_results,
             },

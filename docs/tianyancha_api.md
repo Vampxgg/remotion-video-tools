@@ -64,7 +64,7 @@ TIANYANCHA_ENABLE_REMOTE=true
 | `TIANYANCHA_AREA_CODE_URL` | `https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/newAreaCodeV2024.json` | 地区代码字典 |
 | `TIANYANCHA_CATEGORY_URL` | `https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/category.json` | 行业代码字典 |
 | `TIANYANCHA_HTTP_TIMEOUT` | `15.0` | 远程 HTTP 超时秒数 |
-| `TIANYANCHA_SEARCH_CACHE_TTL_SECONDS` | `2592000` | 搜索缓存 TTL，默认 30 天（企业名单为低频数据，长 TTL 提高命中、降低成本） |
+| `TIANYANCHA_SEARCH_CACHE_TTL_SECONDS` | `31536000` | 搜索缓存 TTL，默认 1 年（企业名单为低频数据，长 TTL 提高命中、降低成本） |
 | `TIANYANCHA_BASEINFO_TTL_DAYS` | `3650` | 企业详情缓存 TTL，默认 10 年 |
 | `TIANYANCHA_MAX_PAGE_SIZE` | `20` | 搜索每页最大条数 |
 | `TIANYANCHA_MAX_PAGES_PER_REQUEST` | `5` | 单次请求允许的最大页码 |
@@ -351,8 +351,9 @@ curl "http://127.0.0.1:2906/api/tianyancha/companies?keyword=百度&limit=20&enr
 2. 解析行业代码。
 3. 按「企业池」语义检索：以 `(word, area, category)` 三元组为身份维护累积去重的企业池，翻页作为进度（`max_page_fetched`）而非身份的一部分。池够所需数量则零远程调用；不足且未翻完则从上次页码断点续翻。
 4. 对企业去重。
-5. 写入本地企业库。
-6. 根据 `detail_level` 控制是否补拉详情。
+5. 写入本地企业库（数据请求层面**始终补全企业详情**，保证落库数据完整）。
+6. 根据 `detail_level` 裁剪对外返回的字段丰俭（`summary` 精简 / `baseinfo` 完整），**不影响是否补详情**。
+7. `exhaustive=true` 时忽略 `limit` 的够量即停，跨批断点续翻直到该组合企业翻完（全量建档场景，如 `data_server` 采集）。
 
 ### 7.2 请求
 
@@ -371,7 +372,8 @@ X-API-Key: <可选，取决于配置>
   "keywords": ["人工智能", "大模型"],
   "limit": 20,
   "detail_level": "summary",
-  "force_remote": false
+  "force_remote": false,
+  "exhaustive": false
 }
 ```
 
@@ -382,16 +384,17 @@ X-API-Key: <可选，取决于配置>
 | `region` | string | 是 | 无 | 区域名称或天眼查地区代码 |
 | `industry` | string / null | 否 | `null` | 行业名称或行业代码 |
 | `keywords` | string[] | 否 | `[]` | 企业搜索关键词，最多 10 个 |
-| `limit` | int | 否 | `20` | 最多返回企业数，最大默认 `50` |
-| `detail_level` | string | 否 | `summary` | `summary` 或 `baseinfo` |
+| `limit` | int | 否 | `20` | 最多返回企业数，最大默认 `50`；`exhaustive=true` 时忽略此上限 |
+| `detail_level` | string | 否 | `summary` | 仅决定返回字段丰俭：`summary`（精简）或 `baseinfo`（完整）；底层始终补详情 |
 | `force_remote` | bool | 否 | `false` | 是否跳过搜索缓存 |
+| `exhaustive` | bool | 否 | `false` | 是否穷尽翻页：`true` 时忽略 `limit`，续翻直到该组合企业翻完（全量建档，供 `data_server` 采集）；`false` 够 `limit` 即停，适合 agent 取样 |
 
 `detail_level` 说明：
 
 | 值 | 行为 |
 |----|------|
-| `summary` | 以搜索摘要为主；若新公司自动补详情开关开启，远程搜索发现的新公司仍可能产生详情调用 |
-| `baseinfo` | 在搜索结果基础上尽量补齐企业基本信息，Dify 详情预算最大默认 `50` |
+| `summary` | 对外只返回精简字段（企业标识、名称、状态、地区、行业等），供 Dify agent 省 token；底层仍已补全详情并落库 |
+| `baseinfo` | 对外返回含经营范围、注册地址、人员规模等的完整字段 |
 
 ### 7.4 示例
 
@@ -439,11 +442,11 @@ curl -X POST "http://127.0.0.1:2906/api/tianyancha/research/region-companies" \
     },
     "cost_control": {
       "remote_search_calls": 1,
-      "remote_detail_calls": 0,
+      "remote_detail_calls": 20,
       "detail_budget": 30,
-      "detail_required": false,
-      "detail_complete_count": 0,
-      "missing_detail_count": 30,
+      "detail_required": true,
+      "detail_complete_count": 30,
+      "missing_detail_count": 0,
       "detail_complete": true,
       "detail_level": "summary",
       "force_remote": false
@@ -791,8 +794,9 @@ fingerprint = sha256(sorted_json(params))
 
 | 场景 | 推荐参数 |
 |------|----------|
-| 智能体区域调研初筛 | `detail_level=summary` |
-| 智能体需要详情完整 | `detail_level=baseinfo`，`limit` 不超过 `TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST` |
+| 智能体区域调研（返回精简、省 token） | `detail_level=summary`（底层仍补详情，费用与 baseinfo 相同，仅返回字段更少） |
+| 智能体需要完整字段 | `detail_level=baseinfo` |
+| 全量建档（遍历整片区域全部企业） | `exhaustive=true`（忽略 limit，续翻至穷尽，费用随企业规模上升） |
 | 只需要本地已有数据 | 使用 `GET /api/tianyancha/companies` |
 | 普通搜索需要本页详情 | `enrich_detail=true` 且 `max_detail_calls` 覆盖本页目标数量 |
 | 本地列表缺少经营范围、注册地址等详情 | `GET /api/tianyancha/companies?enrich_detail=true&max_detail_calls=...` |
@@ -857,7 +861,7 @@ POST /api/tianyancha/research/region-companies
 }
 ```
 
-如果 Dify 后续节点要求经营范围、注册地址、行业细分等详情字段，应使用：
+如果 Dify 后续节点要求经营范围、注册地址、行业细分等详情字段，把 `detail_level` 设为 `baseinfo` 即可返回完整字段：
 
 ```json
 {
@@ -870,7 +874,7 @@ POST /api/tianyancha/research/region-companies
 }
 ```
 
-`detail_level=baseinfo` 会尽量让返回企业都具备 `baseinfo_fetched_at`。如果详情接口失败或预算不足，响应中的 `cost_control.detail_complete=false`，并在 `warnings` 中说明原因。
+`detail_level` 只决定返回字段丰俭：底层无论 `summary`/`baseinfo` 都会补全详情并落库，两者费用相同，`summary` 仅返回更少字段以省 token。如果详情接口失败或预算不足，响应中的 `cost_control.detail_complete=false`，并在 `warnings` 中说明原因。
 
 如返回 `need_clarification=true`，应让用户或工作流选择候选地区 / 行业代码后重试。
 

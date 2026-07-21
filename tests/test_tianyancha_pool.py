@@ -312,3 +312,162 @@ async def test_pool_reraises_non_quota_error(monkeypatch):
         )
     assert exc_info.value.error_code == 300002
 
+
+# ─────────────── exhaustive 穷尽模式（全量建档） ───────────────
+
+@pytest.mark.asyncio
+async def test_pool_exhaustive_fetches_all_pages_across_batches(monkeypatch):
+    """穷尽模式：忽略 need，跨多批续翻直到短页，拿全量企业并标记 exhausted。
+
+    构造 7 满页 + 第 8 页短页；max_pages_per_request=5 → 需要 2 批
+    （1..5 页、6..8 页）才能翻完。
+    """
+    client = TianyanchaClient()
+    pages = {n: {"companies": list(range((n - 1) * 20 + 1, n * 20 + 1)), "total": 148}
+             for n in range(1, 8)}  # 1..7 满页
+    pages[8] = {"companies": list(range(141, 149)), "total": 148}  # 第 8 页 8 条（短页）
+    state = _install_pool_stubs(monkeypatch, client, initial_pool=None, pages=pages)
+
+    result = await client.search_company_pool(
+        _FakeDB(), word="新能源", category_guobiao="65", area_code="310100",
+        need=20, exhaustive=True,
+    )
+    # need=20 但穷尽模式忽略它，翻完全部 148 家
+    assert result["pool_size"] == 148
+    assert result["exhausted"] is True
+    # 返回不被 need 截断，全量带出
+    assert len(result["companies"]) == 148
+    # 跨批：7 满页 + 1 短页 = 8 次远程搜索
+    assert result["remote_search_calls"] == 8
+    assert state["captured"]["exhausted"] is True
+
+
+@pytest.mark.asyncio
+async def test_pool_exhaustive_stops_at_total_pages(monkeypatch):
+    """穷尽模式：整页恰好翻到 total 推算总页数即停，不无限翻页。
+
+    total=40、page_size=20 → 恰好 2 满页，无短页，仍应标记 exhausted 并停止。
+    """
+    client = TianyanchaClient()
+    pages = {
+        1: {"companies": list(range(1, 21)), "total": 40},
+        2: {"companies": list(range(21, 41)), "total": 40},
+    }
+    _install_pool_stubs(monkeypatch, client, initial_pool=None, pages=pages)
+
+    result = await client.search_company_pool(
+        _FakeDB(), word="新能源", category_guobiao="65", area_code="310100",
+        need=20, exhaustive=True,
+    )
+    assert result["pool_size"] == 40
+    assert result["exhausted"] is True
+    assert result["remote_search_calls"] == 2
+
+
+@pytest.mark.asyncio
+async def test_pool_exhaustive_resumes_from_exhausted_pool_no_remote(monkeypatch):
+    """穷尽模式命中已 exhausted 的池 → 0 远程，直接返回全量缓存。"""
+    client = TianyanchaClient()
+    pool = _FakePoolRecord(
+        company_ids=list(range(1, 41)), max_page_fetched=2, exhausted=True, total=40,
+    )
+    _install_pool_stubs(monkeypatch, client, initial_pool=pool, pages={})
+
+    result = await client.search_company_pool(
+        _FakeDB(), word="新能源", category_guobiao="65", area_code="310100",
+        need=20, exhaustive=True,
+    )
+    assert result["remote_search_calls"] == 0
+    assert result["pool_size"] == 40
+    assert len(result["companies"]) == 40
+
+
+# ─────────────── research_region_companies：detail_level 投影 + exhaustive 透传 ───────────────
+
+def _install_research_stubs(monkeypatch, client, *, companies, exhaustive_seen):
+    """给 research_region_companies 打桩：区域/行业解析直通，pool 返回带完整字段的企业。"""
+    async def fake_resolve_area(region):
+        return "310100", []
+
+    async def fake_resolve_category(industry):
+        return None, []
+
+    async def fake_search_company_pool(db, *, exhaustive=False, **kwargs):
+        exhaustive_seen.append(exhaustive)
+        return {
+            "cache_hit": False,
+            "remote_search_calls": 1,
+            "detail_remote_calls": len(companies),
+            "pool_size": len(companies),
+            "max_page_fetched": 1,
+            "exhausted": True,
+            "total": len(companies),
+            "companies": companies,
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(client, "resolve_area_code", fake_resolve_area)
+    monkeypatch.setattr(client, "resolve_category_code", fake_resolve_category)
+    monkeypatch.setattr(client, "search_company_pool", fake_search_company_pool)
+
+    async def fake_fallback(db, **kwargs):
+        return []
+
+    monkeypatch.setattr(client, "_fallback_local_region_search", fake_fallback)
+
+
+@pytest.mark.asyncio
+async def test_research_summary_projects_lean_fields(monkeypatch):
+    """detail_level=summary → 返回精简字段（不含 business_scope 等详情字段）。"""
+    client = TianyanchaClient()
+    full = {
+        "id": 1, "name": "某公司", "credit_code": "X1", "reg_status": "存续",
+        "business_scope": "研发销售", "staff_num_range": "50-99",
+        "category_code_third": "3841", "baseinfo_fetched_at": "2026-01-01T00:00:00",
+    }
+    seen = []
+    _install_research_stubs(monkeypatch, client, companies=[full], exhaustive_seen=seen)
+
+    data = await client.research_region_companies(
+        _FakeDB(), region="上海", industry=None, keywords=["新能源"],
+        limit=20, detail_level="summary", force_remote=False,
+    )
+    c = data["companies"][0]
+    assert c["name"] == "某公司"
+    assert "business_scope" not in c
+    assert "staff_num_range" not in c
+
+
+@pytest.mark.asyncio
+async def test_research_baseinfo_returns_full_fields(monkeypatch):
+    """detail_level=baseinfo → 返回完整字段（含详情）。"""
+    client = TianyanchaClient()
+    full = {
+        "id": 1, "name": "某公司", "credit_code": "X1",
+        "business_scope": "研发销售", "baseinfo_fetched_at": "2026-01-01T00:00:00",
+    }
+    seen = []
+    _install_research_stubs(monkeypatch, client, companies=[full], exhaustive_seen=seen)
+
+    data = await client.research_region_companies(
+        _FakeDB(), region="上海", industry=None, keywords=["新能源"],
+        limit=20, detail_level="baseinfo", force_remote=False,
+    )
+    c = data["companies"][0]
+    assert c["business_scope"] == "研发销售"
+
+
+@pytest.mark.asyncio
+async def test_research_passes_exhaustive_to_pool(monkeypatch):
+    """exhaustive=True 透传到 search_company_pool。"""
+    client = TianyanchaClient()
+    seen = []
+    _install_research_stubs(
+        monkeypatch, client, companies=[{"id": 1, "name": "n"}], exhaustive_seen=seen,
+    )
+    await client.research_region_companies(
+        _FakeDB(), region="上海", industry=None, keywords=["新能源"],
+        limit=20, detail_level="baseinfo", force_remote=False, exhaustive=True,
+    )
+    assert seen == [True]
+
