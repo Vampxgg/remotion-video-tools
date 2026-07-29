@@ -62,3 +62,23 @@ head2.txt
 resp1.txt
 resp2.txt
 scripts/
+
+# ===== 本地数据 / 文档产物（不入库）=====
+data.json
+data.md
+数据清洗链条.md
+docs/azure_gpt_image.md
+*.xlsx
+*.xlsx.bak
+*.bak
+*.pdf
+
+# ===== 本地探针 / 代理调试脚本（不入库）=====
+cf_proxy/
+cursor_azure_proxy.py
+probe_region.py
+ceshi/aiqicha_playwright.py
+ceshi/aiqicha_probe.py
+ceshi/aiqicha_xcheck.py
+ceshi/aiqicha_xcheck_db.py
+ceshi/_aqc_search2.png
