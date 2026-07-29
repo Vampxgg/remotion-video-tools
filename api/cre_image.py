@@ -118,7 +118,7 @@ MODEL_CAPS: Dict[str, Dict[str, Any]] = {
         "supports_prominent_people": False,
         "read_timeout_sec": 300.0,
     },
-    "gemini-3.1-flash-image-preview": {
+    "gemini-3.1-flash-image": {
         "aspect_ratios": ASPECT_RATIOS_31,
         "image_sizes": frozenset({"512", "1K", "2K", "4K"}),
         "output_mime_types": frozenset({"image/png", "image/jpeg"}),
@@ -236,7 +236,9 @@ async def upload_to_gcs(image_data: bytes, content_type: str, folder: str = GCS_
 class ImageModelID(str, Enum):
     GEMINI_3_PRO_IMAGE_PREVIEW = "gemini-3-pro-image-preview"
     GEMINI_2_5_FLASH = "gemini-2.5-flash-image"
-    GEMINI_3_1_FLASH_PREVIEW = "gemini-3.1-flash-image-preview"
+    # GA 稳定 ID：preview 版 gemini-3.1-flash-image-preview 已于 2026-06-25 被 Google 下线，
+    # 调用会 404 NOT_FOUND；GA 版模型 ID 为 gemini-3.1-flash-image（2026-05-28 GA）。
+    GEMINI_3_1_FLASH_PREVIEW = "gemini-3.1-flash-image"
 
 
 class PersonGeneration(str, Enum):
@@ -358,7 +360,7 @@ class GenerateImagePayload(BaseModel):
 
     prominent_people: Optional[ProminentPeople] = Field(
         None,
-        description="仅 gemini-3.1-flash-image-preview：imageConfig 知名人物限制",
+        description="仅 gemini-3.1-flash-image：imageConfig 知名人物限制",
     )
 
     location_override: Optional[str] = Field(
@@ -511,17 +513,17 @@ def _validate_payload_against_model(payload: GenerateImagePayload) -> None:
     if payload.prominent_people and not caps["supports_prominent_people"]:
         raise HTTPException(
             status_code=422,
-            detail="prominent_people 仅支持 gemini-3.1-flash-image-preview",
+            detail="prominent_people 仅支持 gemini-3.1-flash-image",
         )
     if payload.thinking_level and not caps["supports_thinking"]:
         raise HTTPException(
             status_code=422,
-            detail="thinking_level 仅支持 gemini-3-pro-image-preview 与 gemini-3.1-flash-image-preview",
+            detail="thinking_level 仅支持 gemini-3-pro-image-preview 与 gemini-3.1-flash-image",
         )
     if payload.include_thoughts and not caps["supports_thinking"]:
         raise HTTPException(
             status_code=422,
-            detail="include_thoughts 仅支持 gemini-3-pro-image-preview 与 gemini-3.1-flash-image-preview",
+            detail="include_thoughts 仅支持 gemini-3-pro-image-preview 与 gemini-3.1-flash-image",
         )
     refs = payload.reference_images or []
     if len(refs) > caps["max_references"]:
