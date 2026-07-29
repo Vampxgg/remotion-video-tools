@@ -290,31 +290,51 @@ async def generate_video(payload: GenerateVideoPayload):
             if data.get("done"):
                 logger.info(f"任务完成! Workflow ID: {payload.workflow_id}")
 
+                # done 之后必须无条件结束轮询并返回：Veo 完成响应形如
+                # {"done": true, "response": {"videos": [{"gcsUri": ...}], "raiMediaFilteredCount": N}}。
+                # 若被 RAI 安全策略过滤，done=true 但 videos 为空——此时应返回明确失败，
+                # 绝不能掉回下面的 sleep 继续轮询（否则会一直「完成」到超时，下游收到 504）。
                 response_data = data.get("response", {})
+                if data.get("error"):
+                    err = data["error"]
+                    error_message = f"Veo 任务失败: {err.get('message', err)}"
+                    logger.error(f"Workflow ID: {payload.workflow_id}, {error_message}")
+                    return create_standard_response(
+                        code=status.HTTP_502_BAD_GATEWAY, message=error_message
+                    )
+
                 videos_data = response_data.get("videos", [])
+                video_results = [
+                    VideoResult(
+                        public_url=convert_gcs_to_public_url(item["gcsUri"]),
+                        gcs_uri=item["gcsUri"],
+                        mime_type=item.get("mimeType", "video/mp4"),
+                    )
+                    for item in videos_data
+                    if item.get("gcsUri")
+                ]
 
-                video_results = []
-                for video_item in videos_data:
-                    gcs_uri = video_item.get("gcsUri")
-                    if gcs_uri:
-                        video_results.append(
-                            VideoResult(
-                                public_url=convert_gcs_to_public_url(gcs_uri),
-                                gcs_uri=gcs_uri,
-                                mime_type=video_item.get("mimeType", "video/mp4")
-                            )
-                        )
+                if not video_results:
+                    filtered = response_data.get("raiMediaFilteredCount", 0)
+                    reasons = response_data.get("raiMediaFilteredReasons", [])
+                    error_message = (
+                        f"任务已完成但未返回视频（可能被安全策略过滤）。"
+                        f"raiMediaFilteredCount={filtered}"
+                        + (f", reasons={reasons}" if reasons else "")
+                    )
+                    logger.error(f"Workflow ID: {payload.workflow_id}, {error_message}")
+                    return create_standard_response(
+                        code=status.HTTP_502_BAD_GATEWAY, message=error_message
+                    )
 
-                        # 构建原始成功数据体
-                        success_data = GenerateVideoResponse(
-                            workflow_id=payload.workflow_id,
-                            videos=video_results
-                        )
-
-                        return create_standard_response(
-                            data=success_data.model_dump(),
-                            message="视频生成成功"
-                        )
+                success_data = GenerateVideoResponse(
+                    workflow_id=payload.workflow_id,
+                    videos=video_results,
+                )
+                return create_standard_response(
+                    data=success_data.model_dump(),
+                    message="视频生成成功",
+                )
 
             # 等待指定间隔后再次轮询
             await asyncio.sleep(POLLING_INTERVAL_SECONDS)
@@ -436,7 +456,6 @@ async def generate_videos_batch(payload: BatchGenerateVideoPayload):
                             ]
                 success_data = GenerateVideoResponse(
                     workflow_id=payload.workflow_id,
-                    status="completed",
                     results=list(results_map.values())
                 )
                 return create_standard_response(data=success_data.model_dump(), message="批量视频生成成功")
