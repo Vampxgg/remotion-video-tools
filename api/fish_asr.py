@@ -68,7 +68,8 @@ def _startup_resources() -> None:
         read=_settings.FISH_ASR_HTTP_READ_TIMEOUT,
         write=_settings.FISH_ASR_HTTP_WRITE_TIMEOUT,
     )
-    async_http_client = httpx.AsyncClient(timeout=timeout)
+    # trust_env=False 屏蔽进程环境变量代理；仅当显式配置 FISH_ASR_PROXY_URL 时才走代理。
+    async_http_client = httpx.AsyncClient(timeout=timeout, trust_env=False, proxy=proxies)
 
     logger.info("ASR 模块启动完成。")
     logger.info(f"ASR 线程池已创建，最大工作线程数: {_settings.FISH_ASR_THREAD_WORKERS}")

@@ -95,17 +95,14 @@ async def lifespan_resources(app):
 
 
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+from utils.proxy import resolve_proxy, apply_proxy_to_fish_session  # noqa: E402
 
-# --- Clash 代理设置区 ---
-PROXY_URL = _settings.TTS_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
+# --- 代理策略：只由 .env 显式配置，且只作用于本模块的 Fish Session，绝不写全局 os.environ ---
+PROXY_URL = resolve_proxy("TTS_PROXY_URL", "OUTBOUND_PROXY_URL")
 if PROXY_URL:
-    os.environ['HTTP_PROXY'] = PROXY_URL
-    os.environ['HTTPS_PROXY'] = PROXY_URL
-    os.environ['http_proxy'] = PROXY_URL
-    os.environ['https_proxy'] = PROXY_URL
-    logger.info(f"已配置全局 HTTP/HTTPS 代理: {PROXY_URL}")
+    logger.info(f"TTS 将通过代理出网: {PROXY_URL}")
 else:
-    logger.info("未配置代理，将直接进行网络连接。")
+    logger.info("TTS 未配置代理，直连。")
 
 # --- 配置区（默认值与历史硬编码一致；可通过 .env 中 TTS_* 覆盖）---
 ENGINE_MODEL = _settings.TTS_ENGINE_MODEL
@@ -503,6 +500,7 @@ def generate_audio_workflow(payload: TTSRequestPayload):
     session = None
     try:
         session = Session(fish_api_key)
+        apply_proxy_to_fish_session(session, PROXY_URL)
         executor = tts_thread_pool
         if executor is None:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

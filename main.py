@@ -79,7 +79,7 @@ _LIFESPAN_MODULES = [
     # tts,
     # cre_audio,
     # cre_video,
-    # cre_image,
+    cre_image,
     cre_image_azure,
     # fish_asr,
     job_search,
@@ -186,7 +186,7 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 # # app.include_router(google_tts.router, prefix="/api", tags=["create_audio"])
 app.include_router(converter.router, prefix="/api", tags=["Converter"])
 # app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
-# app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
+app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
 app.include_router(cre_image_azure.router, prefix="/api", tags=["create_azure_image"])
 # app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])

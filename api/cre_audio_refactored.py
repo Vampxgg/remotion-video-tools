@@ -51,9 +51,10 @@ pool_init_lock = threading.Lock()
 dir_creation_lock = threading.Lock()
 
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+from utils.proxy import resolve_proxy, apply_proxy_to_fish_session  # noqa: E402
 
-# --- 代理与配置区（默认值与历史硬编码一致；可通过 .env 中 CRE_AUDIO_REFACTORED_* 覆盖）---
-PROXY_URL = _settings.CRE_AUDIO_REFACTORED_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
+# --- 代理策略：只由 .env 显式配置，且只作用于本模块的 Fish Session，绝不写全局 os.environ ---
+PROXY_URL = resolve_proxy("CRE_AUDIO_REFACTORED_PROXY_URL", "OUTBOUND_PROXY_URL")
 ENGINE_MODEL = _settings.CRE_AUDIO_REFACTORED_ENGINE_MODEL
 AUDIO_FORMAT = _settings.CRE_AUDIO_REFACTORED_AUDIO_FORMAT
 API_BASE_URL = _settings.CRE_AUDIO_REFACTORED_API_BASE_URL
@@ -90,11 +91,9 @@ def _startup_resources() -> None:
     global tts_thread_pool, api_semaphore, global_session_pool
 
     if PROXY_URL:
-        os.environ['HTTP_PROXY'] = PROXY_URL
-        os.environ['HTTPS_PROXY'] = PROXY_URL
-        logger.info(f"已配置全局 HTTP/HTTPS 代理: {PROXY_URL}")
+        logger.info(f"cre_audio_refactored 将通过代理出网: {PROXY_URL}")
     else:
-        logger.info("未配置代理，将直接进行网络连接。")
+        logger.info("cre_audio_refactored 未配置代理，直连。")
 
     tts_thread_pool = concurrent.futures.ThreadPoolExecutor(
         max_workers=MAX_WORKERS,
@@ -109,7 +108,9 @@ def _startup_resources() -> None:
                 logger.info(f"正在初始化全局 Session 池，大小为 {SESSION_POOL_SIZE}...")
                 new_pool = queue.Queue(maxsize=SESSION_POOL_SIZE)
                 for i in range(SESSION_POOL_SIZE):
-                    new_pool.put(Session(FISH_API_KEY))
+                    _sess = Session(FISH_API_KEY)
+                    apply_proxy_to_fish_session(_sess, PROXY_URL)
+                    new_pool.put(_sess)
                 global_session_pool = new_pool
                 logger.info("全局 Session 池成功创建并已缓存。")
             except Exception as e:

@@ -172,7 +172,7 @@ class CreAudioJsonSettings(_Base):
 
 class CreAudioV2Settings(_Base):
     """对应 api/cre_audioV2.py（带本地 7890 代理）"""
-    CRE_AUDIO_V2_PROXY_URL: Optional[str] = "http://127.0.0.1:7890"
+    CRE_AUDIO_V2_PROXY_URL: Optional[str] = None
     CRE_AUDIO_V2_ENGINE_MODEL: str = "speech-1.6"
     CRE_AUDIO_V2_AUDIO_FORMAT: str = "mp3"
     CRE_AUDIO_V2_PUBLIC_URL_TEMPLATE: str = (
@@ -242,7 +242,7 @@ class CreAudioOriginalSpeedSettings(_Base):
 
 class TtsSettings(_Base):
     """对应 api/tts.py"""
-    TTS_PROXY_URL: Optional[str] = "http://127.0.0.1:7890"
+    TTS_PROXY_URL: Optional[str] = None
     TTS_ENGINE_MODEL: str = "speech-1.6"
     TTS_AUDIO_FORMAT: str = "mp3"
     TTS_PUBLIC_URL_TEMPLATE: str = (
@@ -265,7 +265,7 @@ class TtsSettings(_Base):
 
 class MurfTtsSettings(_Base):
     """对应 api/murf_tts.py"""
-    MURF_TTS_PROXY_URL: Optional[str] = "http://127.0.0.1:7890"
+    MURF_TTS_PROXY_URL: Optional[str] = None
     MURF_TTS_AUDIO_FORMAT: str = "mp3"
     MURF_TTS_PUBLIC_URL_TEMPLATE: str = (
         "http://119.45.167.133:7752/meta-doc/video/{workflow_id}/audio/{filename}"

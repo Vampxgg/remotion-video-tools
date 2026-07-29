@@ -100,15 +100,14 @@ async def lifespan_resources(app):
 
 
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+from utils.proxy import resolve_proxy, apply_proxy_to_fish_session  # noqa: E402
 
-# --- 代理与配置区（默认值与历史硬编码一致；可通过 .env 中 CRE_AUDIO_JSON_* 覆盖）---
-PROXY_URL = _settings.CRE_AUDIO_JSON_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
+# --- 代理策略：只由 .env 显式配置，且只作用于本模块的 Fish Session，绝不写全局 os.environ ---
+PROXY_URL = resolve_proxy("CRE_AUDIO_JSON_PROXY_URL", "OUTBOUND_PROXY_URL")
 if PROXY_URL:
-    os.environ['HTTP_PROXY'] = PROXY_URL
-    os.environ['HTTPS_PROXY'] = PROXY_URL
-    logger.info(f"已配置全局 HTTP/HTTPS 代理: {PROXY_URL}")
+    logger.info(f"cre_audio_json 将通过代理出网: {PROXY_URL}")
 else:
-    logger.info("未配置代理，将直接进行网络连接。")
+    logger.info("cre_audio_json 未配置代理，直连。")
 
 ENGINE_MODEL = _settings.CRE_AUDIO_JSON_ENGINE_MODEL
 AUDIO_FORMAT = _settings.CRE_AUDIO_JSON_AUDIO_FORMAT

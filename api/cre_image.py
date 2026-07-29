@@ -165,7 +165,9 @@ async def _startup_resources() -> None:
         write=_settings.CRE_IMAGE_HTTPX_WRITE_TIMEOUT,
         pool=_settings.CRE_IMAGE_HTTPX_POOL_TIMEOUT,
     )
-    http_client = httpx.AsyncClient(timeout=timeout)
+    # trust_env=False：cre_image 全程访问 Vertex/GCS(googleapis.com)，应直连；
+    # 屏蔽进程 HTTP(S)_PROXY，避免被其它模块的代理配置污染。
+    http_client = httpx.AsyncClient(timeout=timeout, trust_env=False)
     logger.info(
         f"全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 {_settings.CRE_IMAGE_HTTPX_READ_TIMEOUT}s 供单次请求覆盖使用。"
     )
@@ -293,7 +295,11 @@ class ReferenceImageInput(BaseModel):
 class GenerateImagePayload(BaseModel):
     prompt: str = Field(..., min_length=1, description="生成/编辑说明（图生图时描述如何改）")
     model_id: ImageModelID = Field(
-        ImageModelID.GEMINI_3_1_FLASH_PREVIEW,
+        # 根因修复：use_enum_values=True 不作用于「默认值」，若默认值写成枚举成员，
+        # 未显式传 model_id（如 Dify 调用）时 model_id 会保持为枚举对象，
+        # 拼进 Vertex endpoint 得到 "ImageModelID.XXX" 导致 400 Invalid Endpoint name。
+        # 默认值直接取 .value，保证默认路径就是纯字符串。
+        ImageModelID.GEMINI_3_1_FLASH_PREVIEW.value,
         description="Vertex 模型 ID",
     )
     system_instruction: Optional[str] = Field(

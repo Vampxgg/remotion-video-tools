@@ -14,6 +14,7 @@ import concurrent.futures
 import time
 from typing import Dict, List, Any, Tuple
 import requests
+import httpx
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from murf import Murf
@@ -27,11 +28,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+from utils.proxy import resolve_proxy  # noqa: E402
 
-PROXY_URL = _settings.MURF_TTS_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
+# --- 代理策略：只由 .env 显式配置，且只作用于本模块的 client，绝不写全局 os.environ ---
+PROXY_URL = resolve_proxy("MURF_TTS_PROXY_URL", "OUTBOUND_PROXY_URL")
 if PROXY_URL:
-    os.environ['HTTP_PROXY'], os.environ['HTTPS_PROXY'] = PROXY_URL, PROXY_URL
-    logger.info(f"已配置全局代理: {PROXY_URL}")
+    logger.info(f"murf_tts 将通过代理出网: {PROXY_URL}")
+else:
+    logger.info("murf_tts 未配置代理，直连。")
 AUDIO_FORMAT = _settings.MURF_TTS_AUDIO_FORMAT
 PUBLIC_URL_TEMPLATE = _settings.MURF_TTS_PUBLIC_URL_TEMPLATE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -218,7 +222,9 @@ def generate_audio_workflow_murf(payload: MurfTTSRequestPayload):
 
     final_tasks_list = []
     try:
-        murf_client = Murf(api_key=murf_api_key)
+        # trust_env=False 屏蔽进程环境变量代理；仅当显式配置时才走代理，代理只作用于此 Murf client。
+        murf_http_client = httpx.Client(timeout=60, trust_env=False, proxy=PROXY_URL)
+        murf_client = Murf(api_key=murf_api_key, httpx_client=murf_http_client)
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS,
                                                    thread_name_prefix="TTS_Worker_Murf") as executor:
             future_to_task = {

@@ -129,18 +129,15 @@ async def lifespan_resources(app):
 
 
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
+from utils.proxy import resolve_proxy, apply_proxy_to_fish_session  # noqa: E402
 
-# --- Clash 代理设置区 ---
-# 优先 router 自身的 CRE_AUDIO_PROXY_URL；未设置则回落到全局 OUTBOUND_PROXY_URL
-PROXY_URL = _settings.CRE_AUDIO_PROXY_URL or _settings.OUTBOUND_PROXY_URL or ""
+# --- 代理策略：只由 .env 显式配置，且只作用于本模块的 Fish Session，绝不写全局 os.environ ---
+# 优先 router 自身的 CRE_AUDIO_PROXY_URL；未设置则回落到全局 OUTBOUND_PROXY_URL；都无则直连。
+PROXY_URL = resolve_proxy("CRE_AUDIO_PROXY_URL", "OUTBOUND_PROXY_URL")
 if PROXY_URL:
-    os.environ['HTTP_PROXY'] = PROXY_URL
-    os.environ['HTTPS_PROXY'] = PROXY_URL
-    os.environ['http_proxy'] = PROXY_URL
-    os.environ['https_proxy'] = PROXY_URL
-    logger.info(f"已配置全局 HTTP/HTTPS 代理: {PROXY_URL}")
+    logger.info(f"cre_audio 将通过代理出网: {PROXY_URL}")
 else:
-    logger.info("未配置代理，将直接进行网络连接。")
+    logger.info("cre_audio 未配置代理，直连。")
 
 # --- 配置区 (V9 更新) ---
 # 默认值与历史硬编码完全一致；通过 .env 中 CRE_AUDIO_* 变量按需覆盖
@@ -1288,6 +1285,7 @@ async def generate_audio_workflow(payload: TTSRequestPayload):
                         # 使用第一个请求的 API Key 填充池
                         for i in range(SESSION_POOL_SIZE):
                             new_session = Session(fish_api_key)
+                            apply_proxy_to_fish_session(new_session, PROXY_URL)
                             new_pool.put(new_session)
                             logger.debug(f"已创建并放入第 {i + 1}/{SESSION_POOL_SIZE} 个 Session 到全局池中。")
 

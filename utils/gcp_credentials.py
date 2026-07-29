@@ -20,6 +20,7 @@ from typing import Optional
 
 import google.auth
 import google.auth.transport.requests
+import requests as _requests
 from google.oauth2 import service_account
 
 from utils.logger import setup_module_logger
@@ -69,11 +70,23 @@ def get_gcp_credentials():
     return _credentials
 
 
+def _build_auth_request() -> google.auth.transport.requests.Request:
+    """构造 token 刷新用的 Request，底层 requests.Session 强制 trust_env=False。
+
+    根因防护：进程内任何地方一旦设置了 HTTP(S)_PROXY 环境变量，google.auth 默认会
+    读它去连 oauth2.googleapis.com；线上代理不可达时鉴权直接失败。oauth2 本就该直连，
+    这里显式屏蔽环境代理，隔离外部污染。
+    """
+    session = _requests.Session()
+    session.trust_env = False
+    return google.auth.transport.requests.Request(session=session)
+
+
 def _refresh_token() -> str:
     creds = get_gcp_credentials()
     if not creds.valid:
         logger.info("access token 失效/缺失，执行 refresh…")
-        creds.refresh(google.auth.transport.requests.Request())
+        creds.refresh(_build_auth_request())
         logger.info(
             f"access token 已刷新 (expiry={getattr(creds, 'expiry', None)} "
             f"sa={getattr(creds, 'service_account_email', None)})"
