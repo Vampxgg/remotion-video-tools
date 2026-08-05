@@ -38,7 +38,7 @@ class _Base(BaseSettings):
 class AppSettings(_Base):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 2906
-    APP_WORKERS: int = 1
+    APP_WORKERS: int = 4
     APP_PUBLIC_BASE_URL: str = "http://127.0.0.1:2906"
     CORS_ALLOW_ORIGINS: List[str] = ["*"]
     # 当 CORS_ALLOW_ORIGINS=["*"] 时，CORS 规范要求 allow_credentials 必须为 False
@@ -589,6 +589,45 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_LIMITER_UNAVAILABLE_POLICY: str = "fallback_base"
 
 
+class DocImportSettings(_Base):
+    """对应 api/document_import.py + services/document_manifest_service.py。
+
+    文档结构化解析（manifest，仿 Genspark import_pdf）：把 pdf/office/图片拆成
+    "每页高清 PNG + 该页文本层 + 该页内嵌图（带 bbox / VLM 描述）"，每个资产上传为
+    公网 URL，供下游多模态 PPT workflow 使用。上传复用 DOC_PARSER_IMAGE_UPLOAD_*
+    对象存储配置；VLM 打标复用 Vertex Gemini（与 file_understand 同凭证）。
+    """
+
+    # 鉴权：留空则复用 FILE_PARSE_API_KEY；都留空表示不鉴权（与其它 router 一致）。
+    DOC_IMPORT_API_KEY: Optional[str] = None
+    # 每页 PNG 渲染 DPI（越大越清晰但越慢/越大）；150 兼顾清晰与体积。
+    DOC_IMPORT_DEFAULT_DPI: int = 150
+    # 最大处理页数（防止超大文档拖垮）。
+    DOC_IMPORT_MAX_PAGES: int = 60
+    # 内嵌图过滤阈值（与 DOC_PARSER 对齐，避免抽到分隔线/图标噪音）。
+    DOC_IMPORT_MIN_IMG_BYTES: int = 5 * 1024
+    DOC_IMPORT_MIN_IMG_DIM: int = 50
+    # 上传单文件大小上限（MB），复用 file_parse 的口径即可，这里单独留一档更保守。
+    DOC_IMPORT_MAX_UPLOAD_MB: int = 80
+    # 通过 file_url 拉取源文件的超时与大小上限。
+    DOC_IMPORT_FETCH_TIMEOUT_SEC: float = 60.0
+    DOC_IMPORT_FETCH_MAX_MB: int = 80
+
+    # ===== VLM 内嵌图打标（复用 Vertex Gemini） =====
+    # 打标模型；默认 flash（快/省），可切 pro 提精度。
+    DOC_IMPORT_VLM_MODEL: str = "gemini-2.5-flash"
+    DOC_IMPORT_VLM_LOCATION: str = "global"
+    DOC_IMPORT_VLM_TIMEOUT_SEC: float = 120.0
+    DOC_IMPORT_VLM_MAX_REGIONS: int = 2
+    DOC_IMPORT_VLM_TEMPERATURE: float = 0.2
+    DOC_IMPORT_VLM_MAX_OUTPUT_TOKENS: int = 8192
+    DOC_IMPORT_VLM_THINKING_BUDGET: int = 0
+    # 单次请求内并发打标的图片数（受 Vertex 全局限流器进一步约束）。
+    DOC_IMPORT_VLM_CONCURRENCY: int = 4
+    # 单张图片打标时随附所在页整页 PNG 作为上下文（更懂图在讲什么）；关掉可省 token。
+    DOC_IMPORT_VLM_WITH_PAGE_CONTEXT: bool = True
+
+
 class ZhipinSettings(_Base):
     """对应 api/zhipin_job.py / api/pc_drissionpage_new.py"""
     ZHIPIN_BROWSER_HOST_PORT: str = "127.0.0.1:9527"
@@ -747,7 +786,7 @@ class Settings(
     VideoCompressSettings, ConverterSettings, JobSearchSettings,
     JobSearchV2Settings,
     TuoyuSerpSettings, UrlFetchSettings, DocParserSettings, FileParseSettings,
-    FileUnderstandSettings,
+    FileUnderstandSettings, DocImportSettings,
     ZhipinSettings, BossZhipinSettings, RegionJobsSettings,
     WebSearchSettings,
     TianyanchaSettings,
