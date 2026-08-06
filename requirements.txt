@@ -51,6 +51,8 @@ pytesseract
 PyPDF2
 tavily-python
 json-repair
+# Azure 模型注册表(secrets/azure-models.yaml)解析
+PyYAML
 
 # Cache (Redis 异步客户端，含 redis.asyncio)
 redis>=5.0

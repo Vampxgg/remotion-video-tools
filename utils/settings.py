@@ -120,6 +120,10 @@ class CommonSettings(_Base):
     GCP_CREDENTIALS_FILE: Optional[str] = None
     GCS_BUCKET_NAME: str = "x-pilot-storage"
     GCS_PUBLIC_URL_PREFIX: str = "https://storage.googleapis.com/x-pilot-storage"
+    # Azure 模型注册表（endpoint+apiKey+model→region 路由）。相对路径按项目根解析。
+    # 所有 Azure OpenAI 调用(VLM 打标/生图/脚本)统一从此文件按模型名解析密钥，
+    # 消除代码/settings 里的明文 key。文件位于 secrets/（已 gitignore，不入库）。
+    AZURE_MODELS_FILE: str = "secrets/azure-models.yaml"
 
 
 # =====================================================================
@@ -333,15 +337,19 @@ class CreImageAzureSettings(_Base):
     仅共享 GCS 存储桶/公网前缀等基础设施配置（CommonSettings）。
     鉴权走 Azure OpenAI 的 api-key 头；生成走 REST（httpx 直连），不引入 openai SDK。
     """
-    # 资源 endpoint（形如 https://<resource>.cognitiveservices.azure.com，末尾斜杠可有可无）
-    CRE_IMAGE_AZURE_ENDPOINT: str = "https://x-pilot-6-resource.cognitiveservices.azure.com"
-    # 资源密钥；留空则接口直接拒绝（不下发外部请求）
+    # 模型名：运行时由 utils.azure_models 从 secrets/azure-models.yaml 解析出多 region
+    # 端点池（endpoint+apiKey+api_version），不再硬编码密钥/明文 ENDPOINTS_JSON。
+    CRE_IMAGE_AZURE_MODEL: str = "gpt-image-2"
+    # 可选显式覆盖单 endpoint（留空=走 yaml）。切勿把明文 key 写进版本库。
+    CRE_IMAGE_AZURE_ENDPOINT: Optional[str] = None
+    # 资源密钥；留空则走 yaml 解析（yaml 也无则接口拒绝，不下发外部请求）
     CRE_IMAGE_AZURE_API_KEY: Optional[str] = None
-    # 部署名（Azure 以部署名而非模型名寻址）
-    CRE_IMAGE_AZURE_DEPLOYMENT: str = "gpt-image-2"
-    # REST 接口版本（非模型版本；模型版本 2026-04-21 由部署本身固定）
-    CRE_IMAGE_AZURE_API_VERSION: str = "2025-04-01-preview"
-    # 多区域 endpoint 池，JSON 数组；配置后优先使用，未配置则回退到上面的单 endpoint。
+    # 部署名（Azure 以部署名而非模型名寻址）；留空=用 CRE_IMAGE_AZURE_MODEL
+    CRE_IMAGE_AZURE_DEPLOYMENT: Optional[str] = None
+    # REST 接口版本；留空=用 yaml 顶层 apiVersion
+    CRE_IMAGE_AZURE_API_VERSION: Optional[str] = None
+    # 多区域 endpoint 池，JSON 数组；配置后优先使用，未配置则从 yaml 的
+    # models[CRE_IMAGE_AZURE_MODEL].regions 自动生成端点池。
     # 单项字段：name/endpoint/api_key/deployment/weight/max_concurrency。
     CRE_IMAGE_AZURE_ENDPOINTS_JSON: str = ""
     # 生成默认档位（medium 兼顾速度与质量；high 最慢，low 最快）
@@ -613,19 +621,44 @@ class DocImportSettings(_Base):
     DOC_IMPORT_FETCH_TIMEOUT_SEC: float = 60.0
     DOC_IMPORT_FETCH_MAX_MB: int = 80
 
-    # ===== VLM 内嵌图打标（复用 Vertex Gemini） =====
-    # 打标模型；默认 flash（快/省），可切 pro 提精度。
-    DOC_IMPORT_VLM_MODEL: str = "gemini-2.5-flash"
-    DOC_IMPORT_VLM_LOCATION: str = "global"
-    DOC_IMPORT_VLM_TIMEOUT_SEC: float = 120.0
-    DOC_IMPORT_VLM_MAX_REGIONS: int = 2
-    DOC_IMPORT_VLM_TEMPERATURE: float = 0.2
-    DOC_IMPORT_VLM_MAX_OUTPUT_TOKENS: int = 8192
-    DOC_IMPORT_VLM_THINKING_BUDGET: int = 0
-    # 单次请求内并发打标的图片数（受 Vertex 全局限流器进一步约束）。
+    # ===== VLM 内嵌图打标 =====
+    # 打标 provider 现已切换为 Azure（FW-Kimi-K2.7-Code，国内可达）。
+    # 以下 Vertex 遗留项不再使用，仅保留避免历史环境变量报错：
+    # DOC_IMPORT_VLM_MODEL / DOC_IMPORT_VLM_LOCATION / DOC_IMPORT_VLM_MAX_REGIONS /
+    # DOC_IMPORT_VLM_THINKING_BUDGET / DOC_IMPORT_VLM_MAX_OUTPUT_TOKENS。
+    DOC_IMPORT_VLM_MODEL: str = "gemini-2.5-flash"  # [遗留-Vertex] 不再使用
+    DOC_IMPORT_VLM_LOCATION: str = "global"  # [遗留-Vertex] 不再使用
+    DOC_IMPORT_VLM_TIMEOUT_SEC: float = 120.0  # [遗留-Vertex] 不再使用
+    DOC_IMPORT_VLM_MAX_REGIONS: int = 2  # [遗留-Vertex] 不再使用
+    DOC_IMPORT_VLM_TEMPERATURE: float = 0.2  # 仍用于 Azure 采样温度
+    DOC_IMPORT_VLM_MAX_OUTPUT_TOKENS: int = 8192  # [遗留-Vertex] Azure 用 DOC_IMPORT_AZURE_MAX_TOKENS
+    DOC_IMPORT_VLM_THINKING_BUDGET: int = 0  # [遗留-Vertex] 不再使用
+    # 单次请求内并发打标的图片数（Azure 侧仅受此并发约束，无全局限流器）。
     DOC_IMPORT_VLM_CONCURRENCY: int = 4
     # 单张图片打标时随附所在页整页 PNG 作为上下文（更懂图在讲什么）；关掉可省 token。
     DOC_IMPORT_VLM_WITH_PAGE_CONTEXT: bool = True
+
+    # ===== Azure VLM 打标（FW-Kimi-K2.7-Code，Azure OpenAI 兼容 chat/completions） =====
+    # 模型名：运行时由 utils.azure_models 从 secrets/azure-models.yaml 解析出
+    # endpoint + api-key + api_version（含 region fallback），不再硬编码密钥。
+    DOC_IMPORT_AZURE_MODEL: str = "FW-Kimi-K2.7-Code"
+    # 可选显式覆盖：留空=走 yaml；配置后优先用（应急/本地调试）。切勿把明文 key 写进版本库。
+    DOC_IMPORT_AZURE_ENDPOINT: Optional[str] = None
+    DOC_IMPORT_AZURE_API_KEY: Optional[str] = None
+    DOC_IMPORT_AZURE_DEPLOYMENT: Optional[str] = None
+    DOC_IMPORT_AZURE_API_VERSION: Optional[str] = None
+    # 单次打标最大输出 token。
+    DOC_IMPORT_AZURE_MAX_TOKENS: int = 2048
+    # 连接超时压到 10s：网络不通时每张图最多等 10s 而非 120s，避免整体雪崩。
+    DOC_IMPORT_AZURE_CONNECT_TIMEOUT: float = 10.0
+    DOC_IMPORT_AZURE_READ_TIMEOUT: float = 60.0
+    DOC_IMPORT_AZURE_WRITE_TIMEOUT: float = 30.0
+    # Azure API 出网代理；留空=直连（Azure 国内通常可直连，直连最稳）。
+    DOC_IMPORT_AZURE_PROXY_URL: Optional[str] = None
+    # 单张图片打标失败重试次数（仅对可重试错误，如 5xx/连接抖动）。
+    DOC_IMPORT_AZURE_MAX_RETRIES: int = 2
+    # 连续 N 张图因“连接不可达”失败则整批短路跳过剩余图（把雪崩压到秒级）。
+    DOC_IMPORT_AZURE_CIRCUIT_CONSECUTIVE_CONN_FAILS: int = 5
 
 
 class ZhipinSettings(_Base):

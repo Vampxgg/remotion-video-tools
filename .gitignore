@@ -76,6 +76,10 @@ docs/azure_gpt_image.md
 # ===== 本地探针 / 代理调试脚本（不入库）=====
 cf_proxy/
 cursor_azure_proxy.py
+# Azure 图片理解本地脚本（自带 yaml 兜底，避免明文密钥被误 add）
+watch_describe.py
+describe_image_gui.py
+describe_image.py
 probe_region.py
 ceshi/aiqicha_playwright.py
 ceshi/aiqicha_probe.py

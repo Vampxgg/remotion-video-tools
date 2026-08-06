@@ -33,6 +33,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, conint, field_validator, model_validator
 
 from utils.logger import setup_module_logger
+from utils.azure_models import AzureModelsConfigError, resolve_model
 from utils.gcp_credentials import get_access_token  # 共享基础设施：GCS 上传凭证
 from utils.settings import settings as _settings
 from utils.responses import create_standard_response as _shared_create_standard_response
@@ -43,8 +44,24 @@ router = APIRouter()
 
 # ─── 配置快照 ───────────────────────────────────────────────
 AZURE_ENDPOINT = (_settings.CRE_IMAGE_AZURE_ENDPOINT or "").rstrip("/")
-AZURE_DEPLOYMENT = _settings.CRE_IMAGE_AZURE_DEPLOYMENT
-AZURE_API_VERSION = _settings.CRE_IMAGE_AZURE_API_VERSION
+AZURE_DEPLOYMENT = _settings.CRE_IMAGE_AZURE_DEPLOYMENT or _settings.CRE_IMAGE_AZURE_MODEL
+
+
+def _default_api_version() -> str:
+    """api_version 优先取 settings 覆盖，否则从 yaml 顶层解析；两者皆无给空串。
+
+    导入期不抛错（yaml 缺失时留待接口实际调用再报），保持模块可安全导入。
+    """
+    v = (_settings.CRE_IMAGE_AZURE_API_VERSION or "").strip()
+    if v:
+        return v
+    try:
+        return resolve_model(_settings.CRE_IMAGE_AZURE_MODEL).api_version
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+AZURE_API_VERSION = _default_api_version()
 
 GCS_BUCKET_NAME = _settings.GCS_BUCKET_NAME
 GCS_OUTPUT_DIR = _settings.CRE_IMAGE_AZURE_OUTPUT_DIR
@@ -170,10 +187,10 @@ def _parse_azure_endpoint_pool() -> List[AzureEndpointRuntime]:
     if endpoints:
         return endpoints
 
-    # 向后兼容：没有配置多区域池时，继续使用原来的单 endpoint 配置。
+    # 向后兼容：没有配置多区域池时，先看是否配了单 endpoint 覆盖。
     api_key = (_settings.CRE_IMAGE_AZURE_API_KEY or "").strip()
     endpoint = (AZURE_ENDPOINT or "").strip()
-    deployment = (AZURE_DEPLOYMENT or "").strip()
+    deployment = (AZURE_DEPLOYMENT or _settings.CRE_IMAGE_AZURE_MODEL or "").strip()
     if api_key and endpoint and deployment:
         name = urlparse(endpoint).hostname or "default"
         return [
@@ -185,6 +202,31 @@ def _parse_azure_endpoint_pool() -> List[AzureEndpointRuntime]:
                 max_concurrency=default_concurrency,
             )
         ]
+
+    # 兜底（推荐路径）：从 secrets/azure-models.yaml 按模型名自动生成多 region 端点池，
+    # deployment 取模型名，api_version 取 yaml 顶层（同时回写全局 AZURE_API_VERSION）。
+    model = (_settings.CRE_IMAGE_AZURE_MODEL or "").strip()
+    if model:
+        try:
+            resolved = resolve_model(model)
+        except AzureModelsConfigError as e:
+            raise RuntimeError(f"Azure 生图模型解析失败({model}): {e}") from e
+        global AZURE_API_VERSION
+        AZURE_API_VERSION = (
+            (_settings.CRE_IMAGE_AZURE_API_VERSION or resolved.api_version or "").strip()
+        )
+        for ep in resolved.endpoints:
+            endpoints.append(
+                AzureEndpointRuntime(
+                    name=ep.name,
+                    endpoint=ep.endpoint,
+                    api_key=ep.api_key,
+                    deployment=(_settings.CRE_IMAGE_AZURE_DEPLOYMENT or ep.deployment).strip(),
+                    max_concurrency=default_concurrency,
+                )
+            )
+        return endpoints
+
     return []
 
 

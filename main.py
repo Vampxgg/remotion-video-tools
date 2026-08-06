@@ -206,6 +206,22 @@ app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])
 # app.include_router(auth.router)
 
 
+# 国内用这些
+# app.include_router(converter.router, prefix="/api", tags=["Converter"])
+# app.include_router(cre_image_azure.router, prefix="/api", tags=["create_azure_image"])
+# app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
+# app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
+# app.include_router(boss_zhipin.router, prefix="/api", tags=["boss_zhipin"])
+# app.include_router(jobs_region.router, prefix="/api", tags=["jobs_region"])
+# app.include_router(tianyancha.router, prefix="/api", tags=["tianyancha"])
+# app.include_router(web_search.router, prefix="/api", tags=["web_search"])
+# app.include_router(file_parser.router, prefix="/api", tags=["file_parser"])
+# app.include_router(file_understand.router, prefix="/api", tags=["file_understand"])
+# app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])
+# app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])
+# app.include_router(document_import.router, prefix="/api", tags=["document_import"])
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello API!"}
