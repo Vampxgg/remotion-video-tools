@@ -40,6 +40,24 @@ _lock = threading.Lock()
 _refresh_lock = threading.Lock()
 
 
+class _TimeoutRequest(google.auth.transport.requests.Request):
+    """带默认超时的 Request：google.auth 的 Request 构造函数只接受 session，
+    超时只能在 __call__ 时传。这里注入默认 timeout，让 creds.refresh() 内部
+    每次发起 token 请求都受该超时约束，避免 oauth2 出网挂起长时间阻塞。
+    """
+
+    def __init__(self, session=None, timeout: float = _REFRESH_TIMEOUT_SEC):
+        super().__init__(session=session)
+        self._default_timeout = timeout
+
+    def __call__(self, url, method="GET", body=None, headers=None, timeout=None, **kwargs):
+        if timeout is None:
+            timeout = self._default_timeout
+        return super().__call__(
+            url, method=method, body=body, headers=headers, timeout=timeout, **kwargs
+        )
+
+
 def _resolve_path(raw: str) -> Path:
     p = Path(raw)
     if not p.is_absolute():
@@ -102,9 +120,7 @@ def _build_auth_request() -> google.auth.transport.requests.Request:
     proxy = _resolve_gcp_proxy()
     if proxy:
         session.proxies = {"http": proxy, "https": proxy}
-    return google.auth.transport.requests.Request(
-        session=session, timeout=_REFRESH_TIMEOUT_SEC
-    )
+    return _TimeoutRequest(session=session, timeout=_REFRESH_TIMEOUT_SEC)
 
 
 def _refresh_token(force: bool = False) -> str:
