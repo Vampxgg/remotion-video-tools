@@ -566,6 +566,9 @@ class DocumentParserService:
                     logger.info("python-docx fallback uploaded %s/%s images", len(url_map), len(images))
 
             img_count = 0
+            # 全局按 embed_id 去重：同一张内嵌图(相同 r:embed rId)在整个文档里只输出一次，
+            # 避免合并单元格/多处引用导致同图重复（下游会把重复内容一路带进 PPT）。
+            seen_embed: set = set()
             rId_to_url: Dict[str, str] = {}
             for rel_id, rel in doc.part.rels.items():
                 if "image" in getattr(rel, 'reltype', ''):
@@ -589,11 +592,14 @@ class DocumentParserService:
                     else:
                         paragraphs.append(text)
                 if has_image:
-                    img_count += 1
-                    img_url = None
                     embed_match = re.search(r'r:embed="([^"]+)"', para_xml)
-                    if embed_match:
-                        img_url = rId_to_url.get(embed_match.group(1))
+                    embed_id = embed_match.group(1) if embed_match else None
+                    if embed_id and embed_id in seen_embed:
+                        continue
+                    if embed_id:
+                        seen_embed.add(embed_id)
+                    img_count += 1
+                    img_url = rId_to_url.get(embed_id) if embed_id else None
                     if not img_url and url_map:
                         ordered = sorted(url_map.values())
                         idx = img_count - 1
@@ -612,13 +618,27 @@ class DocumentParserService:
                 # 若不单独抽取，表格内的图会永久丢失（source_image_count=0 的根因之一）。
                 # 这里按单元格 XML 检出图片，作为紧跟表格后的独立图片行输出，
                 # 使其进入图片白名单，从而被视觉理解/逐图补识别覆盖。
+                #
+                # 关键去重：python-docx 的 row.cells 对合并单元格(gridSpan)会把同一个
+                # 底层 <w:tc> 重复返回 N 次（跨 N 列即 N 个指向同一 _element 的 cell）。
+                # 若不去重，含图的合并单元格会让同一张图输出 N 次，最终 Markdown 里同一
+                # 图片+同一描述重复一堆（下游 PPT 全被污染）。故按底层 tc 元素去重；
+                # 再按 embed_id 全局去重，防同一张图跨单元格重复。
+                seen_tc: set = set()
                 for row in table.rows:
                     for cell in row.cells:
-                        cell_xml = cell._element.xml
+                        tc = cell._element
+                        if id(tc) in seen_tc:
+                            continue
+                        seen_tc.add(id(tc))
+                        cell_xml = tc.xml
                         if not ('<w:drawing' in cell_xml or '<v:imagedata' in cell_xml
                                 or '<wp:inline' in cell_xml):
                             continue
                         for embed_id in re.findall(r'r:embed="([^"]+)"', cell_xml):
+                            if embed_id in seen_embed:
+                                continue
+                            seen_embed.add(embed_id)
                             img_count += 1
                             img_url = rId_to_url.get(embed_id)
                             if not img_url and url_map:

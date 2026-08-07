@@ -38,6 +38,21 @@ def _docx_with_table_image() -> bytes:
     return out.getvalue()
 
 
+def _docx_with_merged_cell_image() -> bytes:
+    """跨列合并单元格里含一张图：复现 python-docx row.cells 对 gridSpan
+    重复返回同一 <w:tc>，导致同图被输出多次的 bug。"""
+    doc = Document()
+    table = doc.add_table(rows=2, cols=3)
+    # 第一行三个单元格合并成一个跨 3 列的大单元格，并在其中插入图片。
+    merged = table.cell(0, 0).merge(table.cell(0, 1)).merge(table.cell(0, 2))
+    run = merged.paragraphs[0].add_run()
+    run.add_picture(BytesIO(_png_bytes()), width=Inches(1.0))
+    table.cell(1, 0).text = "普通行"
+    out = BytesIO()
+    doc.save(out)
+    return out.getvalue()
+
+
 class DocxTableImageTests(TestCase):
     def test_table_cell_image_enters_markdown(self):
         data = _docx_with_table_image()
@@ -59,3 +74,19 @@ class DocxTableImageTests(TestCase):
             md = svc._parse_docx(data)
 
         self.assertIn(fake_url, md, f"表格单元格内图片 URL 未进入 markdown:\n{md}")
+
+    def test_merged_cell_image_not_duplicated(self):
+        """根因回归：跨列合并单元格内的图，在 markdown 里只出现一次，不因 gridSpan 重复。"""
+        data = _docx_with_merged_cell_image()
+        svc = DocumentParserService(enable_embedded_image_upload=True, enable_ocr=False, min_img_bytes=100)
+        fake_url = "https://cdn/merged_img.png"
+
+        with patch.object(svc, "_markitdown_convert", return_value=""), \
+             patch.object(EmbeddedImageUploader, "extract_from_zip", classmethod(lambda cls, d, p, min_size=5120: [("image1.png", _png_bytes(), "image/png")])), \
+             patch.object(EmbeddedImageUploader, "upload_images", classmethod(lambda cls, images: {img[0]: fake_url for img in images})):
+            md = svc._parse_docx(data)
+
+        self.assertEqual(
+            md.count(fake_url), 1,
+            f"合并单元格内图片被重复输出 {md.count(fake_url)} 次:\n{md}",
+        )
