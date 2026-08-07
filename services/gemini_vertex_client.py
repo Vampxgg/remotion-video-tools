@@ -14,12 +14,22 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+import random
 import time
 from typing import Any, Dict, List, Optional
 
 import httpx
 
+from services.file_understand_provider import (
+    ProviderAuthError,
+    ProviderInvalidResponseError,
+    ProviderRateLimitError,
+    ProviderRequestError,
+    ProviderTimeoutError,
+    ProviderUnavailableError,
+)
 from utils.gcp_credentials import get_access_token
 from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
@@ -47,12 +57,40 @@ _VERTEX_ENDPOINT_TEMPLATE = (
 
 # 复用单个 AsyncClient，避免每次调用重建连接池。
 _http_client: Optional[httpx.AsyncClient] = None
+# 记录当前 client 使用的代理，代理变化时触发重建。
+_http_client_proxy: Optional[str] = None
+
+
+def _resolve_vertex_proxy() -> Optional[str]:
+    """Vertex 出网代理：FILE_UNDERSTAND_VERTEX_PROXY_URL → OUTBOUND_PROXY_URL → None(直连)。
+
+    国内服务器直连 googleapis.com 会超时，需显式走代理；海外/本地可直连时留空即可。
+    """
+    for name in ("FILE_UNDERSTAND_VERTEX_PROXY_URL", "OUTBOUND_PROXY_URL"):
+        val = getattr(_settings, name, None)
+        if val and str(val).strip():
+            return str(val).strip()
+    return None
 
 
 def _get_http_client() -> httpx.AsyncClient:
-    global _http_client
-    if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient()
+    global _http_client, _http_client_proxy
+    proxy = _resolve_vertex_proxy()
+    # 代理配置变化时重建 client（首次创建，或运行期 .env 改了代理）。
+    if _http_client is None or _http_client.is_closed or _http_client_proxy != proxy:
+        if _http_client is not None and not _http_client.is_closed:
+            # 旧 client 交给 GC 前尽量关闭，避免连接泄漏（忽略关闭异常）。
+            try:
+                import asyncio as _asyncio
+
+                _asyncio.get_event_loop().create_task(_http_client.aclose())
+            except Exception:  # noqa: BLE001
+                pass
+        # trust_env=False：不吃进程环境变量代理，出网策略完全由 proxy= 显式控制，
+        # 避免全局 HTTP(S)_PROXY 污染。proxy=None 即直连。
+        _http_client = httpx.AsyncClient(trust_env=False, proxy=proxy)
+        _http_client_proxy = proxy
+        logger.info("Vertex HTTP client 就绪 proxy=%s", proxy or "直连")
     return _http_client
 
 
@@ -102,6 +140,27 @@ def _locations_to_try(location: Optional[str]) -> List[str]:
     return GOOGLE_LOCATIONS[:4]
 
 
+def _parse_retry_after(resp: httpx.Response) -> Optional[float]:
+    """解析 429/503 的 Retry-After 头（仅支持整数秒形式；日期形式忽略）。"""
+    raw = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
+    if not raw:
+        return None
+    try:
+        return max(0.0, float(raw.strip()))
+    except (TypeError, ValueError):
+        return None
+
+
+def _backoff_sleep(attempt: int, base: float, cap: float) -> float:
+    """指数退避 + 满抖动（full jitter），返回本次应睡眠的秒数。"""
+    expo = min(cap, base * (2 ** attempt))
+    return random.uniform(0.0, expo)
+
+
+async def _async_sleep(seconds: float) -> None:
+    await asyncio.sleep(max(0.0, seconds))
+
+
 async def generate_content(
     *,
     model: str,
@@ -134,9 +193,17 @@ async def generate_content(
     client = _get_http_client()
 
     last_exc: Optional[BaseException] = None
+    # 记录最后一次可归因的失败类型，供全区耗尽后抛出对应 provider 错误。
+    last_kind: str = "unknown"
+    last_retry_after: Optional[float] = None
     locations = _locations_to_try(location)
     if max_locations and max_locations > 0:
         locations = locations[:max_locations]
+
+    # 退避参数：429/5xx/网络抖动在换区之外，先做一次带抖动的短退避，缓解瞬时限流。
+    backoff_base = float(getattr(_settings, "FILE_UNDERSTAND_RETRY_BACKOFF_BASE_SEC", 1.0) or 1.0)
+    backoff_cap = float(getattr(_settings, "FILE_UNDERSTAND_RETRY_BACKOFF_CAP_SEC", 8.0) or 8.0)
+    auth_refreshed = False
 
     # 请求体大小：诊断 “大请求体 -> 连接被断” 假设的关键指标（不打印 base64 本身）。
     n_parts = sum(len(c.get("parts") or []) for c in contents)
@@ -183,25 +250,70 @@ async def generate_content(
             last_exc = e
             dt = time.time() - t0
             code = e.response.status_code
-            if code == 429 or code >= 500:
+            if code == 401 and not auth_refreshed:
+                # token 可能过期/被误判 valid：强制刷新一次后原区域立即重试（不消耗区域名额）。
+                auth_refreshed = True
+                last_kind = "auth"
                 logger.warning(
-                    f"[{request_id}] {loc} 可重试HTTP {code} ({attempt + 1}/{len(locations)}) "
+                    f"[{request_id}] {loc} HTTP 401，强制刷新 token 后重试 "
+                    f"({attempt + 1}/{len(locations)}) 耗时={dt:.2f}s"
+                )
+                try:
+                    token = await get_access_token(force_refresh=True)
+                    headers["Authorization"] = f"Bearer {token}"
+                    resp = await client.post(
+                        endpoint, headers=headers, json=body, timeout=per_timeout
+                    )
+                    resp.raise_for_status()
+                    return resp.json()
+                except Exception as e2:  # noqa: BLE001
+                    last_exc = e2
+                    continue
+            if code in (401, 403):
+                last_kind = "auth"
+                logger.error(
+                    f"[{request_id}] {loc} 鉴权失败HTTP {code} ({attempt + 1}/{len(locations)}) "
                     f"耗时={dt:.2f}s body={e.response.text[:300]}"
                 )
                 continue
+            if code == 429 or code >= 500:
+                last_kind = "rate_limit" if code == 429 else "unavailable"
+                retry_after = _parse_retry_after(e.response)
+                last_retry_after = retry_after
+                logger.warning(
+                    f"[{request_id}] {loc} 可重试HTTP {code} ({attempt + 1}/{len(locations)}) "
+                    f"耗时={dt:.2f}s retry_after={retry_after} body={e.response.text[:300]}"
+                )
+                # 换区之前先做一次带抖动退避（429 优先遵守 Retry-After），缓解瞬时限流。
+                if attempt < len(locations) - 1:
+                    sleep_s = retry_after if retry_after is not None else _backoff_sleep(
+                        attempt, backoff_base, backoff_cap
+                    )
+                    if sleep_s > 0:
+                        await _async_sleep(sleep_s)
+                continue
+            # 其它 4xx：确定性请求错误，不重试、不切换。
+            last_kind = "request"
             logger.error(
                 f"[{request_id}] {loc} 不可重试HTTP {code} ({attempt + 1}/{len(locations)}) "
                 f"耗时={dt:.2f}s body={e.response.text[:300]}"
             )
-            raise
+            raise ProviderRequestError(
+                f"Vertex 请求错误 HTTP {code}: {e.response.text[:300]}"
+            ) from e
         except Exception as e:  # noqa: BLE001
             last_exc = e
             dt = time.time() - t0
             kind = _classify_exc(e)
+            last_kind = "timeout" if kind.startswith("net_") else "unknown"
             logger.warning(
                 f"[{request_id}] {loc} {kind} ({attempt + 1}/{len(locations)}) "
                 f"耗时={dt:.2f}s {type(e).__name__}: {e}"
             )
+            if attempt < len(locations) - 1:
+                sleep_s = _backoff_sleep(attempt, backoff_base, backoff_cap)
+                if sleep_s > 0:
+                    await _async_sleep(sleep_s)
             continue
 
     total = time.time() - t_all
@@ -210,8 +322,18 @@ async def generate_content(
             f"[{request_id}] Vertex 全部 {len(locations)} 个区域失败 总耗时={total:.2f}s "
             f"最后错误={_classify_exc(last_exc)} {type(last_exc).__name__}: {last_exc}"
         )
-        raise last_exc
-    raise RuntimeError("Vertex 调用失败且无异常信息")
+        # 按最后一次可归因的失败类型抛出对应 provider 错误，供编排层决定是否切备用 provider。
+        msg = f"Vertex 全部 {len(locations)} 个区域失败: {type(last_exc).__name__}: {last_exc}"
+        if last_kind == "rate_limit":
+            raise ProviderRateLimitError(msg, retry_after=last_retry_after) from last_exc
+        if last_kind == "auth":
+            raise ProviderAuthError(msg) from last_exc
+        if last_kind == "unavailable":
+            raise ProviderUnavailableError(msg) from last_exc
+        if last_kind == "timeout":
+            raise ProviderTimeoutError(msg) from last_exc
+        raise ProviderUnavailableError(msg) from last_exc
+    raise ProviderInvalidResponseError("Vertex 调用失败且无异常信息")
 
 
 def extract_text(data: Dict[str, Any]) -> str:

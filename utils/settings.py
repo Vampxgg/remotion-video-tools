@@ -596,6 +596,38 @@ class FileUnderstandSettings(_Base):
     # Redis 不可用策略：fallback_base=降级基础解析；open=本地开发可放开；fail=抛错。
     FILE_UNDERSTAND_LIMITER_UNAVAILABLE_POLICY: str = "fallback_base"
 
+    # ===== 高可用：主/备 provider、重试退避、总预算、逐图补识别 =====
+    # provider fallback 顺序（逗号分隔）：主用在前，其后为异构备用。
+    # vertex=Vertex Gemini（原生多模态）；azure=Azure VLM（PDF 拆页，独立故障域）。
+    FILE_UNDERSTAND_PROVIDER_ORDER: str = "vertex,azure"
+    # Vertex 出网代理：国内服务器直连 googleapis.com 会超时，需走代理。
+    # 同时作用于 generateContent 与 oauth2 token 刷新两条链路（都是 Google 域）。
+    # 留空则回落 OUTBOUND_PROXY_URL；两者都空=直连（海外机/本地可直连时用）。
+    # Azure 恒直连（国内可达），不受本项影响，实现"Vertex 走代理 / Azure 直连"。
+    FILE_UNDERSTAND_VERTEX_PROXY_URL: Optional[str] = None
+    # Vertex 换区/网络抖动前的退避：指数基数与上限（秒），配合满抖动缓解瞬时限流。
+    FILE_UNDERSTAND_RETRY_BACKOFF_BASE_SEC: float = 1.0
+    FILE_UNDERSTAND_RETRY_BACKOFF_CAP_SEC: float = 8.0
+    # 整个视觉阶段（含排队+主备 provider+逐图补识别）的墙钟总预算（秒）。超出立即兜底。
+    FILE_UNDERSTAND_VISION_DEADLINE_SEC: float = 480.0
+    # Azure 备用：PDF 拆页 DPI 与单请求最多携带页数（控制单请求体积/超时）。
+    FILE_UNDERSTAND_AZURE_MODEL: str = "FW-Kimi-K2.7-Code"
+    FILE_UNDERSTAND_AZURE_PAGE_DPI: int = 150
+    FILE_UNDERSTAND_AZURE_PAGES_PER_REQUEST: int = 4
+    FILE_UNDERSTAND_AZURE_MAX_PAGES: int = 40
+    # 全局限流：最大排队等待（秒，0=不限）与等待抖动比例（0-1）。
+    FILE_UNDERSTAND_GLOBAL_MAX_WAIT_SEC: float = 120.0
+    FILE_UNDERSTAND_GLOBAL_WAIT_JITTER: float = 0.3
+    # ===== 缺失/低质量图片逐图 VLM 补识别 =====
+    # 文档级理解后，对描述缺失或明显低质量的图片逐张补识别（only_missing 策略）。
+    FILE_UNDERSTAND_IMAGE_REPAIR_ENABLED: bool = True
+    # 判定"描述过短"的最小字符数：短于此且无有效用途即视为低质量。
+    FILE_UNDERSTAND_IMAGE_MIN_CAPTION_CHARS: int = 8
+    # 逐图补识别的并发与单批预算保留（秒）。
+    FILE_UNDERSTAND_IMAGE_REPAIR_CONCURRENCY: int = 3
+    # 逐图补识别最多处理的图片数（防止超大文档把补识别拖爆）。
+    FILE_UNDERSTAND_IMAGE_REPAIR_MAX_IMAGES: int = 60
+
 
 class DocImportSettings(_Base):
     """对应 api/document_import.py + services/document_manifest_service.py。
@@ -611,7 +643,7 @@ class DocImportSettings(_Base):
     # 每页 PNG 渲染 DPI（越大越清晰但越慢/越大）；150 兼顾清晰与体积。
     DOC_IMPORT_DEFAULT_DPI: int = 150
     # 最大处理页数（防止超大文档拖垮）。
-    DOC_IMPORT_MAX_PAGES: int = 60
+    DOC_IMPORT_MAX_PAGES: int = 100
     # 内嵌图过滤阈值（与 DOC_PARSER 对齐，避免抽到分隔线/图标噪音）。
     DOC_IMPORT_MIN_IMG_BYTES: int = 5 * 1024
     DOC_IMPORT_MIN_IMG_DIM: int = 50

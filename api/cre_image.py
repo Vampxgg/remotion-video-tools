@@ -388,6 +388,22 @@ class GenerateImagePayload(BaseModel):
             return None
         return v
 
+    @field_validator(
+        "response_mime_type",
+        "person_generation",
+        "thinking_level",
+        "prominent_people",
+        "safety_filter_level",
+        mode="before",
+    )
+    @classmethod
+    def _empty_optional_enum(cls, v: Any) -> Any:
+        # Dify 等调用方只能传空字符串占位；枚举字段收到 "" 时按「未设置」处理，
+        # 归一为 None，交由 _build_* 逻辑跳过该参数（与 _empty_optional_str 同契约）。
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
     @field_validator("aspect_ratio", mode="before")
     @classmethod
     def _aspect_ratio_default(cls, v: Any) -> Any:

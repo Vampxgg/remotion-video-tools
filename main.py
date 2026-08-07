@@ -86,6 +86,7 @@ _LIFESPAN_MODULES = [
     job_search_v2,
     boss_zhipin,
     gemini_live,
+    file_understand,
     web_search,
 ]
 

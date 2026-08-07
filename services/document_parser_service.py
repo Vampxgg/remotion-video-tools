@@ -608,6 +608,26 @@ class DocumentParserService:
                     rows.append([cell.text.strip() for cell in row.cells])
                 if rows:
                     paragraphs.append(self._rows_to_md_table(rows))
+                # 表格单元格内的内嵌图：python-docx 的 cell.text 不含图片，
+                # 若不单独抽取，表格内的图会永久丢失（source_image_count=0 的根因之一）。
+                # 这里按单元格 XML 检出图片，作为紧跟表格后的独立图片行输出，
+                # 使其进入图片白名单，从而被视觉理解/逐图补识别覆盖。
+                for row in table.rows:
+                    for cell in row.cells:
+                        cell_xml = cell._element.xml
+                        if not ('<w:drawing' in cell_xml or '<v:imagedata' in cell_xml
+                                or '<wp:inline' in cell_xml):
+                            continue
+                        for embed_id in re.findall(r'r:embed="([^"]+)"', cell_xml):
+                            img_count += 1
+                            img_url = rId_to_url.get(embed_id)
+                            if not img_url and url_map:
+                                ordered = sorted(url_map.values())
+                                idx = img_count - 1
+                                if idx < len(ordered):
+                                    img_url = ordered[idx]
+                            if img_url:
+                                paragraphs.append(f"![表格图片{img_count}]({img_url})")
 
             md_text = "\n\n".join(paragraphs)
             self._meta.update({

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 from typing import List, Optional, Set
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile, status
@@ -20,6 +21,7 @@ from services.file_understand_service import (
     UnderstandOptions,
     understand_file_payload,
 )
+from utils import redis_client
 from utils.responses import create_standard_response
 from utils.security import require_api_key
 from utils.settings import settings as _settings
@@ -29,6 +31,25 @@ logger = logging.getLogger(__name__)
 
 # 持有后台任务引用，避免 asyncio 在任务结束前将其回收。
 _BG_TASKS: Set[asyncio.Task] = set()
+
+
+@asynccontextmanager
+async def lifespan_resources(app):
+    """file_understand 自有资源：确保全局限流器依赖的 Redis 已初始化。
+
+    根因：限流器（vertex_global_limiter）依赖 redis_client 就绪。历史上 Redis 只在
+    web_search 的 lifespan 里 startup，导致单独挂载本 router / 拆分部署时限流器永远不可用。
+    这里让本 router 自己保证 Redis 就绪（若已就绪则跳过），生命周期不再依附 web_search。
+    """
+    if not redis_client.is_ready():
+        await redis_client.startup()
+    logger.info("file_understand router 就绪 (redis_ready=%s)", redis_client.is_ready())
+    try:
+        yield
+    finally:
+        # 不在此处 shutdown Redis：连接为全局共享单例，由应用退出时统一释放，
+        # 避免与其它同样使用 Redis 的 router 抢关闭。
+        pass
 
 
 async def _payload_from_upload(
@@ -119,9 +140,16 @@ async def understand_file(
     finally:
         await file.close()
 
+    vision_status = (result.meta or {}).get("vision_status", "skipped")
+    if vision_status == "enhanced":
+        msg = "文件多模态理解完成"
+    elif vision_status == "degraded":
+        msg = "多模态理解未成功，已返回基础解析结果（见 meta.fallback_reason）"
+    else:
+        msg = "已返回基础解析结果（未启用/不适用视觉理解）"
     return create_standard_response(
         data=result.model_dump(),
-        message="文件多模态理解完成",
+        message=msg,
     )
 
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import random
 import time
 import uuid
 from dataclasses import dataclass
@@ -31,9 +32,23 @@ end
 return 0
 """
 
+# 续期脚本：仅当租约仍在集合中才刷新其 score（避免为已被 TTL 清理的租约"复活"）。
+_RENEW_SCRIPT = """
+if redis.call('ZSCORE', KEYS[1], ARGV[2]) then
+  redis.call('ZADD', KEYS[1], ARGV[1], ARGV[2])
+  redis.call('PEXPIRE', KEYS[1], ARGV[3])
+  return 1
+end
+return 0
+"""
+
 
 class VertexLimiterUnavailable(RuntimeError):
     """全局限流不可用，调用方应按策略降级或失败。"""
+
+
+class VertexLimiterTimeout(RuntimeError):
+    """排队等待超过最大等待时间仍未取得槽位。"""
 
 
 @dataclass
@@ -49,10 +64,12 @@ class VertexLimitLease:
 
 
 class VertexGlobalLimiter:
-    def __init__(self, request_id: str):
+    def __init__(self, request_id: str, provider: str = "vertex"):
         self.request_id = request_id
+        self.provider = provider
         self.lease: Optional[VertexLimitLease] = None
-        self._key = f"{_settings.REDIS_KEY_PREFIX}:file_understand:vertex_limiter"
+        # provider 级独立限流键：Azure 备用不被 Vertex 键的可用性/占用牵连。
+        self._key = f"{_settings.REDIS_KEY_PREFIX}:file_understand:{provider}_limiter"
         self._token = f"{os.getpid()}:{request_id}:{uuid.uuid4().hex}"
 
     async def __aenter__(self) -> VertexLimitLease:
@@ -77,7 +94,7 @@ class VertexGlobalLimiter:
             ).strip().lower()
             msg = f"Redis 全局限流不可用 policy={policy}"
             if policy == "open":
-                logger.warning("[%s] %s，临时放开 Vertex 调用 pid=%s", self.request_id, msg, os.getpid())
+                logger.warning("[%s] %s，临时放开 %s 调用 pid=%s", self.request_id, msg, self.provider, os.getpid())
                 self.lease = VertexLimitLease(False, self._token, 0.0, None, limit, os.getpid())
                 return self.lease
             raise VertexLimiterUnavailable(msg)
@@ -87,6 +104,10 @@ class VertexGlobalLimiter:
             * 1000
         )
         interval = float(getattr(_settings, "FILE_UNDERSTAND_GLOBAL_WAIT_INTERVAL_SEC", 0.5) or 0.5)
+        jitter_ratio = min(
+            1.0, max(0.0, float(getattr(_settings, "FILE_UNDERSTAND_GLOBAL_WAIT_JITTER", 0.3) or 0.0))
+        )
+        max_wait = float(getattr(_settings, "FILE_UNDERSTAND_GLOBAL_MAX_WAIT_SEC", 0) or 0)
         started = time.time()
 
         while True:
@@ -119,7 +140,33 @@ class VertexGlobalLimiter:
                 )
                 return self.lease
 
-            await asyncio.sleep(interval)
+            # 排队超过最大等待时间：抛超时，交由编排层降级/兜底，避免无限排队。
+            if max_wait > 0 and (time.time() - started) >= max_wait:
+                raise VertexLimiterTimeout(
+                    f"{self.provider} 全局限流排队超过 {max_wait}s 仍未取得槽位"
+                )
+            # 抖动等待，避免所有等待者同步轮询造成惊群。
+            sleep_s = interval * (1.0 + random.uniform(0.0, jitter_ratio))
+            await asyncio.sleep(sleep_s)
+
+    async def renew(self) -> bool:
+        """续期当前租约（长任务防止被 TTL 提前清理导致实际并发突破上限）。"""
+        if not self.lease or not self.lease.acquired:
+            return False
+        redis = redis_client.get_redis()
+        if redis is None:
+            return False
+        ttl_ms = int(
+            float(getattr(_settings, "FILE_UNDERSTAND_GLOBAL_LEASE_TTL_SEC", 600) or 600) * 1000
+        )
+        try:
+            ok = await redis.eval(
+                _RENEW_SCRIPT, 1, self._key, int(time.time() * 1000), self._token, ttl_ms
+            )
+            return int(ok or 0) == 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[%s] 续期 %s 租约失败: %s", self.request_id, self.provider, exc)
+            return False
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
         if not self.lease or not self.lease.acquired:
@@ -151,5 +198,5 @@ class VertexGlobalLimiter:
             return None
 
 
-def vertex_global_limit(request_id: str) -> VertexGlobalLimiter:
-    return VertexGlobalLimiter(request_id)
+def vertex_global_limit(request_id: str, provider: str = "vertex") -> VertexGlobalLimiter:
+    return VertexGlobalLimiter(request_id, provider)

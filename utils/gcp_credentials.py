@@ -31,8 +31,13 @@ logger = setup_module_logger(__name__, "logs/gcp/credentials.log")
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
+# token 刷新的网络超时（秒）：不设则 oauth2 出网不稳时可能长时间挂起。
+_REFRESH_TIMEOUT_SEC = 20.0
+
 _credentials = None
 _lock = threading.Lock()
+# 刷新锁：并发请求同时发现 token 失效时，只让一个线程真正 refresh，其余复用结果。
+_refresh_lock = threading.Lock()
 
 
 def _resolve_path(raw: str) -> Path:
@@ -70,36 +75,62 @@ def get_gcp_credentials():
     return _credentials
 
 
+def _resolve_gcp_proxy() -> Optional[str]:
+    """GCP/oauth2 token 刷新的出网代理。
+
+    与 gemini_vertex_client 的 Vertex 代理保持同源：国内服务器直连
+    ``oauth2.googleapis.com`` 会超时，token 刷新必须与 generateContent 走同一代理，
+    否则"能连 Vertex 但取不到 token"，鉴权照样雪崩。
+    优先 FILE_UNDERSTAND_VERTEX_PROXY_URL，回落 OUTBOUND_PROXY_URL；都空=直连。
+    """
+    for name in ("FILE_UNDERSTAND_VERTEX_PROXY_URL", "OUTBOUND_PROXY_URL"):
+        val = getattr(_settings, name, None)
+        if val and str(val).strip():
+            return str(val).strip()
+    return None
+
+
 def _build_auth_request() -> google.auth.transport.requests.Request:
     """构造 token 刷新用的 Request，底层 requests.Session 强制 trust_env=False。
 
     根因防护：进程内任何地方一旦设置了 HTTP(S)_PROXY 环境变量，google.auth 默认会
-    读它去连 oauth2.googleapis.com；线上代理不可达时鉴权直接失败。oauth2 本就该直连，
-    这里显式屏蔽环境代理，隔离外部污染。
+    读它去连 oauth2.googleapis.com。这里显式屏蔽环境代理（trust_env=False），出网策略
+    完全由 _resolve_gcp_proxy() 显式控制：配置了代理就走代理（国内机必需），否则直连。
     """
     session = _requests.Session()
     session.trust_env = False
-    return google.auth.transport.requests.Request(session=session)
+    proxy = _resolve_gcp_proxy()
+    if proxy:
+        session.proxies = {"http": proxy, "https": proxy}
+    return google.auth.transport.requests.Request(
+        session=session, timeout=_REFRESH_TIMEOUT_SEC
+    )
 
 
-def _refresh_token() -> str:
+def _refresh_token(force: bool = False) -> str:
     creds = get_gcp_credentials()
-    if not creds.valid:
-        logger.info("access token 失效/缺失，执行 refresh…")
-        creds.refresh(_build_auth_request())
-        logger.info(
-            f"access token 已刷新 (expiry={getattr(creds, 'expiry', None)} "
-            f"sa={getattr(creds, 'service_account_email', None)})"
-        )
+    # 刷新锁内二次检查：并发线程只让第一个真正 refresh，其余复用刚刷新的 token。
+    if force or not creds.valid:
+        with _refresh_lock:
+            if force or not creds.valid:
+                logger.info("access token 失效/缺失，执行 refresh…（force=%s）", force)
+                creds.refresh(_build_auth_request())
+                logger.info(
+                    f"access token 已刷新 (expiry={getattr(creds, 'expiry', None)} "
+                    f"sa={getattr(creds, 'service_account_email', None)})"
+                )
     if not creds.token:
         raise RuntimeError("凭证刷新后仍无 token")
     return creds.token
 
 
-async def get_access_token() -> str:
-    """获取 cloud-platform access token；refresh 为阻塞调用，放线程池执行。"""
+async def get_access_token(force_refresh: bool = False) -> str:
+    """获取 cloud-platform access token；refresh 为阻塞调用，放线程池执行。
+
+    :param force_refresh: 强制刷新（用于 401 后重取，规避 token 过期误判）。
+    """
     try:
-        return await asyncio.to_thread(_refresh_token)
+        return await asyncio.to_thread(_refresh_token, force_refresh)
     except Exception as e:  # noqa: BLE001
         logger.error(f"获取 GCP access token 失败: {e}")
         raise RuntimeError(f"Failed to obtain GCP access token: {e}") from e

@@ -19,9 +19,7 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import difflib
-import json
 import os
 import re
 import shutil
@@ -41,13 +39,23 @@ from schemas.file_parse import (
     FileParseResult,
 )
 from services import gemini_vertex_client as gvc
+from services import visual_input_adapter
 from services.file_parse_service import (
     FileParseOptions,
     FilePayload,
     ParseInputError,
     parse_file_payload,
 )
+from services.file_understand_provider import (
+    ProviderError,
+    ProviderRequestError,
+    ProviderUnsupportedInputError,
+    UnderstandGenerationRequest,
+    VisualDocument,
+)
+from services.file_understand_providers import AzureVLMProvider, VertexGeminiProvider
 from services.vertex_global_limiter import (
+    VertexLimiterTimeout,
     VertexLimiterUnavailable,
     vertex_global_limit,
 )
@@ -214,30 +222,16 @@ def _resolve_model(options: UnderstandOptions) -> str:
     return _settings.FILE_UNDERSTAND_MODEL
 
 
-def _generation_config(model: str, *, patch: bool) -> dict:
-    cfg: dict = {
-        "temperature": _settings.FILE_UNDERSTAND_TEMPERATURE,
-        "maxOutputTokens": _settings.FILE_UNDERSTAND_MAX_OUTPUT_TOKENS,
-    }
-    res = _settings.FILE_UNDERSTAND_MEDIA_RESOLUTION
-    # media_resolution 仅 Gemini 3 系支持；其它模型设置会报错，故仅 3 系附加。
-    if res and "gemini-3" in model:
-        cfg["mediaResolution"] = f"MEDIA_RESOLUTION_{res.strip().upper()}"
-    # 思考预算仅 gemini-2.5/3 支持；0=关闭扩展思考以提速（转写/校对无需思考）。
-    budget = _settings.FILE_UNDERSTAND_THINKING_BUDGET
-    if budget is not None and budget >= 0 and ("gemini-2.5" in model or "gemini-3" in model):
-        cfg["thinkingConfig"] = {"thinkingBudget": budget}
-    # 补丁模式强制 JSON 结构化输出，保证可解析。
-    if patch:
-        cfg["responseMimeType"] = "application/json"
-        cfg["responseSchema"] = _PATCH_SCHEMA
-    return cfg
+async def _prepare_vision_document(
+    payload: FilePayload, content_kind: str, *, need_pages: bool
+) -> Tuple[Optional[VisualDocument], Optional[str]]:
+    """把原始文件规整为 provider 无关的 VisualDocument。
 
-
-async def _prepare_vision_part(
-    payload: FilePayload, content_kind: str
-) -> Tuple[Optional[dict], Optional[str]]:
-    """返回 (inlineData part, 跳过原因)。无视觉输入时 part 为 None。"""
+    - pdf：直接作为 application/pdf；need_pages 时附带按页渲染的 PNG（供 Azure 等不吃 PDF 的备用）。
+    - office：先 LibreOffice 转 PDF，同上。
+    - image：作为图片字节。
+    返回 (VisualDocument, 跳过原因)。无视觉输入时 doc 为 None。
+    """
     ext = payload.extension
     max_pdf_bytes = _settings.FILE_UNDERSTAND_MAX_PDF_MB * 1024 * 1024
 
@@ -254,13 +248,26 @@ async def _prepare_vision_part(
             return None, f"转换后 PDF 超过 {_settings.FILE_UNDERSTAND_MAX_PDF_MB}MB，跳过视觉理解。"
     elif content_kind == "image":
         mime = _IMAGE_MIME.get(ext) or payload.media_type or "image/png"
-        b64 = base64.b64encode(payload.content).decode("ascii")
-        return {"inlineData": {"mimeType": mime, "data": b64}}, None
+        return VisualDocument(
+            data=payload.content, mime_type=mime, filename=payload.filename
+        ), None
     else:
         return None, f"内容类型 {content_kind} 无需/不支持视觉理解。"
 
-    b64 = base64.b64encode(pdf_bytes).decode("ascii")
-    return {"inlineData": {"mimeType": "application/pdf", "data": b64}}, None
+    rendered: Optional[List[bytes]] = None
+    if need_pages:
+        rendered = await asyncio.to_thread(
+            visual_input_adapter.render_pdf_pages_to_png,
+            pdf_bytes,
+            dpi=_settings.FILE_UNDERSTAND_AZURE_PAGE_DPI,
+            max_pages=_settings.FILE_UNDERSTAND_AZURE_MAX_PAGES,
+        )
+    return VisualDocument(
+        data=pdf_bytes,
+        mime_type="application/pdf",
+        filename=payload.filename,
+        rendered_pages=rendered,
+    ), None
 
 
 def _reconcile_images(enriched: str, base_markdown: str) -> Tuple[str, dict]:
@@ -428,71 +435,94 @@ def _build_patch_user_text(anchored_md: str, n_tables: int, img_urls: List[str])
     )
 
 
+def _validate_patches(patches: dict, anchored_md: str, img_urls: List[str]) -> Tuple[bool, str]:
+    """本地校验补丁是否"实际有效"：至少命中一个锚点或一个真实图片 URL。
+
+    返回 (是否有效, 原因)。用于避免"JSON 合法但零增强"被误判为多模态成功。
+    """
+    if not isinstance(patches, dict):
+        return False, "补丁根节点不是对象"
+    valid_anchors = set(re.findall(r"<!--TBL:(\d+)-->", anchored_md))
+    url_set = set(img_urls)
+    hit_tables = 0
+    for t in (patches.get("tables") or []):
+        if not isinstance(t, dict):
+            continue
+        a = _norm_anchor(str(t.get("anchor", "")))
+        m = t.get("markdown")
+        if a in valid_anchors and isinstance(m, str) and m.strip():
+            hit_tables += 1
+    hit_images = 0
+    for im in (patches.get("images") or []):
+        if not isinstance(im, dict):
+            continue
+        u = (im.get("url") or "").strip()
+        if u in url_set:
+            hit_images += 1
+    if hit_tables == 0 and hit_images == 0:
+        return False, "补丁未命中任何有效表格锚点或图片 URL（零增强）"
+    return True, f"命中表格 {hit_tables}、图片 {hit_images}"
+
+
 async def _run_understand_full(
-    vision_part: dict, base_md: str, model: str, request_id: str
+    provider, doc: VisualDocument, base_md: str, request_id: str, deadline_sec: float
 ) -> Tuple[str, bool, List[str]]:
-    """整篇重写模式：Gemini 输出完整增强 Markdown。"""
+    """整篇重写模式：provider 输出完整增强 Markdown。"""
     warns: List[str] = []
     user_text = (
         "以下是从该文档已抽取的 Markdown（含真实图片 URL 与初步内容），"
         "请结合随附的原始文件进行多模态增强后，输出最终 Markdown：\n\n" + base_md
     )
-    contents = [{"role": "user", "parts": [vision_part, {"text": user_text}]}]
-    data = await gvc.generate_content(
-        model=model,
-        contents=contents,
-        generation_config=_generation_config(model, patch=False),
+    req = UnderstandGenerationRequest(
+        document=doc,
         system_instruction=_SYSTEM_PROMPT_FULL,
-        location=_settings.FILE_UNDERSTAND_LOCATION,
-        timeout_sec=_settings.FILE_UNDERSTAND_TIMEOUT_SEC,
-        max_locations=_settings.FILE_UNDERSTAND_MAX_REGIONS,
+        user_text=user_text,
+        response_schema=None,
+        temperature=_settings.FILE_UNDERSTAND_TEMPERATURE,
+        max_output_tokens=_settings.FILE_UNDERSTAND_MAX_OUTPUT_TOKENS,
         request_id=request_id,
+        deadline_sec=deadline_sec,
     )
-    enriched = gvc.extract_text(data).strip()
+    result = await provider.generate(req)
+    enriched = (result.text or "").strip()
     if not enriched:
-        return base_md, False, ["Gemini 未返回有效内容，降级为基础解析结果。"]
-    finish = gvc.finish_reason(data)
-    if finish and finish not in ("STOP", "MAX_TOKENS"):
-        warns.append(f"Gemini finishReason={finish}")
+        return base_md, False, [f"{provider.name} 未返回有效内容。"]
+    if result.finish_reason and result.finish_reason not in ("STOP", "MAX_TOKENS"):
+        warns.append(f"{provider.name} finishReason={result.finish_reason}")
     return enriched, True, warns
 
 
 async def _run_understand_patch(
-    vision_part: dict, base_md: str, model: str, request_id: str
+    provider, doc: VisualDocument, base_md: str, request_id: str, deadline_sec: float
 ) -> Tuple[str, bool, List[str]]:
-    """仅补丁模式：Gemini 只产表格校对/图表转表/图片描述补丁，本地合并 base_md。"""
+    """仅补丁模式：provider 只产表格校对/图表转表/图片描述补丁，本地校验并合并。"""
     warns: List[str] = []
     anchored_md, n_tables = _anchor_tables(base_md)
     img_urls = list(dict.fromkeys(_IMG_MD_RE.findall(base_md)))
-    contents = [
-        {
-            "role": "user",
-            "parts": [vision_part, {"text": _build_patch_user_text(anchored_md, n_tables, img_urls)}],
-        }
-    ]
-    data = await gvc.generate_content(
-        model=model,
-        contents=contents,
-        generation_config=_generation_config(model, patch=True),
+    req = UnderstandGenerationRequest(
+        document=doc,
         system_instruction=_SYSTEM_PROMPT_PATCH,
-        location=_settings.FILE_UNDERSTAND_LOCATION,
-        timeout_sec=_settings.FILE_UNDERSTAND_TIMEOUT_SEC,
-        max_locations=_settings.FILE_UNDERSTAND_MAX_REGIONS,
+        user_text=_build_patch_user_text(anchored_md, n_tables, img_urls),
+        response_schema=_PATCH_SCHEMA,
+        temperature=_settings.FILE_UNDERSTAND_TEMPERATURE,
+        max_output_tokens=_settings.FILE_UNDERSTAND_MAX_OUTPUT_TOKENS,
         request_id=request_id,
+        deadline_sec=deadline_sec,
     )
-    raw = gvc.extract_text(data).strip()
-    if not raw:
-        return base_md, False, ["Gemini 未返回有效内容，降级为基础解析结果。"]
-    try:
-        patches = json.loads(raw)
-    except Exception as e:  # noqa: BLE001
-        return base_md, False, [f"补丁 JSON 解析失败，降级为基础解析：{e}"]
+    result = await provider.generate(req)
+    patches = result.parsed_json
+    if not isinstance(patches, dict):
+        return base_md, False, [f"{provider.name} 未返回可解析补丁。"]
+    ok, reason = _validate_patches(patches, anchored_md, img_urls)
+    if not ok:
+        # 零增强不算多模态成功：交回 base，让编排层继续尝试下一 provider。
+        return base_md, False, [f"{provider.name} 补丁无效：{reason}"]
     enriched, stats = _apply_patches(anchored_md, patches)
-    finish = gvc.finish_reason(data)
-    if finish and finish not in ("STOP", "MAX_TOKENS"):
-        warns.append(f"Gemini finishReason={finish}")
+    if result.finish_reason and result.finish_reason not in ("STOP", "MAX_TOKENS"):
+        warns.append(f"{provider.name} finishReason={result.finish_reason}")
     warns.append(
-        f"补丁合并：表格 {stats['tables']}、图表转表 {stats['charts']}、图片描述 {stats['figures']}。"
+        f"[{provider.name}] 补丁合并：表格 {stats['tables']}、图表转表 {stats['charts']}、"
+        f"图片描述 {stats['figures']}。"
     )
     return enriched, True, warns
 
@@ -510,6 +540,98 @@ def _effective_max_chars(max_chars: Optional[int]) -> int:
     if max_chars <= 0:
         raise ParseInputError(400, "invalid_max_chars", "max_chars 必须大于 0。")
     return min(max_chars, hard)
+
+
+def _build_providers(model_used: str) -> List[object]:
+    """按配置顺序构建 provider 实例列表（主用在前）。未知项忽略。"""
+    order = [
+        p.strip().lower()
+        for p in (_settings.FILE_UNDERSTAND_PROVIDER_ORDER or "vertex").split(",")
+        if p.strip()
+    ]
+    providers: List[object] = []
+    for name in order:
+        if name == "vertex":
+            providers.append(VertexGeminiProvider(model_used))
+        elif name == "azure":
+            providers.append(AzureVLMProvider(_settings.FILE_UNDERSTAND_AZURE_MODEL))
+    if not providers:
+        providers.append(VertexGeminiProvider(model_used))
+    return providers
+
+
+async def _run_vision_with_fallback(
+    providers: List[object],
+    doc: VisualDocument,
+    base_md: str,
+    request_id: str,
+    deadline_at: float,
+) -> Tuple[str, bool, str, List[dict], List[str]]:
+    """依次尝试各 provider，直到某个产出有效增强或全部失败。
+
+    返回 (enriched_md, applied, provider_used, attempts_trace, warnings)。
+    - applied=True：某 provider 产出通过本地校验的有效增强；
+    - applied=False：全部失败/无效/超预算，enriched=base_md（编排层最终兜底）。
+    """
+    runner = (
+        _run_understand_patch
+        if _settings.FILE_UNDERSTAND_PATCH_MODE
+        else _run_understand_full
+    )
+    warnings: List[str] = []
+    trace: List[dict] = []
+    for provider in providers:
+        pname = getattr(provider, "name", "unknown")
+        remaining = deadline_at - time.time()
+        if remaining <= 1.0:
+            warnings.append(f"视觉总预算耗尽，跳过 provider={pname}。")
+            trace.append({"provider": pname, "status": "skipped_deadline"})
+            break
+        # Azure 需要页图；若 PDF 未渲染出页图则该 provider 不可用，交给下一个。
+        if not getattr(provider, "capabilities").native_pdf and (
+            doc.mime_type == "application/pdf" and not doc.rendered_pages
+        ):
+            warnings.append(f"provider={pname} 无法处理该输入（缺页图），跳过。")
+            trace.append({"provider": pname, "status": "unsupported_input"})
+            continue
+        t_p = time.time()
+        try:
+            enriched, applied, w = await runner(
+                provider, doc, base_md, request_id, remaining
+            )
+            warnings.extend(w)
+            if applied:
+                trace.append(
+                    {"provider": pname, "status": "applied", "elapsed": round(time.time() - t_p, 2)}
+                )
+                logger.info(
+                    f"[{request_id}] 视觉理解成功 provider={pname} 耗时={time.time() - t_p:.2f}s"
+                )
+                return enriched, True, pname, trace, warnings
+            trace.append(
+                {"provider": pname, "status": "no_effective_change", "elapsed": round(time.time() - t_p, 2)}
+            )
+            logger.warning(f"[{request_id}] provider={pname} 未产出有效增强，尝试下一 provider。")
+        except ProviderUnsupportedInputError as e:
+            trace.append({"provider": pname, "status": "unsupported_input", "reason": str(e)})
+            warnings.append(f"provider={pname} 不支持该输入：{e}")
+        except ProviderRequestError as e:
+            # 确定性请求错误（如 schema 编程错误）：换 provider 也大概率同样失败，仍尝试异构备用。
+            trace.append({"provider": pname, "status": "request_error", "reason": str(e)})
+            warnings.append(f"provider={pname} 请求错误：{e}")
+        except ProviderError as e:
+            trace.append(
+                {"provider": pname, "status": "failed", "error": type(e).__name__, "reason": str(e)}
+            )
+            warnings.append(f"provider={pname} 失败（{type(e).__name__}）：{e}")
+            logger.warning(
+                f"[{request_id}] provider={pname} 失败 {type(e).__name__}: {e}，尝试下一 provider。"
+            )
+        except Exception as e:  # noqa: BLE001
+            trace.append({"provider": pname, "status": "failed", "error": type(e).__name__, "reason": str(e)})
+            warnings.append(f"provider={pname} 未预期异常：{type(e).__name__}: {e}")
+            logger.warning(f"[{request_id}] provider={pname} 未预期异常 {type(e).__name__}: {e}")
+    return base_md, False, "", trace, warnings
 
 
 async def understand_file_payload(
@@ -548,25 +670,34 @@ async def understand_file_payload(
 
     understanding_applied = False
     model_used: Optional[str] = None
+    provider_used = ""
+    vision_status = "skipped"  # skipped | enhanced | degraded
+    fallback_reason = ""
+    attempts_trace: List[dict] = []
 
     if not options.enable_vision:
         enriched = base_md
         warnings.append("本次请求未启用视觉理解，返回基础解析结果。")
         logger.info(f"[{request_id}] 跳过视觉理解（enable_vision=off）。")
     else:
-        vision_part, skip_reason = await _prepare_vision_part(payload, content_kind)
-        if vision_part is None:
+        model_used = _resolve_model(options)
+        providers = _build_providers(model_used)
+        # 只要 fallback 链中含不吃 PDF 的 provider（如 azure），就为 PDF 预渲染页图。
+        need_pages = any(
+            not getattr(p, "capabilities").native_pdf for p in providers
+        )
+        doc, skip_reason = await _prepare_vision_document(
+            payload, content_kind, need_pages=need_pages
+        )
+        if doc is None:
             enriched = base_md
+            vision_status = "skipped"
             if skip_reason:
                 warnings.append(skip_reason)
+                fallback_reason = skip_reason
             logger.info(f"[{request_id}] 跳过视觉理解：{skip_reason}")
         else:
-            model_used = _resolve_model(options)
-            runner = (
-                _run_understand_patch
-                if _settings.FILE_UNDERSTAND_PATCH_MODE
-                else _run_understand_full
-            )
+            deadline_at = time.time() + _settings.FILE_UNDERSTAND_VISION_DEADLINE_SEC
             t_wait = time.time()
             try:
                 async with vertex_global_limit(request_id) as lease:
@@ -576,13 +707,20 @@ async def understand_file_payload(
                         f"limit={lease.limit} active={lease.active_after_acquire} queued={queued:.2f}s"
                     )
                     t_vis = time.time()
-                    enriched, understanding_applied, w = await runner(
-                        vision_part, base_md, model_used, request_id
+                    (
+                        enriched,
+                        understanding_applied,
+                        provider_used,
+                        attempts_trace,
+                        w,
+                    ) = await _run_vision_with_fallback(
+                        providers, doc, base_md, request_id, deadline_at
                     )
                     warnings.extend(w)
                     logger.info(
                         f"[{request_id}] 视觉理解完成 耗时={time.time() - t_vis:.2f}s "
-                        f"applied={understanding_applied} mode={'patch' if _settings.FILE_UNDERSTAND_PATCH_MODE else 'full'}"
+                        f"applied={understanding_applied} provider={provider_used or '-'} "
+                        f"mode={'patch' if _settings.FILE_UNDERSTAND_PATCH_MODE else 'full'}"
                     )
             except VertexLimiterUnavailable as e:
                 policy = (
@@ -597,49 +735,90 @@ async def understand_file_payload(
                 )
                 enriched = base_md
                 warnings.append(f"视觉理解限流不可用，已降级为基础解析：{e}")
-            except Exception as e:  # noqa: BLE001
+                fallback_reason = f"limiter_unavailable: {e}"
+            except VertexLimiterTimeout as e:
                 logger.warning(
-                    f"[{request_id}] Gemini 理解失败，降级为基础解析 "
-                    f"file={payload.filename!r}: {type(e).__name__}: {e}"
+                    f"[{request_id}] 视觉全局限流排队超时，降级为基础解析 "
+                    f"queued={time.time() - t_wait:.2f}s file={payload.filename!r}: {e}"
                 )
                 enriched = base_md
-                warnings.append(f"视觉理解失败，已降级为基础解析：{e}")
+                warnings.append(f"视觉理解排队超时，已降级为基础解析：{e}")
+                fallback_reason = f"limiter_timeout: {e}"
+            if understanding_applied:
+                vision_status = "enhanced"
+            else:
+                vision_status = "degraded"
+                if not fallback_reason:
+                    fallback_reason = "all_providers_failed_or_no_effective_change"
 
     # 3) 图片 URL 白名单校正：剔除编造链接、纠正改写链接、补回丢失源图。
     image_stats = {"fake_dropped": 0, "corrupted_fixed": 0, "reappended": 0}
     if understanding_applied:
         enriched, image_stats = _reconcile_images(enriched, base_md)
         if image_stats["fake_dropped"]:
-            warnings.append(f"已剔除 Gemini 编造的 {image_stats['fake_dropped']} 个图片链接（保留描述）。")
+            warnings.append(f"已剔除模型编造的 {image_stats['fake_dropped']} 个图片链接（保留描述）。")
         if image_stats["corrupted_fixed"]:
-            warnings.append(f"已纠正 Gemini 改写的 {image_stats['corrupted_fixed']} 个图片 URL。")
+            warnings.append(f"已纠正模型改写的 {image_stats['corrupted_fixed']} 个图片 URL。")
         if image_stats["reappended"]:
-            warnings.append(f"已补回 Gemini 丢弃的 {image_stats['reappended']} 张源图 URL。")
+            warnings.append(f"已补回模型丢弃的 {image_stats['reappended']} 张源图 URL。")
+
+    # 4) 逐图覆盖审计 + 缺失/低质量图片定向补识别（only_missing 策略）。
+    image_repair = {
+        "described": 0,
+        "repaired": 0,
+        "unresolved_ids": [],
+        "coverage": 1.0,
+    }
+    if understanding_applied and _settings.FILE_UNDERSTAND_IMAGE_REPAIR_ENABLED:
+        try:
+            from services.file_understand_image_repair import repair_missing_captions
+
+            enriched, image_repair = await repair_missing_captions(
+                enriched,
+                base_md,
+                request_id=request_id,
+                deadline_at=(time.time() + _settings.FILE_UNDERSTAND_VISION_DEADLINE_SEC),
+            )
+            if image_repair["repaired"]:
+                warnings.append(f"已对 {image_repair['repaired']} 张缺失/低质量描述的图片补做逐图识别。")
+            if image_repair["unresolved_ids"]:
+                warnings.append(
+                    f"仍有 {len(image_repair['unresolved_ids'])} 张图片无法可靠识别，已保留原图并标记 unresolved。"
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[{request_id}] 逐图补识别异常（忽略，不影响主结果）：{type(e).__name__}: {e}")
 
     max_chars = _effective_max_chars(options.max_chars)
     markdown, truncated = _truncate(enriched, max_chars)
     if truncated:
         warnings.append("API 返回内容已按 max_chars 截断。")
 
+    source_image_count = len(set(_IMG_MD_RE.findall(base_md)))
     meta.update(
         {
             "understanding_applied": understanding_applied,
-            "understanding_model": model_used,
-            "source_image_count": len(
-                set(_IMG_MD_RE.findall(base_md))
-            ),
+            "understanding_model": model_used if understanding_applied else None,
+            "vision_status": vision_status,
+            "understanding_provider": provider_used or None,
+            "understanding_attempts": attempts_trace,
+            "fallback_reason": fallback_reason or None,
+            "source_image_count": source_image_count,
             "final_image_count": len(set(_IMG_MD_RE.findall(markdown))),
             "images_hallucinated_dropped": image_stats["fake_dropped"],
             "images_url_corrected": image_stats["corrupted_fixed"],
             "images_reappended": image_stats["reappended"],
+            "image_described_count": image_repair["described"],
+            "image_repaired_count": image_repair["repaired"],
+            "unresolved_image_ids": image_repair["unresolved_ids"],
+            "image_coverage": image_repair["coverage"],
         }
     )
 
     logger.info(
         f"[{request_id}] 理解结束 file={payload.filename!r} 总耗时={time.time() - t_start:.2f}s "
-        f"applied={understanding_applied} 最终chars={len(markdown)} "
-        f"源图={meta.get('source_image_count')} 终图={meta.get('final_image_count')} "
-        f"剔除编造={image_stats['fake_dropped']} 纠正={image_stats['corrupted_fixed']} 补回={image_stats['reappended']} "
+        f"applied={understanding_applied} status={vision_status} provider={provider_used or '-'} "
+        f"最终chars={len(markdown)} 源图={source_image_count} 终图={meta.get('final_image_count')} "
+        f"补识别={image_repair['repaired']} 未解决={len(image_repair['unresolved_ids'])} "
         f"truncated={truncated} warns={len(warnings)}"
     )
 
@@ -660,7 +839,7 @@ async def understand_file_payload(
         parser=FileParseParserInfo(
             content_kind=content_kind,
             parser_used=(
-                f"{base.parser.parser_used}+gemini:{model_used}"
+                f"{base.parser.parser_used}+{provider_used}"
                 if understanding_applied
                 else base.parser.parser_used
             ),
