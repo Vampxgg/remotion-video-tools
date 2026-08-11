@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import difflib
 import re
 import time
 import uuid
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from schemas.file_parse import (
     FileParseContent,
@@ -239,7 +240,11 @@ def _effective_max_chars(max_chars: Optional[int]) -> int:
 # --------------------------- 主入口 ---------------------------
 
 async def understand_file_payload(
-    payload: FilePayload, options: UnderstandOptions
+    payload: FilePayload,
+    options: UnderstandOptions,
+    *,
+    budget_sec: Optional[float] = None,
+    on_base_ready: Optional[Callable[[FileParseResult], None]] = None,
 ) -> FileParseResult:
     request_id = uuid.uuid4().hex[:8]
     t_start = time.time()
@@ -262,6 +267,12 @@ async def understand_file_payload(
             ),
         ),
     )
+    # 基础解析即已含全文 + 全部真实图 URL：立即上报供异步任务写 partial_result（兜底）。
+    if on_base_ready is not None:
+        try:
+            on_base_ready(base)
+        except Exception:  # noqa: BLE001
+            logger.warning("[%s] on_base_ready 回调异常（忽略，不影响主流程）", request_id)
     base_md = base.content.markdown or ""
     warnings = list(base.warnings)
     meta = dict(base.meta) if base.meta else {}
@@ -292,7 +303,12 @@ async def understand_file_payload(
         logger.info(f"[{request_id}] 跳过视觉理解（无图无表）。")
     else:
         model_used = _resolve_model(options)
+        # 墙钟预算：视觉阶段自身上限 VISION_DEADLINE_SEC；若调用方给了整体 budget_sec
+        # （异步 iteration 场景，需 ≤ Dify 沙箱 300s），则以"从本次理解开始算起不超过
+        # budget_sec"为准取更紧的一档。deadline 到点由 run_element_vision 收集已完成补丁。
         deadline_at = time.time() + _settings.FILE_UNDERSTAND_VISION_DEADLINE_SEC
+        if budget_sec and budget_sec > 0:
+            deadline_at = min(deadline_at, t_start + float(budget_sec))
         t_wait = time.time()
         try:
             async with vertex_global_limit(request_id) as lease:
@@ -301,34 +317,54 @@ async def understand_file_payload(
                     f"[{request_id}] 视觉理解获得全局租约 pid={lease.pid} "
                     f"limit={lease.limit} active={lease.active_after_acquire} queued={queued:.2f}s"
                 )
-                t_vis = time.time()
-                # 2) 构建元素级 AST。
-                ast = build_document_ast(
-                    content=payload.content,
-                    ext=payload.extension,
-                    base_markdown=base_md,
-                    anchored_markdown=anchored_md,
-                    n_tables=n_tables,
-                    embedded_images=None,  # 字节缺失时编排层按 URL 现下载
-                    url_by_order=None,
-                )
-                for w in ast.warnings:
-                    warnings.append(w)
-                # 3) 逐元素视觉，产出补丁。
-                patch, element_stats = await run_element_vision(
-                    ast, request_id=request_id, deadline_at=deadline_at
-                )
-                # 4) 确定性合并补丁。
-                merged, merge_stats = _apply_patches(anchored_md, patch)
-                understanding_applied = bool(
-                    merge_stats["tables"] or merge_stats["charts"] or merge_stats["figures"]
-                )
-                enriched = merged if understanding_applied else base_md
-                logger.info(
-                    f"[{request_id}] 视觉理解完成 耗时={time.time() - t_vis:.2f}s "
-                    f"applied={understanding_applied} 表格={merge_stats['tables']} "
-                    f"图表转表={merge_stats['charts']} 图片描述={merge_stats['figures']}"
-                )
+                remaining_budget = deadline_at - time.time()
+                if remaining_budget <= 1.0:
+                    # 排队已耗尽预算：直接降级为基础解析，不再进入视觉。
+                    enriched = base_md
+                    fallback_reason = "wallclock_budget: 排队耗尽预算，未进入视觉"
+                    warnings.append("视觉理解预算在排队阶段耗尽，已降级为基础解析。")
+                    logger.warning(
+                        f"[{request_id}] 排队后剩余预算不足({remaining_budget:.1f}s)，降级基础解析。"
+                    )
+                else:
+                    t_vis = time.time()
+                    # 2) 构建元素级 AST。
+                    ast = build_document_ast(
+                        content=payload.content,
+                        ext=payload.extension,
+                        base_markdown=base_md,
+                        anchored_markdown=anchored_md,
+                        n_tables=n_tables,
+                        embedded_images=None,  # 字节缺失时编排层按 URL 现下载
+                        url_by_order=None,
+                    )
+                    for w in ast.warnings:
+                        warnings.append(w)
+                    # 3) 逐元素视觉，产出补丁。墙钟由 deadline_at 收敛；wait_for 作为
+                    #    硬安全网防止任何单点卡死（多给 5s 让内部优雅收集已完成补丁）。
+                    try:
+                        patch, element_stats = await asyncio.wait_for(
+                            run_element_vision(
+                                ast, request_id=request_id, deadline_at=deadline_at
+                            ),
+                            timeout=max(1.0, deadline_at - time.time() + 5.0),
+                        )
+                    except asyncio.TimeoutError:
+                        patch, element_stats = {"tables": [], "images": []}, {}
+                        fallback_reason = "wallclock_budget: 视觉阶段墙钟硬超时"
+                        warnings.append("视觉理解墙钟超时，已返回基础解析（含全部源图）。")
+                        logger.warning(f"[{request_id}] 视觉阶段 wait_for 硬超时，降级基础解析。")
+                    # 4) 确定性合并补丁。
+                    merged, merge_stats = _apply_patches(anchored_md, patch)
+                    understanding_applied = bool(
+                        merge_stats["tables"] or merge_stats["charts"] or merge_stats["figures"]
+                    )
+                    enriched = merged if understanding_applied else base_md
+                    logger.info(
+                        f"[{request_id}] 视觉理解完成 耗时={time.time() - t_vis:.2f}s "
+                        f"applied={understanding_applied} 表格={merge_stats['tables']} "
+                        f"图表转表={merge_stats['charts']} 图片描述={merge_stats['figures']}"
+                    )
         except VertexLimiterUnavailable as e:
             policy = (
                 getattr(_settings, "FILE_UNDERSTAND_LIMITER_UNAVAILABLE_POLICY", "fallback_base")

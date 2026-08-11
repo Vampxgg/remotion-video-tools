@@ -566,7 +566,9 @@ class FileUnderstandSettings(_Base):
     # 单次 Gemini 调用(单区域)超时(秒)。元素级输入短，无需给太久；配合 MAX_REGIONS 限制总等待。
     FILE_UNDERSTAND_TIMEOUT_SEC: float = 180.0
     # 单次理解最多尝试的 Vertex 区域数；防止区域轮询把偶发慢/错放大成超长等待(最坏=区域数×单区域超时)。
-    FILE_UNDERSTAND_MAX_REGIONS: int = 2
+    # Vertex 现已降为"最后兜底"（主力为 Azure gpt-4o 多区域端点池，见 FILE_UNDERSTAND_VLM_PRIMARY_MODEL）；
+    # 此项仅约束兜底链路里 Vertex 自身的区域轮询，保持 1 以避免换区放大单图耗时。
+    FILE_UNDERSTAND_MAX_REGIONS: int = 1
     # 鉴权：留空则复用 FILE_PARSE_API_KEY；都留空表示不鉴权。
     FILE_UNDERSTAND_API_KEY: Optional[str] = None
     # 输出 markdown 硬上限，沿用文件解析的口径。
@@ -599,16 +601,24 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_RETRY_BACKOFF_BASE_SEC: float = 1.0
     FILE_UNDERSTAND_RETRY_BACKOFF_CAP_SEC: float = 8.0
     # 整个视觉阶段（含排队 + 逐元素视觉）的墙钟总预算（秒）。超出立即兜底。
+    # 用于同步/批量场景；异步 iteration 场景由 FILE_UNDERSTAND_ASYNC_BUDGET_SEC 再收敛。
     FILE_UNDERSTAND_VISION_DEADLINE_SEC: float = 480.0
+    # 异步理解（/file/understand/async）的默认墙钟总预算（秒），含排队+基础解析+视觉。
+    # 调用方(如 Dify 代码节点)沙箱执行上限为 300s，这里留足下载/轮询间隔的安全余量取 250。
+    # 到点即把 job 置 succeeded 并返回已完成部分（至少基础解析：全文+全部真实图URL）。
+    # 可被请求参数 max_wait 覆盖。
+    FILE_UNDERSTAND_ASYNC_BUDGET_SEC: float = 250.0
     # 全局限流：最大排队等待（秒，0=不限）与等待抖动比例（0-1）。
     FILE_UNDERSTAND_GLOBAL_MAX_WAIT_SEC: float = 120.0
     FILE_UNDERSTAND_GLOBAL_WAIT_JITTER: float = 0.3
 
     # ===== 元素级视觉理解（AST + 锚点定位；替代整份 PDF 内联）=====
-    # 单文档内逐元素视觉的并发上限（受全局限流器再收敛）。
-    FILE_UNDERSTAND_ELEMENT_CONCURRENCY: int = 4
-    # 单元素（单图/单表）视觉调用的墙钟超时（秒）。元素输入很小，无需给太久。
-    FILE_UNDERSTAND_ELEMENT_TIMEOUT_SEC: float = 60.0
+    # 单文档内逐元素视觉的并发上限（受全局限流器再收敛）。元素输入小、瓶颈在等网络，
+    # 适当调高可显著缩短大图量文档（如教材 80 图）的总耗时，压进异步预算内。
+    FILE_UNDERSTAND_ELEMENT_CONCURRENCY: int = 8
+    # 单元素（单图/单表）视觉调用的墙钟超时（秒）。元素输入很小，无需给太久；
+    # 收敛为 40 让个别卡顿的图更快失败、让位其余图，配合预算兜底。
+    FILE_UNDERSTAND_ELEMENT_TIMEOUT_SEC: float = 40.0
     # 一份文档最多做视觉的图片元素数（去重/过滤后仍超则其余标 unresolved）。
     FILE_UNDERSTAND_ELEMENT_MAX_IMAGES: int = 80
     # 图片近重复去重（dHash）开关与汉明距离阈值（<=阈值判为重复，复用同一 caption）。
@@ -620,6 +630,13 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_IMAGE_FILTER_MIN_BYTES: int = 3072
     # Azure 备用单图打标模型（azure_vlm_client 使用；单图，不再拆页）。
     FILE_UNDERSTAND_AZURE_MODEL: str = "FW-Kimi-K2.7-Code"
+    # ===== 视觉打标主力模型 + 多区域端点池负载均衡 =====
+    # 视觉打标主力模型键名（须在 azure-models.yaml 中定义且支持多模态 image_url）。
+    # gpt-4o 覆盖 8 区域，配额池大、质量一致；应急可回退 FW-Kimi-K2.7-Code（仅单区域）。
+    FILE_UNDERSTAND_VLM_PRIMARY_MODEL: str = "gpt-4o"
+    # 区域级轮询开关：True=跨请求用全局游标把流量分散到该模型的全部 region 端点，
+    # 单端点 429/5xx/连接错时自动切下一区域，直接并用多个配额池。排障时可置 False 锁首选区。
+    FILE_UNDERSTAND_VLM_REGION_ROTATION: bool = True
     # 表格元素级视觉校对开关、裁剪 DPI、单文档最多校对表数、低置信度空单元格占比阈值。
     FILE_UNDERSTAND_TABLE_VISION_ENABLED: bool = True
     FILE_UNDERSTAND_TABLE_CROP_DPI: int = 150

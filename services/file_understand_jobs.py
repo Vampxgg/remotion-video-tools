@@ -98,10 +98,12 @@ def create_job(filename: str) -> str:
     record = {
         "job_id": job_id,
         "status": STATUS_PENDING,
+        "stage": "intake",
         "filename": filename,
         "created_at": now,
         "updated_at": now,
         "result": None,
+        "partial_result": None,
         "error": None,
     }
     _atomic_write(_path(job_id), record)
@@ -122,17 +124,29 @@ def _update(job_id: str, **patch: Any) -> None:
 
 
 def mark_running(job_id: str) -> None:
-    _update(job_id, status=STATUS_RUNNING)
+    _update(job_id, status=STATUS_RUNNING, stage="running")
     logger.info(f"[{job_id}] 开始处理")
 
 
-def mark_succeeded(job_id: str, result: Dict[str, Any]) -> None:
-    _update(job_id, status=STATUS_SUCCEEDED, result=result, error=None)
-    logger.info(f"[{job_id}] 处理成功")
+def set_partial(job_id: str, result: Dict[str, Any]) -> None:
+    """写入基础解析的中间结果（不改变 status，仍为 running）。
+
+    作用：基础解析(全文 + 全部真实图 URL)完成即可取，作为视觉理解未完成时的兜底诊断/取值。
+    """
+    _update(job_id, partial_result=result, stage="base")
+    logger.info(f"[{job_id}] 基础解析就绪（partial_result 已写入）")
+
+
+def mark_succeeded(job_id: str, result: Dict[str, Any], stage: str = "enhanced") -> None:
+    _update(job_id, status=STATUS_SUCCEEDED, result=result, error=None, stage=stage)
+    logger.info(f"[{job_id}] 处理成功 stage={stage}")
 
 
 def mark_failed(job_id: str, code: str, detail: str) -> None:
-    _update(job_id, status=STATUS_FAILED, result=None, error={"code": code, "detail": detail})
+    _update(
+        job_id, status=STATUS_FAILED, result=None, error={"code": code, "detail": detail},
+        stage="failed",
+    )
     logger.warning(f"[{job_id}] 处理失败 code={code} detail={detail}")
 
 

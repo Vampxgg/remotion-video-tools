@@ -173,12 +173,28 @@ def image_importance_ok(img_bytes: Optional[bytes]) -> bool:
 async def recognize_image_full(
     img_bytes: bytes, mime: str, request_id: str, *, chart_to_table: bool = True
 ) -> Optional[Dict[str, Any]]:
-    """通用单图视觉：Gemini 优先、失败切 Azure，返回结构化 dict（含 chart 转表）。
+    """通用单图视觉：Azure 多区域端点池优先、Vertex 最后兜底，返回结构化 dict（含 chart 转表）。
 
     返回完整结构化对象（img_type/description/keywords/chart_table_markdown），供编排层
     判定 chart/figure 并做图表转表。无法识别返回 None。
+
+    编排顺序说明：Azure gpt-4o 多区域池国内可达、配额池大且质量一致，作为主力；
+    Vertex 出网不稳（oauth 常卡），降为整池失败后的最后兜底。
     """
-    # 1) Gemini 单图
+    # 1) Azure 多区域端点池（主力）
+    try:
+        obj = await avc.caption_image(
+            img_bytes, mime, None,
+            with_page_context=False, chart_to_table=chart_to_table, request_id=request_id,
+        )
+        if isinstance(obj, dict) and _compose_caption(obj):
+            return obj
+    except (AzureVLMConnError, AzureVLMError) as e:
+        logger.warning("[%s] Azure 单图识别失败，切 Vertex 兜底: %s", request_id, e)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[%s] Azure 单图识别异常，切 Vertex 兜底: %s", request_id, e)
+
+    # 2) Vertex 单图（最后兜底）
     try:
         provider = VertexGeminiProvider(_settings.FILE_UNDERSTAND_MODEL)
         sys_prompt = _SINGLE_IMAGE_SYSTEM + (
@@ -211,22 +227,9 @@ async def recognize_image_full(
         if isinstance(result.parsed_json, dict) and _compose_caption(result.parsed_json):
             return result.parsed_json
     except ProviderError as e:
-        logger.warning("[%s] Gemini 单图识别失败，切 Azure: %s", request_id, e)
+        logger.warning("[%s] Vertex 单图兜底失败: %s", request_id, e)
     except Exception as e:  # noqa: BLE001
-        logger.warning("[%s] Gemini 单图识别异常，切 Azure: %s", request_id, e)
-
-    # 2) Azure 单图
-    try:
-        obj = await avc.caption_image(
-            img_bytes, mime, None,
-            with_page_context=False, chart_to_table=chart_to_table, request_id=request_id,
-        )
-        if isinstance(obj, dict) and _compose_caption(obj):
-            return obj
-    except (AzureVLMConnError, AzureVLMError) as e:
-        logger.warning("[%s] Azure 单图识别失败: %s", request_id, e)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("[%s] Azure 单图识别异常: %s", request_id, e)
+        logger.warning("[%s] Vertex 单图兜底异常: %s", request_id, e)
     return None
 
 
@@ -247,9 +250,24 @@ _TABLE_PROOFREAD_SYSTEM = (
 async def proofread_table(
     crop_png: bytes, base_markdown: str, request_id: str
 ) -> Optional[str]:
-    """单表视觉校对：Gemini 优先、失败切 Azure。返回校对后的 Markdown 或 None。"""
+    """单表视觉校对：Azure 多区域池优先、Vertex 最后兜底。返回校对后的 Markdown 或 None。"""
     user_text = "这是表格截图，下面是初步抽取的 Markdown，请校对后输出 JSON：\n\n" + base_markdown
-    # 1) Gemini
+    # 1) Azure（复用 caption_image 的 json_object，取 chart_table_markdown 承载校对结果）
+    try:
+        obj = await avc.caption_image(
+            crop_png, "image/png", None,
+            with_page_context=False, chart_to_table=True, request_id=request_id,
+        )
+        if isinstance(obj, dict):
+            md = (obj.get("chart_table_markdown") or "").strip()
+            if md:
+                return md
+    except (AzureVLMConnError, AzureVLMError) as e:
+        logger.warning("[%s] Azure 表格校对失败，切 Vertex 兜底: %s", request_id, e)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[%s] Azure 表格校对异常，切 Vertex 兜底: %s", request_id, e)
+
+    # 2) Vertex（最后兜底）
     try:
         provider = VertexGeminiProvider(_settings.FILE_UNDERSTAND_MODEL)
         req = UnderstandGenerationRequest(
@@ -268,22 +286,7 @@ async def proofread_table(
             if md:
                 return md
     except ProviderError as e:
-        logger.warning("[%s] Gemini 表格校对失败，切 Azure: %s", request_id, e)
+        logger.warning("[%s] Vertex 表格校对兜底失败: %s", request_id, e)
     except Exception as e:  # noqa: BLE001
-        logger.warning("[%s] Gemini 表格校对异常，切 Azure: %s", request_id, e)
-
-    # 2) Azure（复用 caption_image 的 json_object，取 chart_table_markdown 承载校对结果）
-    try:
-        obj = await avc.caption_image(
-            crop_png, "image/png", None,
-            with_page_context=False, chart_to_table=True, request_id=request_id,
-        )
-        if isinstance(obj, dict):
-            md = (obj.get("chart_table_markdown") or "").strip()
-            if md:
-                return md
-    except (AzureVLMConnError, AzureVLMError) as e:
-        logger.warning("[%s] Azure 表格校对失败: %s", request_id, e)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("[%s] Azure 表格校对异常: %s", request_id, e)
+        logger.warning("[%s] Vertex 表格校对兜底异常: %s", request_id, e)
     return None

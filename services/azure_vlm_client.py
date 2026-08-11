@@ -14,13 +14,15 @@
 from __future__ import annotations
 
 import base64
+import itertools
 import json
+import threading
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import httpx
 
-from utils.azure_models import AzureModelsConfigError, resolve_single
+from utils.azure_models import AzureEndpoint, AzureModelsConfigError, resolve_model, resolve_single
 from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
 
@@ -102,13 +104,52 @@ def current_deployment() -> str:
         return (_settings.DOC_IMPORT_AZURE_MODEL or "").strip()
 
 
-def _endpoint_url(target: _ResolvedTarget) -> str:
-    deployment = target.deployment
-    api_version = target.api_version
-    return (
-        f"{target.endpoint}/openai/deployments/{deployment}"
-        f"/chat/completions?api-version={api_version}"
-    )
+# ============== 多区域端点池：跨请求轮询 + 单请求内换区 ==============
+
+# 每个模型一个进程内轮询游标，让连续请求分散到不同 region（并用多个配额池）。
+_rr_lock = threading.Lock()
+_rr_cursors: Dict[str, "itertools.count[int]"] = {}
+
+
+def _next_rotation(model: str) -> int:
+    with _rr_lock:
+        c = _rr_cursors.get(model)
+        if c is None:
+            c = itertools.count(0)
+            _rr_cursors[model] = c
+        return next(c)
+
+
+def _pool_endpoints(model: str) -> List[AzureEndpoint]:
+    """解析模型的全部 region 端点，按全局游标旋转顺序返回（实现跨请求负载分散）。
+
+    - 显式覆盖（DOC_IMPORT_AZURE_ENDPOINT+API_KEY）优先：返回单端点，不参与轮询（应急）。
+    - 关闭轮询（FILE_UNDERSTAND_VLM_REGION_ROTATION=False）：按 yaml 原序返回（首选区优先）。
+    """
+    override_ep = (_settings.DOC_IMPORT_AZURE_ENDPOINT or "").strip().rstrip("/")
+    override_key = (_settings.DOC_IMPORT_AZURE_API_KEY or "").strip()
+    if override_ep and override_key:
+        return [
+            AzureEndpoint(
+                name="override",
+                endpoint=override_ep,
+                api_key=override_key,
+                deployment=(_settings.DOC_IMPORT_AZURE_DEPLOYMENT or model or "").strip(),
+                api_version=(_settings.DOC_IMPORT_AZURE_API_VERSION or "").strip(),
+            )
+        ]
+    try:
+        resolved = resolve_model(model)
+    except AzureModelsConfigError as e:
+        raise AzureVLMError(f"Azure 模型解析失败({model}): {e}") from e
+    eps = list(resolved.endpoints)
+    if not eps:
+        raise AzureVLMError(f"模型 {model!r} 无可用 region 端点")
+    if not bool(getattr(_settings, "FILE_UNDERSTAND_VLM_REGION_ROTATION", True)) or len(eps) == 1:
+        return eps
+    # 旋转：起始位置随全局游标推进，把连续请求分散到不同 region。
+    start = _next_rotation(model) % len(eps)
+    return eps[start:] + eps[:start]
 
 
 def _timeout() -> httpx.Timeout:
@@ -146,6 +187,77 @@ def _strip_code_fence(text: str) -> str:
     return t.strip()
 
 
+class _SwitchRegion(Exception):
+    """内部信号：当前 region 不可用，应切换到下一区域（不对外暴露）。"""
+
+    def __init__(self, msg: str, *, switch_reason: str, conn: bool):
+        super().__init__(msg)
+        self.switch_reason = switch_reason
+        self.conn = conn
+
+
+async def _call_endpoint(
+    ep: AzureEndpoint, body: Dict[str, Any], request_id: str
+) -> Dict[str, Any]:
+    """对单个 region 端点发起一次打标调用（含该端点内的轻重试）。
+
+    :returns: 解析后的结构化 dict（成功）。
+    :raises _SwitchRegion: 该端点 429/5xx/连接层错误，应切换到下一区域。
+    :raises AzureVLMError: 4xx(非429) 等不可切换错误，直接失败。
+    """
+    headers = {"api-key": ep.api_key, "Content-Type": "application/json"}
+    url = (
+        f"{ep.endpoint}/openai/deployments/{ep.deployment}"
+        f"/chat/completions?api-version={ep.api_version}"
+    )
+    max_retries = max(0, int(_settings.DOC_IMPORT_AZURE_MAX_RETRIES))
+    last_exc: Optional[Exception] = None
+    for attempt in range(max_retries + 1):
+        try:
+            async with httpx.AsyncClient(
+                trust_env=False,
+                proxy=_settings.DOC_IMPORT_AZURE_PROXY_URL or None,
+                timeout=_timeout(),
+            ) as client:
+                resp = await client.post(url, headers=headers, json=body)
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as e:
+            last_exc = e
+            if attempt < max_retries:
+                continue
+            # 连接层不可达：本区不可用，切下一区域。
+            raise _SwitchRegion(f"连接失败: {e}", switch_reason="conn", conn=True) from e
+        except httpx.HTTPError as e:
+            last_exc = e
+            if attempt < max_retries:
+                continue
+            raise _SwitchRegion(f"请求异常: {e}", switch_reason="http_err", conn=False) from e
+
+        if resp.status_code == 200:
+            try:
+                raw = _extract_content(resp.json())
+            except Exception as e:  # noqa: BLE001
+                raise AzureVLMError(f"解析 Azure 响应失败: {e}") from e
+            if not raw:
+                raise AzureVLMError("Azure 返回空内容")
+            try:
+                return json.loads(_strip_code_fence(raw))
+            except Exception as e:  # noqa: BLE001
+                raise AzureVLMError(f"Azure 返回非法 JSON: {e}; raw={raw[:300]}") from e
+
+        # 5xx / 429：本区内轻重试，仍失败则切下一区域。
+        if resp.status_code in (429, 500, 502, 503, 504):
+            if attempt < max_retries:
+                last_exc = AzureVLMError(f"Azure HTTP {resp.status_code}")
+                continue
+            raise _SwitchRegion(
+                f"HTTP {resp.status_code}", switch_reason=str(resp.status_code), conn=False
+            )
+        # 4xx(非429)：请求本身有问题（如图片非法/部署不存在），切区无益，直接失败。
+        raise AzureVLMError(f"Azure 返回 HTTP {resp.status_code}: {resp.text[:300]}")
+
+    raise _SwitchRegion(f"未知失败: {last_exc}", switch_reason="unknown", conn=False)
+
+
 async def caption_image(
     img_bytes: bytes,
     mime: str,
@@ -154,13 +266,16 @@ async def caption_image(
     with_page_context: bool,
     chart_to_table: bool,
     request_id: str,
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """对单张图打标，返回结构化 dict。
+    """对单张图打标，返回结构化 dict。多区域端点池：起始区随全局游标轮询，
+    单端点 429/5xx/连接错自动切下一区域（最多轮一圈），4xx 直接失败。
 
     返回字段：img_type / img_description / img_keywords(list) / chart_table_markdown。
 
-    :raises AzureVLMConnError: 连接层不可达（供整批熔断）。
-    :raises AzureVLMError: 其它失败（HTTP 错误、响应解析失败）。
+    :param model: 视觉模型键名；留空取 FILE_UNDERSTAND_VLM_PRIMARY_MODEL。
+    :raises AzureVLMConnError: 整轮区域均连接不可达（供上层降级）。
+    :raises AzureVLMError: 其它失败（4xx、响应解析失败、整轮均失败）。
     """
     parts: List[dict] = [
         {"type": "image_url", "image_url": {"url": bytes_to_data_url(img_bytes, mime)}}
@@ -187,52 +302,26 @@ async def caption_image(
         "temperature": _settings.DOC_IMPORT_VLM_TEMPERATURE,
         "response_format": {"type": "json_object"},
     }
-    target = _resolve_target()
-    headers = {
-        "api-key": target.api_key,
-        "Content-Type": "application/json",
-    }
-    url = _endpoint_url(target)
-    max_retries = max(0, int(_settings.DOC_IMPORT_AZURE_MAX_RETRIES))
 
-    last_exc: Optional[Exception] = None
-    for attempt in range(max_retries + 1):
+    use_model = (model or _settings.FILE_UNDERSTAND_VLM_PRIMARY_MODEL or _settings.DOC_IMPORT_AZURE_MODEL).strip()
+    endpoints = _pool_endpoints(use_model)
+
+    all_conn = True  # 整轮是否都为连接层失败（决定抛 ConnError 还是普通 Error）
+    last_switch: Optional[_SwitchRegion] = None
+    for ep in endpoints:
         try:
-            async with httpx.AsyncClient(
-                trust_env=False,
-                proxy=_settings.DOC_IMPORT_AZURE_PROXY_URL or None,
-                timeout=_timeout(),
-            ) as client:
-                resp = await client.post(url, headers=headers, json=body)
-        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as e:
-            # 连接层不可达：记为可熔断错误，短暂重试后抛 AzureVLMConnError。
-            last_exc = e
-            if attempt < max_retries:
-                continue
-            raise AzureVLMConnError(f"连接 Azure 失败: {e}") from e
-        except httpx.HTTPError as e:
-            last_exc = e
-            if attempt < max_retries:
-                continue
-            raise AzureVLMError(f"请求 Azure 异常: {e}") from e
-
-        if resp.status_code == 200:
-            try:
-                raw = _extract_content(resp.json())
-            except Exception as e:  # noqa: BLE001
-                raise AzureVLMError(f"解析 Azure 响应失败: {e}") from e
-            if not raw:
-                raise AzureVLMError("Azure 返回空内容")
-            try:
-                return json.loads(_strip_code_fence(raw))
-            except Exception as e:  # noqa: BLE001
-                raise AzureVLMError(f"Azure 返回非法 JSON: {e}; raw={raw[:300]}") from e
-
-        # 5xx / 429 可重试；4xx 其它直接失败。
-        if resp.status_code in (429, 500, 502, 503, 504) and attempt < max_retries:
-            last_exc = AzureVLMError(f"Azure HTTP {resp.status_code}")
+            return await _call_endpoint(ep, body, request_id)
+        except _SwitchRegion as sw:
+            last_switch = sw
+            all_conn = all_conn and sw.conn
+            logger.warning(
+                "[%s] Azure VLM 区域 %s 失败(%s)，切下一区域", request_id, ep.name, sw.switch_reason
+            )
             continue
-        raise AzureVLMError(f"Azure 返回 HTTP {resp.status_code}: {resp.text[:300]}")
+        # AzureVLMError(4xx/解析失败) 直接抛出，不切区。
 
-    # 理论不可达（循环内必 return 或 raise）；兜底。
-    raise AzureVLMError(f"Azure 打标失败: {last_exc}")
+    # 整轮都失败。
+    detail = str(last_switch) if last_switch else "无可用端点"
+    if all_conn:
+        raise AzureVLMConnError(f"连接 Azure 失败（全部 {len(endpoints)} 区域）: {detail}")
+    raise AzureVLMError(f"Azure 打标失败（全部 {len(endpoints)} 区域）: {detail}")

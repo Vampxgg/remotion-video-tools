@@ -154,13 +154,35 @@ async def understand_file(
 
 
 async def _process_understand_job(
-    job_id: str, payload: FilePayload, options: UnderstandOptions
+    job_id: str,
+    payload: FilePayload,
+    options: UnderstandOptions,
+    budget_sec: Optional[float] = None,
 ) -> None:
-    """后台执行单文件多模态理解，并把结果写入任务存储。"""
+    """后台执行单文件多模态理解，并把结果写入任务存储。
+
+    基础解析（全文 + 全部真实图 URL）完成即通过 set_partial 写入中间结果，作为视觉理解
+    未在预算内完成时的兜底；视觉阶段受 budget_sec 墙钟约束，到点返回已完成部分。
+    """
     jobs.mark_running(job_id)
+
+    def _on_base_ready(base_result) -> None:
+        try:
+            jobs.set_partial(job_id, base_result.model_dump())
+        except Exception:  # noqa: BLE001
+            logger.warning("write partial failed [%s]", job_id)
+
     try:
-        result = await understand_file_payload(payload, options)
-        jobs.mark_succeeded(job_id, result.model_dump())
+        result = await understand_file_payload(
+            payload,
+            options,
+            budget_sec=budget_sec,
+            on_base_ready=_on_base_ready,
+        )
+        stage = (result.meta or {}).get("vision_status") or "enhanced"
+        # vision_status: enhanced=有增强；degraded=仅基础解析兜底；skipped=无需视觉。
+        job_stage = "enhanced" if stage == "enhanced" else "base"
+        jobs.mark_succeeded(job_id, result.model_dump(), stage=job_stage)
     except ParseInputError as exc:
         jobs.mark_failed(job_id, exc.code, exc.detail)
     except Exception as exc:  # noqa: BLE001
@@ -181,6 +203,14 @@ async def understand_file_async(
     max_chars: Optional[int] = Form(None, description="返回内容最大字符数，上限由服务端配置控制"),
     model: Optional[str] = Form(None, description="覆盖默认 Vertex Gemini 模型"),
     enable_vision: bool = Form(True, description="是否启用视觉理解；关闭则等同 /file/parse"),
+    max_wait: Optional[float] = Form(
+        None,
+        description=(
+            "本次理解的墙钟总预算(秒)，含排队+基础解析+视觉。到点即返回已完成部分(至少基础解析)。"
+            "留空取服务端默认 FILE_UNDERSTAND_ASYNC_BUDGET_SEC。调用方(如 Dify 代码节点)"
+            "应设为略小于其沙箱执行上限，确保能在被 kill 前轮询到 succeeded。"
+        ),
+    ),
 ):
     """接收文件后立即返回 ``job_id``，真正的多模态理解放后台执行。
 
@@ -207,8 +237,12 @@ async def understand_file_async(
         await file.close()
 
     options = _options(max_chars, enable_ocr, enable_embedded_image_upload, model, enable_vision)
+    budget_sec = (
+        float(max_wait) if (max_wait and max_wait > 0)
+        else float(_settings.FILE_UNDERSTAND_ASYNC_BUDGET_SEC)
+    )
     job_id = jobs.create_job(payload.filename)
-    task = asyncio.create_task(_process_understand_job(job_id, payload, options))
+    task = asyncio.create_task(_process_understand_job(job_id, payload, options, budget_sec))
     _BG_TASKS.add(task)
     task.add_done_callback(_BG_TASKS.discard)
 
