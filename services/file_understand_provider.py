@@ -64,17 +64,14 @@ class ProviderRequestError(ProviderError):
 
 @dataclass(frozen=True)
 class VisualDocument:
-    """一份要做视觉理解的原始输入。
+    """一份要做视觉理解的原始输入（元素级：单张图片 / 单个表格裁剪 PNG）。
 
-    - ``data`` + ``mime_type``：原始文件字节（PDF/图片）。provider 若原生支持该 mime
-      则直接发送；不支持（如 Azure 不吃 PDF）则用 ``rendered_pages`` 页图。
-    - ``rendered_pages``：可选的按页渲染 PNG 列表，供不支持原生 PDF 的 provider 使用。
+    ``data`` + ``mime_type``：元素字节与其 MIME。Vertex 原生支持图片，直接发送。
     """
 
     data: bytes
     mime_type: str
     filename: str = ""
-    rendered_pages: Optional[List[bytes]] = None
 
 
 @dataclass(frozen=True)
@@ -103,18 +100,3 @@ class UnderstandGenerationResult:
     finish_reason: Optional[str] = None
     attempts: int = 1
     warnings: List[str] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class ProviderCapabilities:
-    """provider 能力声明，供编排层决定输入编码与是否可用。"""
-
-    name: str
-    native_pdf: bool
-    image_mime_types: frozenset
-    json_object: bool
-    json_schema: bool
-    # 单请求最大输入字节（近似，用于超限时切换）。0=不限。
-    max_input_bytes: int = 0
-    # 页图模式下单请求最多携带的页数（0=不分批）。
-    max_pages_per_request: int = 0

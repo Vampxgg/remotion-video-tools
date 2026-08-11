@@ -563,24 +563,18 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_LOCATION: str = "global"
     # Gemini 3 才支持 media_resolution（low/medium/high）；非 3 系模型会被忽略。
     FILE_UNDERSTAND_MEDIA_RESOLUTION: Optional[str] = None
-    # 单次 Gemini 调用(单区域)超时(秒)。补丁模式输出短，无需给太久；配合 MAX_REGIONS 限制总等待。
+    # 单次 Gemini 调用(单区域)超时(秒)。元素级输入短，无需给太久；配合 MAX_REGIONS 限制总等待。
     FILE_UNDERSTAND_TIMEOUT_SEC: float = 180.0
     # 单次理解最多尝试的 Vertex 区域数；防止区域轮询把偶发慢/错放大成超长等待(最坏=区域数×单区域超时)。
     FILE_UNDERSTAND_MAX_REGIONS: int = 2
-    # 直接喂给 Gemini 的 PDF 体积上限（MB）；超出则跳过视觉、仅返回基础解析。
-    FILE_UNDERSTAND_MAX_PDF_MB: int = 50
     # 鉴权：留空则复用 FILE_PARSE_API_KEY；都留空表示不鉴权。
     FILE_UNDERSTAND_API_KEY: Optional[str] = None
     # 输出 markdown 硬上限，沿用文件解析的口径。
     FILE_UNDERSTAND_MAX_CONTENT_CHARS: int = 200000
     # 生成温度，理解/转写场景取低值更稳。
     FILE_UNDERSTAND_TEMPERATURE: float = 0.2
-    FILE_UNDERSTAND_MAX_OUTPUT_TOKENS: int = 32768
     # 思考预算：0=关闭扩展思考。转写/校对任务无需思考，关掉可显著提速(仅 gemini-2.5/3 生效)。
     FILE_UNDERSTAND_THINKING_BUDGET: int = 0
-    # “仅补丁”模式：Gemini 不重写正文，只产出 表格视觉校对 + 图表转表 + 图片描述 补丁，
-    # 本地按锚点合并基础解析正文。大幅减少输出 token => 主要提速来源。置 False 回退整篇重写模式。
-    FILE_UNDERSTAND_PATCH_MODE: bool = True
     # 异步任务（/file/understand/async + /result/{job_id}）的文件存储目录；
     # 留空则用系统临时目录下 file_understand_jobs。改为提交+轮询可绕开前置网关 ~120s 读超时。
     FILE_UNDERSTAND_JOB_DIR: Optional[str] = None
@@ -596,37 +590,41 @@ class FileUnderstandSettings(_Base):
     # Redis 不可用策略：fallback_base=降级基础解析；open=本地开发可放开；fail=抛错。
     FILE_UNDERSTAND_LIMITER_UNAVAILABLE_POLICY: str = "fallback_base"
 
-    # ===== 高可用：主/备 provider、重试退避、总预算、逐图补识别 =====
-    # provider fallback 顺序（逗号分隔）：主用在前，其后为异构备用。
-    # vertex=Vertex Gemini（原生多模态）；azure=Azure VLM（PDF 拆页，独立故障域）。
-    FILE_UNDERSTAND_PROVIDER_ORDER: str = "vertex,azure"
+    # ===== 出网代理、重试退避、视觉总预算 =====
     # Vertex 出网代理：国内服务器直连 googleapis.com 会超时，需走代理。
     # 同时作用于 generateContent 与 oauth2 token 刷新两条链路（都是 Google 域）。
     # 留空则回落 OUTBOUND_PROXY_URL；两者都空=直连（海外机/本地可直连时用）。
-    # Azure 恒直连（国内可达），不受本项影响，实现"Vertex 走代理 / Azure 直连"。
     FILE_UNDERSTAND_VERTEX_PROXY_URL: Optional[str] = None
     # Vertex 换区/网络抖动前的退避：指数基数与上限（秒），配合满抖动缓解瞬时限流。
     FILE_UNDERSTAND_RETRY_BACKOFF_BASE_SEC: float = 1.0
     FILE_UNDERSTAND_RETRY_BACKOFF_CAP_SEC: float = 8.0
-    # 整个视觉阶段（含排队+主备 provider+逐图补识别）的墙钟总预算（秒）。超出立即兜底。
+    # 整个视觉阶段（含排队 + 逐元素视觉）的墙钟总预算（秒）。超出立即兜底。
     FILE_UNDERSTAND_VISION_DEADLINE_SEC: float = 480.0
-    # Azure 备用：PDF 拆页 DPI 与单请求最多携带页数（控制单请求体积/超时）。
-    FILE_UNDERSTAND_AZURE_MODEL: str = "FW-Kimi-K2.7-Code"
-    FILE_UNDERSTAND_AZURE_PAGE_DPI: int = 150
-    FILE_UNDERSTAND_AZURE_PAGES_PER_REQUEST: int = 4
-    FILE_UNDERSTAND_AZURE_MAX_PAGES: int = 40
     # 全局限流：最大排队等待（秒，0=不限）与等待抖动比例（0-1）。
     FILE_UNDERSTAND_GLOBAL_MAX_WAIT_SEC: float = 120.0
     FILE_UNDERSTAND_GLOBAL_WAIT_JITTER: float = 0.3
-    # ===== 缺失/低质量图片逐图 VLM 补识别 =====
-    # 文档级理解后，对描述缺失或明显低质量的图片逐张补识别（only_missing 策略）。
-    FILE_UNDERSTAND_IMAGE_REPAIR_ENABLED: bool = True
-    # 判定"描述过短"的最小字符数：短于此且无有效用途即视为低质量。
-    FILE_UNDERSTAND_IMAGE_MIN_CAPTION_CHARS: int = 8
-    # 逐图补识别的并发与单批预算保留（秒）。
-    FILE_UNDERSTAND_IMAGE_REPAIR_CONCURRENCY: int = 3
-    # 逐图补识别最多处理的图片数（防止超大文档把补识别拖爆）。
-    FILE_UNDERSTAND_IMAGE_REPAIR_MAX_IMAGES: int = 60
+
+    # ===== 元素级视觉理解（AST + 锚点定位；替代整份 PDF 内联）=====
+    # 单文档内逐元素视觉的并发上限（受全局限流器再收敛）。
+    FILE_UNDERSTAND_ELEMENT_CONCURRENCY: int = 4
+    # 单元素（单图/单表）视觉调用的墙钟超时（秒）。元素输入很小，无需给太久。
+    FILE_UNDERSTAND_ELEMENT_TIMEOUT_SEC: float = 60.0
+    # 一份文档最多做视觉的图片元素数（去重/过滤后仍超则其余标 unresolved）。
+    FILE_UNDERSTAND_ELEMENT_MAX_IMAGES: int = 80
+    # 图片近重复去重（dHash）开关与汉明距离阈值（<=阈值判为重复，复用同一 caption）。
+    FILE_UNDERSTAND_IMAGE_DEDUP_ENABLED: bool = True
+    FILE_UNDERSTAND_IMAGE_DEDUP_HAMMING: int = 5
+    # 重要性过滤：跳过疑似 Logo/装饰图（按最小边像素与最小字节）。
+    FILE_UNDERSTAND_IMAGE_FILTER_ENABLED: bool = True
+    FILE_UNDERSTAND_IMAGE_FILTER_MIN_DIM: int = 64
+    FILE_UNDERSTAND_IMAGE_FILTER_MIN_BYTES: int = 3072
+    # Azure 备用单图打标模型（azure_vlm_client 使用；单图，不再拆页）。
+    FILE_UNDERSTAND_AZURE_MODEL: str = "FW-Kimi-K2.7-Code"
+    # 表格元素级视觉校对开关、裁剪 DPI、单文档最多校对表数、低置信度空单元格占比阈值。
+    FILE_UNDERSTAND_TABLE_VISION_ENABLED: bool = True
+    FILE_UNDERSTAND_TABLE_CROP_DPI: int = 150
+    FILE_UNDERSTAND_TABLE_VISION_MAX: int = 40
+    FILE_UNDERSTAND_TABLE_LOWCONF_EMPTY_RATIO: float = 0.2
 
 
 class DocImportSettings(_Base):

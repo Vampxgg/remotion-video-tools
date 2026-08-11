@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
-"""缺失/低质量图片的逐图 VLM 补识别（only_missing 策略）。
+"""单元素视觉理解的底层操作库（供元素级编排器复用）。
 
-文档级多模态理解完成后，仍可能有个别图片没被准确描述（描述缺失、泛化、过短、
-重复、或 URL/描述错位）。本模块：
+历史上本模块做"文档级理解后的逐图补识别"（repair_missing_captions）。重构为元素级
+视觉理解后，逐元素识别成为主力，补识别后置步骤不再需要；本模块收敛为一组
+provider 无关的"单元素"操作：
 
-1. 以 base markdown 的真实图片 URL 为完整图片集合（覆盖率分母）；
-2. 逐一核对增强 markdown 中每张图的描述质量；
-3. 只对"缺失或明显低质量"的图片逐张调用 VLM 重新识别（不无条件重复所有图片）；
-4. 逐图识别 Gemini 优先、失败切 Azure；结构化返回后回填 caption；
-5. 仍不合格的保留原图并标记 unresolved，绝不编造描述。
+  - recognize_image_full：单图视觉（Gemini 优先、失败切 Azure），返回结构化 dict（含 chart 转表）；
+  - proofread_table：单表截图视觉校对，返回校对后的 Markdown；
+  - dhash / hamming / dedup_by_hash：图片近重复去重（Pillow 自算 dHash，免额外依赖）；
+  - image_importance_ok：重要性过滤（跳过疑似 Logo/装饰图）；
+  - _download：按 URL 取图字节（AST 未带字节时回退用）。
 
-诚实原则：VLM 无法从信息不足的图里恢复不存在的信息，因此不把模型自报置信度当作
-准确性证明；无法可靠识别就如实标 unresolved，交由结果元数据暴露覆盖率。
+诚实原则：VLM 无法从信息不足的图里恢复不存在的信息；无法可靠识别就返回 None，
+交由编排层标 unresolved，绝不编造描述。
 """
 
 from __future__ import annotations
 
-import asyncio
-import re
+import io
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -29,27 +29,12 @@ from services.file_understand_providers import VertexGeminiProvider
 from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
 
+try:
+    from PIL import Image as PILImage
+except Exception:  # pragma: no cover - 缺失时去重/过滤降级为不处理
+    PILImage = None  # type: ignore[assignment]
+
 logger = setup_module_logger(__name__, "logs/file/file_understand_image_repair.log")
-
-_IMG_MD_RE = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
-_IMG_FULL_RE = re.compile(r"!\[([^\]]*)\]\((https?://[^)\s]+)\)")
-
-# 泛化/无信息描述：命中即视为低质量，需要逐图补识别。
-_GENERIC_CAPTIONS = {
-    "", "图片", "配图", "示意图", "图", "image", "figure", "无法识别", "未知",
-    "源文档图片", "文档图片", "表格图片",
-}
-_GENERIC_PREFIXES = ("源文档图片", "文档图片", "表格图片", "配图", "幻灯片")
-
-_SINGLE_IMAGE_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "img_description": {"type": "string"},
-        "img_purpose": {"type": "string"},
-        "img_keywords": {"type": "array", "items": {"type": "string"}},
-    },
-    "required": ["img_description", "img_purpose"],
-}
 
 _SINGLE_IMAGE_SYSTEM = (
     "你是严谨的图片理解助手。你会收到文档中的一张图片。请只依据你真实看到的内容，"
@@ -60,87 +45,6 @@ _SINGLE_IMAGE_SYSTEM = (
     "若图片模糊、损坏或信息不足以判断，img_description 必须如实写"
     "“图片信息不足，无法可靠识别”，不要编造。"
 )
-
-
-def _caption_of(url: str, md: str) -> Optional[str]:
-    """取增强 markdown 中该 URL 的 alt/caption 文本；未出现返回 None。"""
-    for alt, u in _IMG_FULL_RE.findall(md):
-        if u == url:
-            return (alt or "").strip()
-    return None
-
-
-def _is_low_quality(caption: Optional[str], seen_captions: Dict[str, int]) -> Tuple[bool, str]:
-    """判定描述是否缺失/低质量。返回 (是否低质量, 原因)。"""
-    if caption is None:
-        return True, "图片未出现在增强结果中（描述缺失）"
-    c = caption.strip()
-    if c in _GENERIC_CAPTIONS:
-        return True, "描述为空或泛化"
-    if any(c.startswith(p) and len(c) <= len(p) + 3 for p in _GENERIC_PREFIXES):
-        return True, "描述仅为占位/序号"
-    if len(c) < _settings.FILE_UNDERSTAND_IMAGE_MIN_CAPTION_CHARS:
-        return True, "描述过短"
-    # 不同图片描述异常重复（同一句被套用到多张图）。
-    if seen_captions.get(c, 0) >= 1:
-        return True, "描述与其它图片重复"
-    return False, ""
-
-
-async def _download(url: str) -> Optional[Tuple[bytes, str]]:
-    try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, verify=False) as client:
-            resp = await client.get(url, headers={"User-Agent": _settings.FETCH_USER_AGENT})
-            resp.raise_for_status()
-            mime = resp.headers.get("Content-Type", "image/png").split(";")[0].strip()
-            if not mime.startswith("image/"):
-                mime = "image/png"
-            return resp.content, mime
-    except Exception as e:  # noqa: BLE001
-        logger.warning("下载待补识别图片失败 url=%s: %s", url, e)
-        return None
-
-
-async def _recognize_one(
-    img_bytes: bytes, mime: str, request_id: str
-) -> Optional[str]:
-    """逐图识别：Gemini 优先，失败切 Azure。返回可用描述或 None（无法识别）。"""
-    # 1) Gemini 单图
-    try:
-        provider = VertexGeminiProvider(_settings.FILE_UNDERSTAND_MODEL)
-        req = UnderstandGenerationRequest(
-            document=VisualDocument(data=img_bytes, mime_type=mime),
-            system_instruction=_SINGLE_IMAGE_SYSTEM,
-            user_text="这是文档中的一张图片，请按要求输出 JSON。",
-            response_schema=_SINGLE_IMAGE_SCHEMA,
-            temperature=_settings.FILE_UNDERSTAND_TEMPERATURE,
-            max_output_tokens=1024,
-            request_id=request_id,
-            deadline_sec=_settings.FILE_UNDERSTAND_TIMEOUT_SEC,
-        )
-        result = await provider.generate(req)
-        desc = _compose_caption(result.parsed_json)
-        if desc:
-            return desc
-    except ProviderError as e:
-        logger.warning("[%s] Gemini 逐图识别失败，切 Azure: %s", request_id, e)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("[%s] Gemini 逐图识别异常，切 Azure: %s", request_id, e)
-
-    # 2) Azure 单图
-    try:
-        obj = await avc.caption_image(
-            img_bytes, mime, None,
-            with_page_context=False, chart_to_table=False, request_id=request_id,
-        )
-        desc = _compose_caption(obj)
-        if desc:
-            return desc
-    except (AzureVLMConnError, AzureVLMError) as e:
-        logger.warning("[%s] Azure 逐图识别失败: %s", request_id, e)
-    except Exception as e:  # noqa: BLE001
-        logger.warning("[%s] Azure 逐图识别异常: %s", request_id, e)
-    return None
 
 
 def _compose_caption(obj: Optional[Dict[str, Any]]) -> Optional[str]:
@@ -156,92 +60,230 @@ def _compose_caption(obj: Optional[Dict[str, Any]]) -> Optional[str]:
     return desc
 
 
-async def repair_missing_captions(
-    enriched_md: str,
-    base_md: str,
-    *,
-    request_id: str,
-    deadline_at: float,
-) -> Tuple[str, Dict[str, Any]]:
-    """审计每张源图描述，对缺失/低质量者逐图补识别并回填。
+def compose_caption_public(obj: Optional[Dict[str, Any]]) -> Optional[str]:
+    """对外暴露的 caption 组装（编排层复用）。"""
+    return _compose_caption(obj)
 
-    返回 (回填后的 markdown, 统计)。统计包含 described/repaired/unresolved_ids/coverage。
+
+async def _download(url: str) -> Optional[Tuple[bytes, str]]:
+    """按 URL 取图字节（AST 未带字节时回退用）。"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, verify=False) as client:
+            resp = await client.get(url, headers={"User-Agent": _settings.FETCH_USER_AGENT})
+            resp.raise_for_status()
+            mime = resp.headers.get("Content-Type", "image/png").split(";")[0].strip()
+            if not mime.startswith("image/"):
+                mime = "image/png"
+            return resp.content, mime
+    except Exception as e:  # noqa: BLE001
+        logger.warning("下载图片失败 url=%s: %s", url, e)
+        return None
+
+
+# ============== 图片近重复去重 (dHash) 与重要性过滤 ==============
+
+def dhash(img_bytes: bytes, hash_size: int = 8) -> Optional[int]:
+    """计算图片 dHash（差值哈希）；返回 64 位整数。Pillow 缺失/解码失败返回 None。
+
+    dHash 对缩放/轻微压缩鲁棒，适合"同一张 Logo/装饰图重复出现"的近重复判定，
+    比 pHash 更快且无需额外依赖（只用 Pillow）。
     """
-    import time
+    if PILImage is None:
+        return None
+    try:
+        with PILImage.open(io.BytesIO(img_bytes)) as im:
+            small = im.convert("L").resize((hash_size + 1, hash_size), PILImage.LANCZOS)
+            # get_flattened_data(新)优先，回退 getdata(旧)，兼容不同 Pillow 版本。
+            getter = getattr(small, "get_flattened_data", None)
+            px = list(getter()) if callable(getter) else list(small.getdata())
+    except Exception as e:  # noqa: BLE001
+        logger.debug("dHash 计算失败：%s", e)
+        return None
+    bits = 0
+    idx = 0
+    for row in range(hash_size):
+        base = row * (hash_size + 1)
+        for col in range(hash_size):
+            left = px[base + col]
+            right = px[base + col + 1]
+            bits |= (1 if left > right else 0) << idx
+            idx += 1
+    return bits
 
-    # 完整图片集合 = base markdown 的真实图片 URL（去重、保序）。
-    all_urls = list(dict.fromkeys(_IMG_MD_RE.findall(base_md)))
-    total = len(all_urls)
-    stats: Dict[str, Any] = {
-        "described": 0,
-        "repaired": 0,
-        "unresolved_ids": [],
-        "coverage": 1.0 if total == 0 else 0.0,
-    }
-    if total == 0:
-        return enriched_md, stats
 
-    # 现有描述质量审计。
-    seen_captions: Dict[str, int] = {}
-    described = 0
-    to_repair: List[str] = []
-    for url in all_urls:
-        cap = _caption_of(url, enriched_md)
-        low, _reason = _is_low_quality(cap, seen_captions)
-        if not low:
-            described += 1
-            if cap:
-                seen_captions[cap] = seen_captions.get(cap, 0) + 1
+def hamming(a: int, b: int) -> int:
+    return bin(a ^ b).count("1")
+
+
+def dedup_by_hash(
+    items: List[Tuple[str, bytes]], hamming_thresh: int
+) -> Tuple[List[str], Dict[str, str]]:
+    """按 dHash 近重复聚类。
+
+    :param items: [(url, img_bytes), ...]，保序。
+    :return: (representative_urls, alias_to_rep) —— representative_urls 为需要真正识别的
+      代表图 URL（保序）；alias_to_rep 把被去重的 URL 映射到其代表 URL（用于复用 caption）。
+    """
+    reps: List[Tuple[str, int]] = []  # (url, hash)
+    representative_urls: List[str] = []
+    alias_to_rep: Dict[str, str] = {}
+    for url, data in items:
+        h = dhash(data) if data else None
+        if h is None:
+            # 无法计算哈希：当作独立图，照常识别。
+            representative_urls.append(url)
+            continue
+        matched = None
+        for rep_url, rep_h in reps:
+            if hamming(h, rep_h) <= hamming_thresh:
+                matched = rep_url
+                break
+        if matched is not None:
+            alias_to_rep[url] = matched
         else:
-            to_repair.append(url)
+            reps.append((url, h))
+            representative_urls.append(url)
+    return representative_urls, alias_to_rep
 
-    max_repair = int(_settings.FILE_UNDERSTAND_IMAGE_REPAIR_MAX_IMAGES)
-    if len(to_repair) > max_repair:
-        logger.warning(
-            "[%s] 待补识别图片 %s 张，超过上限 %s，仅处理前 %s 张。",
-            request_id, len(to_repair), max_repair, max_repair,
+
+def image_importance_ok(img_bytes: Optional[bytes]) -> bool:
+    """重要性过滤：疑似 Logo/装饰图（过小/字节过少）返回 False（跳过视觉）。
+
+    未启用过滤或无法判定尺寸时一律放行（宁可多识别，不误杀）。
+    """
+    if not _settings.FILE_UNDERSTAND_IMAGE_FILTER_ENABLED:
+        return True
+    if not img_bytes:
+        return True
+    if len(img_bytes) < int(_settings.FILE_UNDERSTAND_IMAGE_FILTER_MIN_BYTES):
+        return False
+    if PILImage is None:
+        return True
+    try:
+        with PILImage.open(io.BytesIO(img_bytes)) as im:
+            w, h = im.size
+    except Exception:  # noqa: BLE001
+        return True
+    min_dim = int(_settings.FILE_UNDERSTAND_IMAGE_FILTER_MIN_DIM)
+    return min(w, h) >= min_dim
+
+
+# ============== 单元素视觉：图片识别 / 表格校对 ==============
+
+async def recognize_image_full(
+    img_bytes: bytes, mime: str, request_id: str, *, chart_to_table: bool = True
+) -> Optional[Dict[str, Any]]:
+    """通用单图视觉：Gemini 优先、失败切 Azure，返回结构化 dict（含 chart 转表）。
+
+    返回完整结构化对象（img_type/description/keywords/chart_table_markdown），供编排层
+    判定 chart/figure 并做图表转表。无法识别返回 None。
+    """
+    # 1) Gemini 单图
+    try:
+        provider = VertexGeminiProvider(_settings.FILE_UNDERSTAND_MODEL)
+        sys_prompt = _SINGLE_IMAGE_SYSTEM + (
+            "\n4. 若为数据型图表(chart)，在 chart_table_markdown 里把数值转写为规范 Markdown 表格"
+            "（保留系列名/量纲/单位）；非图表填空字符串。"
+            if chart_to_table else ""
         )
-        # 超出上限的直接列入 unresolved（诚实暴露）。
-        stats["unresolved_ids"].extend(to_repair[max_repair:])
-        to_repair = to_repair[:max_repair]
+        schema = {
+            "type": "object",
+            "properties": {
+                "img_type": {"type": "string"},
+                "img_description": {"type": "string"},
+                "img_purpose": {"type": "string"},
+                "img_keywords": {"type": "array", "items": {"type": "string"}},
+                "chart_table_markdown": {"type": "string"},
+            },
+            "required": ["img_description"],
+        }
+        req = UnderstandGenerationRequest(
+            document=VisualDocument(data=img_bytes, mime_type=mime),
+            system_instruction=sys_prompt,
+            user_text="这是文档中的一张图片，请按要求输出 JSON。",
+            response_schema=schema,
+            temperature=_settings.FILE_UNDERSTAND_TEMPERATURE,
+            max_output_tokens=1536,
+            request_id=request_id,
+            deadline_sec=_settings.FILE_UNDERSTAND_ELEMENT_TIMEOUT_SEC,
+        )
+        result = await provider.generate(req)
+        if isinstance(result.parsed_json, dict) and _compose_caption(result.parsed_json):
+            return result.parsed_json
+    except ProviderError as e:
+        logger.warning("[%s] Gemini 单图识别失败，切 Azure: %s", request_id, e)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[%s] Gemini 单图识别异常，切 Azure: %s", request_id, e)
 
-    sem = asyncio.Semaphore(max(1, int(_settings.FILE_UNDERSTAND_IMAGE_REPAIR_CONCURRENCY)))
-    new_captions: Dict[str, str] = {}
-    unresolved: List[str] = []
+    # 2) Azure 单图
+    try:
+        obj = await avc.caption_image(
+            img_bytes, mime, None,
+            with_page_context=False, chart_to_table=chart_to_table, request_id=request_id,
+        )
+        if isinstance(obj, dict) and _compose_caption(obj):
+            return obj
+    except (AzureVLMConnError, AzureVLMError) as e:
+        logger.warning("[%s] Azure 单图识别失败: %s", request_id, e)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[%s] Azure 单图识别异常: %s", request_id, e)
+    return None
 
-    async def _worker(url: str) -> None:
-        if time.time() >= deadline_at - 1.0:
-            unresolved.append(url)
-            return
-        async with sem:
-            dl = await _download(url)
-            if not dl:
-                unresolved.append(url)
-                return
-            desc = await _recognize_one(dl[0], dl[1], request_id)
-            if desc:
-                new_captions[url] = desc
-            else:
-                unresolved.append(url)
 
-    await asyncio.gather(*[_worker(u) for u in to_repair], return_exceptions=True)
+_TABLE_PROOFREAD_SCHEMA = {
+    "type": "object",
+    "properties": {"table_markdown": {"type": "string"}},
+    "required": ["table_markdown"],
+}
 
-    # 回填：把新描述写进增强 markdown 对应图片的 alt。
-    def _sub(m):
-        alt, url = m.group(1), m.group(2)
-        if url in new_captions:
-            return f"![{new_captions[url]}]({url})"
-        return m.group(0)
+_TABLE_PROOFREAD_SYSTEM = (
+    "你是严谨的表格视觉校对助手。你会收到一张表格的截图，以及从文档抽取的该表初步 Markdown。"
+    "请只依据截图忠实校对/补全该表，输出规范、完整、无遗漏的 Markdown 表格（多层表头合理合并）。"
+    "严格输出 JSON：{\"table_markdown\":\"...\"}，不要输出任何额外文本或代码块围栏。"
+    "不臆造数据；截图不清晰无法校对时，table_markdown 原样返回给定的初步 Markdown。"
+)
 
-    repaired_md = _IMG_FULL_RE.sub(_sub, enriched_md)
 
-    stats["described"] = described + len(new_captions)
-    stats["repaired"] = len(new_captions)
-    stats["unresolved_ids"] = stats["unresolved_ids"] + unresolved
-    stats["coverage"] = round(stats["described"] / total, 4) if total else 1.0
-    logger.info(
-        "[%s] 逐图补识别完成 总图=%s 已描述=%s 补识别=%s 未解决=%s coverage=%.3f",
-        request_id, total, stats["described"], stats["repaired"],
-        len(stats["unresolved_ids"]), stats["coverage"],
-    )
-    return repaired_md, stats
+async def proofread_table(
+    crop_png: bytes, base_markdown: str, request_id: str
+) -> Optional[str]:
+    """单表视觉校对：Gemini 优先、失败切 Azure。返回校对后的 Markdown 或 None。"""
+    user_text = "这是表格截图，下面是初步抽取的 Markdown，请校对后输出 JSON：\n\n" + base_markdown
+    # 1) Gemini
+    try:
+        provider = VertexGeminiProvider(_settings.FILE_UNDERSTAND_MODEL)
+        req = UnderstandGenerationRequest(
+            document=VisualDocument(data=crop_png, mime_type="image/png"),
+            system_instruction=_TABLE_PROOFREAD_SYSTEM,
+            user_text=user_text,
+            response_schema=_TABLE_PROOFREAD_SCHEMA,
+            temperature=_settings.FILE_UNDERSTAND_TEMPERATURE,
+            max_output_tokens=4096,
+            request_id=request_id,
+            deadline_sec=_settings.FILE_UNDERSTAND_ELEMENT_TIMEOUT_SEC,
+        )
+        result = await provider.generate(req)
+        if isinstance(result.parsed_json, dict):
+            md = (result.parsed_json.get("table_markdown") or "").strip()
+            if md:
+                return md
+    except ProviderError as e:
+        logger.warning("[%s] Gemini 表格校对失败，切 Azure: %s", request_id, e)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[%s] Gemini 表格校对异常，切 Azure: %s", request_id, e)
+
+    # 2) Azure（复用 caption_image 的 json_object，取 chart_table_markdown 承载校对结果）
+    try:
+        obj = await avc.caption_image(
+            crop_png, "image/png", None,
+            with_page_context=False, chart_to_table=True, request_id=request_id,
+        )
+        if isinstance(obj, dict):
+            md = (obj.get("chart_table_markdown") or "").strip()
+            if md:
+                return md
+    except (AzureVLMConnError, AzureVLMError) as e:
+        logger.warning("[%s] Azure 表格校对失败: %s", request_id, e)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[%s] Azure 表格校对异常: %s", request_id, e)
+    return None

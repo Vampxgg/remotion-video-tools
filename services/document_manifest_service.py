@@ -36,7 +36,7 @@ from schemas.document_manifest import (
     ManifestSource,
 )
 from services.document_asset_service import DocumentAssetUploadService
-from services.file_understand_service import _office_bytes_to_pdf  # 复用 LibreOffice 转 PDF
+from services.office_convert import office_bytes_to_pdf as _office_bytes_to_pdf  # 复用 LibreOffice 转 PDF
 from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
 
