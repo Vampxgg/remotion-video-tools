@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from typing import Any, Awaitable, Dict, List, Optional, Tuple
 
@@ -79,6 +80,39 @@ def _kind_of(obj: Dict[str, Any]) -> str:
     return "figure"
 
 
+# 泛化/低信息量描述特征词：命中且无具体信息（数字/型号/界面文字）时判为低价值配图。
+_VAGUE_MARKERS = (
+    "可能是", "大概", "也许", "似乎", "某种", "某个", "一些",
+    "背景为", "无法确定", "不清晰", "看不清",
+)
+# 泛化句式：以"一张/一幅/展示了一…"起手且以"示意图/图片/照片"等泛化名词收尾。
+_VAGUE_TAIL = ("示意图。", "图片。", "照片。", "结构图。", "画面。", "图像。")
+# 具体信息信号：含数字/英文型号/常见界面与量纲词，命中则视为有信息量，不降级。
+_INFO_SIGNAL_RE = re.compile(
+    r"[0-9]|[A-Za-z]{2,}|[％%]|版本|型号|界面|按钮|菜单|参数|电压|电流|温度|尺寸|地址|命令|代码|表格"
+)
+
+
+def _is_low_value_caption(caption: str, kind: str) -> bool:
+    """判定 caption 是否为泛化低信息量描述（chart 一律保留，不降级）。"""
+    if not getattr(_settings, "FILE_UNDERSTAND_IMAGE_LOWVALUE_FILTER_ENABLED", True):
+        return False
+    if kind == "chart":
+        return False
+    c = (caption or "").strip()
+    if not c:
+        return True
+    # 有具体信息信号（数字/型号/界面/量纲）→ 认为有价值，保留。
+    if _INFO_SIGNAL_RE.search(c):
+        return False
+    # 命中泛化特征词，或整体是"一张…示意图/照片"式泛化句 → 低价值。
+    if any(w in c for w in _VAGUE_MARKERS):
+        return True
+    if (c.startswith("一张") or c.startswith("一幅") or c.startswith("展示")) and c.endswith(_VAGUE_TAIL):
+        return True
+    return False
+
+
 async def run_element_vision(
     ast: DocumentAST,
     *,
@@ -93,6 +127,7 @@ async def run_element_vision(
         "images_total": len(ast.images),
         "images_deduped": 0,
         "images_filtered": 0,
+        "images_low_value": 0,
         "images_vision_called": 0,
         "tables_total": len(ast.tables),
         "table_vision_calls": 0,
@@ -109,10 +144,10 @@ async def run_element_vision(
     await _process_tables(ast.tables, patch, stats, sem, request_id, deadline_at)
 
     logger.info(
-        "[%s] 元素级视觉完成 图片 total=%s dedup=%s filtered=%s called=%s；"
+        "[%s] 元素级视觉完成 图片 total=%s dedup=%s filtered=%s low_value=%s called=%s；"
         "表格 total=%s called=%s；unresolved=%s",
         request_id, stats["images_total"], stats["images_deduped"],
-        stats["images_filtered"], stats["images_vision_called"],
+        stats["images_filtered"], stats["images_low_value"], stats["images_vision_called"],
         stats["tables_total"], stats["table_vision_calls"], len(stats["unresolved_ids"]),
     )
     return patch, stats
@@ -226,6 +261,11 @@ async def _process_images(
     def _emit(url: str, obj: Dict[str, Any]) -> None:
         caption = compose_caption_public(obj) or (obj.get("img_description") or "").strip()
         kind = _kind_of(obj)
+        # 语义级降级：泛化低信息量的 figure 不写描述（不进补丁 → 保留原图 URL 占位），
+        # 避免"一张展示…示意图"之类噪声污染正文。chart 一律保留（有数据价值）。
+        if _is_low_value_caption(caption, kind):
+            stats["images_low_value"] += 1
+            return
         entry: Dict[str, Any] = {"url": url, "kind": kind, "caption": caption}
         if kind == "chart":
             entry["table_markdown"] = (obj.get("chart_table_markdown") or "").strip()

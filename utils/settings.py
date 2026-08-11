@@ -528,15 +528,19 @@ class DocParserSettings(_Base):
     DOC_PARSER_MAX_TABLE_ROWS: int = 500
     DOC_PARSER_MIN_IMG_BYTES: int = 5 * 1024
     DOC_PARSER_MIN_IMG_DIM: int = 50
+    # 内嵌图片上传并发数（线程池）。大图量文档（如教材 480+ 图）串行上传耗时数十秒，
+    # 并发可压到数秒。共享同一 httpx.Client 连接池；设 1 退化为串行。
+    DOC_PARSER_IMAGE_UPLOAD_CONCURRENCY: int = 10
 
 
 class FileParseSettings(_Base):
     """对应 api/file_parser.py（正式文件上传解析服务）。"""
     FILE_PARSE_API_KEY: Optional[str] = None
     # HTTP 上传层限制：单文件和批量总量分开控制，批量总量不是单文件上限乘以文件数。
-    FILE_PARSE_MAX_UPLOAD_MB: int = 50
+    # 面向真实教材/项目手册（常见 40-70MB，480+ 图），单文件上限取 80MB。
+    FILE_PARSE_MAX_UPLOAD_MB: int = 80
     FILE_PARSE_MAX_BATCH_FILES: int = 10
-    FILE_PARSE_MAX_TOTAL_MB: int = 100
+    FILE_PARSE_MAX_TOTAL_MB: int = 160
     FILE_PARSE_ENABLE_OCR_DEFAULT: bool = False
     FILE_PARSE_ENABLE_IMAGE_UPLOAD_DEFAULT: bool = True
     # API 默认返回长度；用户不传 max_chars 时使用它。
@@ -613,14 +617,17 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_GLOBAL_WAIT_JITTER: float = 0.3
 
     # ===== 元素级视觉理解（AST + 锚点定位；替代整份 PDF 内联）=====
-    # 单文档内逐元素视觉的并发上限（受全局限流器再收敛）。元素输入小、瓶颈在等网络，
-    # 适当调高可显著缩短大图量文档（如教材 80 图）的总耗时，压进异步预算内。
-    FILE_UNDERSTAND_ELEMENT_CONCURRENCY: int = 8
+    # 单文档内逐元素视觉的并发上限（受全局限流器再收敛）。元素输入小、瓶颈在等网络。
+    # 与文档级并发相乘为总在途请求数：需 ≤ 视觉模型多区域池可承载量
+    # （gpt-4o 覆盖 8 区域）。默认 12：GLOBAL(3)×12=36，均摊每区域约 4-5 路，安全区间内，
+    # 显著缩短大图量文档（教材 300-500 图）总耗时并压进异步预算。
+    FILE_UNDERSTAND_ELEMENT_CONCURRENCY: int = 12
     # 单元素（单图/单表）视觉调用的墙钟超时（秒）。元素输入很小，无需给太久；
     # 收敛为 40 让个别卡顿的图更快失败、让位其余图，配合预算兜底。
     FILE_UNDERSTAND_ELEMENT_TIMEOUT_SEC: float = 40.0
-    # 一份文档最多做视觉的图片元素数（去重/过滤后仍超则其余标 unresolved）。
-    FILE_UNDERSTAND_ELEMENT_MAX_IMAGES: int = 80
+    # 一份文档最多做视觉的图片元素数（去重/过滤后仍超则其余标 unresolved，保留原图 URL）。
+    # 教材类常 300-500 图，去重+低价值过滤后有效图通常远少于此；配合异步预算与单元素超时兜底。
+    FILE_UNDERSTAND_ELEMENT_MAX_IMAGES: int = 300
     # 图片近重复去重（dHash）开关与汉明距离阈值（<=阈值判为重复，复用同一 caption）。
     FILE_UNDERSTAND_IMAGE_DEDUP_ENABLED: bool = True
     FILE_UNDERSTAND_IMAGE_DEDUP_HAMMING: int = 5
@@ -628,6 +635,9 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_IMAGE_FILTER_ENABLED: bool = True
     FILE_UNDERSTAND_IMAGE_FILTER_MIN_DIM: int = 64
     FILE_UNDERSTAND_IMAGE_FILTER_MIN_BYTES: int = 3072
+    # 语义级低价值过滤：VLM 描述为泛化无信息量（如"一张展示…示意图"）时不写入正文，
+    # 仅保留原图 URL 占位，避免噪声污染。chart 与含具体信息(数字/型号/界面)的描述不受影响。
+    FILE_UNDERSTAND_IMAGE_LOWVALUE_FILTER_ENABLED: bool = True
     # Azure 备用单图打标模型（azure_vlm_client 使用；单图，不再拆页）。
     FILE_UNDERSTAND_AZURE_MODEL: str = "FW-Kimi-K2.7-Code"
     # ===== 视觉打标主力模型 + 多区域端点池负载均衡 =====
@@ -642,6 +652,9 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_TABLE_CROP_DPI: int = 150
     FILE_UNDERSTAND_TABLE_VISION_MAX: int = 40
     FILE_UNDERSTAND_TABLE_LOWCONF_EMPTY_RATIO: float = 0.2
+    # 单页 PyMuPDF find_tables 的硬超时（秒）：复杂矢量页会退化到近乎无限 CPU，
+    # 超时即跳过该页（保留解析层表格），防止冻结进程。<=0 表示不限制。
+    FILE_UNDERSTAND_TABLE_FIND_TIMEOUT_SEC: float = 4.0
 
 
 class DocImportSettings(_Base):

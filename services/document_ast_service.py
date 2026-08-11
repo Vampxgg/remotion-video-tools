@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from services.office_convert import _OFFICE_EXTS, office_bytes_to_pdf
 from utils.logger import setup_module_logger
@@ -133,13 +134,37 @@ def _pdf_bytes_from(content: bytes, ext: str) -> Tuple[Optional[bytes], Optional
     return None, None
 
 
+def _find_tables_with_timeout(page: Any, timeout_sec: float, pi: int) -> Optional[Any]:
+    """在独立线程里跑单页 find_tables，超时即放弃该页。
+
+    PyMuPDF 的 find_tables 是持 GIL 的 C 扩展调用，遇到复杂矢量页会退化到近乎无限的
+    CPU 计算，直接在事件循环/主线程调用会冻结整个进程（已在 ROS 手册复现）。这里用
+    单线程 executor 提交并 result(timeout)：超时线程无法被强制中断，但主流程可放弃该页
+    结果继续处理其余页，避免整份文档卡死。timeout<=0 表示不限制。
+    """
+    finder = getattr(page, "find_tables", None)
+    if finder is None:
+        return None
+    if not timeout_sec or timeout_sec <= 0:
+        return page.find_tables()
+    with ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(page.find_tables)
+        try:
+            return fut.result(timeout=timeout_sec)
+        except FuturesTimeout:
+            logger.warning("第 %s 页 find_tables 超过 %.1fs，跳过该页（保留解析层表格）", pi + 1, timeout_sec)
+            # 不显式取消：C 扩展线程无法中断，交由 executor 退出时自行了结。
+            return None
+
+
 def _crop_tables_from_pdf(
-    pdf_bytes: bytes, dpi: int, max_tables: int
+    pdf_bytes: bytes, dpi: int, max_tables: int, page_timeout_sec: float = 4.0
 ) -> List[Tuple[List[float], bytes, int]]:
     """从 PDF 用 find_tables 抽表格 bbox 并裁剪小图。
 
     返回 [(bbox, png_bytes, page_index), ...]，按页序 + 页内 y 序。
     find_tables 不可用（老版本 fitz）时返回空列表（降级信任解析层）。
+    每页 find_tables 受 page_timeout_sec 硬超时约束，防止单页复杂矢量图冻结进程。
     """
     if fitz is None:
         return []
@@ -150,13 +175,14 @@ def _crop_tables_from_pdf(
             for pi, page in enumerate(doc):
                 if len(out) >= max_tables:
                     break
-                finder = getattr(page, "find_tables", None)
-                if finder is None:
+                if getattr(page, "find_tables", None) is None:
                     return []  # 版本不支持，整体降级
                 try:
-                    tabs = page.find_tables()
+                    tabs = _find_tables_with_timeout(page, page_timeout_sec, pi)
                 except Exception as e:  # noqa: BLE001
                     logger.debug("第 %s 页 find_tables 失败：%s", pi + 1, e)
+                    continue
+                if tabs is None:
                     continue
                 tables = list(getattr(tabs, "tables", []) or [])
                 # 页内按 y 排序，稳定对齐 base markdown 的表序。
@@ -226,6 +252,7 @@ def build_document_ast(
                 pdf_bytes,
                 dpi=_settings.FILE_UNDERSTAND_TABLE_CROP_DPI,
                 max_tables=_settings.FILE_UNDERSTAND_TABLE_VISION_MAX,
+                page_timeout_sec=_settings.FILE_UNDERSTAND_TABLE_FIND_TIMEOUT_SEC,
             )
     ast.stats["cropped_tables"] = len(crops)
 

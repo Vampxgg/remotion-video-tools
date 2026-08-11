@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import difflib
+import functools
 import re
 import time
 import uuid
@@ -222,10 +223,63 @@ def _apply_patches(anchored_md: str, patches: dict) -> Tuple[str, dict]:
     return text, stats
 
 
+_IMG_LINE_RE = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
+
+
 def _truncate(text: str, max_chars: int) -> Tuple[str, bool]:
+    """按行/块边界安全截断，绝不切碎图片/表格 markdown 语法。
+
+    朴素 text[:max_chars] 会从中间切碎 ![](...) 或表格行、并静默丢掉后半全部图片。
+    这里改为：
+      1) 正文按行累积到不超过 max_chars（行边界停，保证每行完整）；
+      2) 把被丢弃尾部的图片行（![...](url)）补回保留区末尾——图片 URL 完整性优先，
+         补回享有独立预算（max_chars 的一定比例），允许最终结果比 max_chars 略长；
+      3) 文末追加明确的截断提示。
+    返回 (截断后文本, 是否发生截断)。
+    """
     if len(text) <= max_chars:
         return text, False
-    return text[:max_chars], True
+
+    lines = text.split("\n")
+    kept: List[str] = []
+    used = 0
+    cut_index = len(lines)
+    for idx, ln in enumerate(lines):
+        add = len(ln) + 1  # 含换行
+        if used + add > max_chars:
+            cut_index = idx
+            break
+        kept.append(ln)
+        used += add
+
+    # 收集被丢弃部分里的图片行，补回（保证图片 URL 不因截断丢失）。
+    # 图片 URL 完整性优先于严格长度上限：给补回一个独立预算（max_chars 的 25%，
+    # 至少 4KB），允许最终文本比 max_chars 略长——图片行短、条数有限，代价可控。
+    dropped = lines[cut_index:]
+    dropped_img_lines = [ln for ln in dropped if _IMG_LINE_RE.search(ln)]
+    reappended = 0
+    salvage_budget = max(4096, int(max_chars * 0.25))
+    salvage: List[str] = []
+    for ln in dropped_img_lines:
+        if salvage_budget - (len(ln) + 1) <= 0:
+            break
+        salvage.append(ln)
+        salvage_budget -= (len(ln) + 1)
+        reappended += 1
+    if salvage:
+        kept.append("")
+        kept.append("> [以下为截断区补回的图片，保证图片 URL 完整]")
+        kept.extend(salvage)
+
+    dropped_imgs_total = len(dropped_img_lines)
+    notice = "\n\n> [内容超出返回上限，已按安全边界截断；正文见上，截断区图片已尽量补回]"
+    if dropped_imgs_total > reappended:
+        notice = (
+            f"\n\n> [内容超出返回上限，已在安全边界截断；"
+            f"另有 {dropped_imgs_total - reappended} 张图片因预算不足未能补回]"
+        )
+    kept.append(notice)
+    return "\n".join(kept), True
 
 
 def _effective_max_chars(max_chars: Optional[int]) -> int:
@@ -328,15 +382,21 @@ async def understand_file_payload(
                     )
                 else:
                     t_vis = time.time()
-                    # 2) 构建元素级 AST。
-                    ast = build_document_ast(
-                        content=payload.content,
-                        ext=payload.extension,
-                        base_markdown=base_md,
-                        anchored_markdown=anchored_md,
-                        n_tables=n_tables,
-                        embedded_images=None,  # 字节缺失时编排层按 URL 现下载
-                        url_by_order=None,
+                    # 2) 构建元素级 AST。含同步的 PyMuPDF find_tables（可能 CPU 密集/卡死），
+                    #    放线程池执行，避免冻结事件循环拖垮同 worker 其它请求。
+                    loop = asyncio.get_running_loop()
+                    ast = await loop.run_in_executor(
+                        None,
+                        functools.partial(
+                            build_document_ast,
+                            content=payload.content,
+                            ext=payload.extension,
+                            base_markdown=base_md,
+                            anchored_markdown=anchored_md,
+                            n_tables=n_tables,
+                            embedded_images=None,  # 字节缺失时编排层按 URL 现下载
+                            url_by_order=None,
+                        ),
                     )
                     for w in ast.warnings:
                         warnings.append(w)
@@ -410,7 +470,10 @@ async def understand_file_payload(
     max_chars = _effective_max_chars(options.max_chars)
     markdown, truncated = _truncate(enriched, max_chars)
     if truncated:
-        warnings.append("API 返回内容已按 max_chars 截断。")
+        warnings.append(
+            "返回内容超出上限，已按 markdown 块边界安全截断（不切碎图片/表格），"
+            "并尽量补回截断区图片；如需完整内容请调大 max_chars。"
+        )
 
     source_image_count = len(set(_IMG_MD_RE.findall(base_md)))
     unresolved_ids = element_stats.get("unresolved_ids", []) if element_stats else []
@@ -433,6 +496,7 @@ async def understand_file_payload(
             "images_total": element_stats.get("images_total", source_image_count),
             "images_deduped": element_stats.get("images_deduped", 0),
             "images_filtered": element_stats.get("images_filtered", 0),
+            "images_low_value": element_stats.get("images_low_value", 0),
             "images_vision_called": element_stats.get("images_vision_called", 0),
             "tables_total": element_stats.get("tables_total", n_tables),
             "table_vision_calls": element_stats.get("table_vision_calls", 0),

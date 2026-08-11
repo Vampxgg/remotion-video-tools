@@ -235,9 +235,40 @@ class DataCleaningPipeline:
         return "\n".join(l for l in lines if l.strip() not in repeated)
 
     def _truncate(self, text: str, label: str = "内容") -> str:
-        if len(text) > self.max_content_length:
-            return text[:self.max_content_length] + f"\n\n...[{label}过长，已截断至 {self.max_content_length} 字符]"
-        return text
+        """按行边界安全截断：不切碎图片/表格 markdown 行，并尽量补回被丢弃的图片行。
+
+        原实现 text[:max] 会切碎 ![](...) 语法、静默丢掉后半全部图片；对下游多模态视觉
+        理解而言，这等于在解析阶段就永久丢图。这里改为行边界截断 + 图片行补回。
+        """
+        if len(text) <= self.max_content_length:
+            return text
+        lines = text.split("\n")
+        kept: List[str] = []
+        used = 0
+        cut = len(lines)
+        for idx, ln in enumerate(lines):
+            add = len(ln) + 1
+            if used + add > self.max_content_length:
+                cut = idx
+                break
+            kept.append(ln)
+            used += add
+        dropped = lines[cut:]
+        img_lines = [ln for ln in dropped if self._IMG_PATTERN.search(ln)]
+        notice = f"\n\n...[{label}过长，已在安全边界截断至约 {self.max_content_length} 字符]"
+        # 图片 URL 完整性优先：补回享独立预算（上限 25%，至少 4KB），允许略超软上限。
+        budget = max(4096, int(self.max_content_length * 0.25))
+        salvage: List[str] = []
+        for ln in img_lines:
+            if budget - (len(ln) + 1) <= 0:
+                break
+            salvage.append(ln)
+            budget -= (len(ln) + 1)
+        if salvage:
+            kept.append("")
+            kept.extend(salvage)
+        kept.append(notice)
+        return "\n".join(kept)
 
     def clean_document(self, text: str) -> str:
         if not text:
