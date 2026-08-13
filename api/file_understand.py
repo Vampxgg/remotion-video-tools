@@ -32,6 +32,21 @@ logger = logging.getLogger(__name__)
 # 持有后台任务引用，避免 asyncio 在任务结束前将其回收。
 _BG_TASKS: Set[asyncio.Task] = set()
 
+# 提交(intake)削峰信号量：惰性初始化（Semaphore 需绑定运行中的事件循环，模块导入期尚无 loop）。
+# 每个 worker 进程各持一个；包裹"读文件字节 + 派发后台任务"，平滑瞬时高并发提交。
+_INTAKE_SEM: Optional[asyncio.Semaphore] = None
+
+
+def _intake_semaphore() -> Optional[asyncio.Semaphore]:
+    """返回进程内 intake 信号量；配置 <=0 表示不限流（返回 None）。"""
+    global _INTAKE_SEM
+    limit = int(getattr(_settings, "FILE_UNDERSTAND_INTAKE_CONCURRENCY", 0) or 0)
+    if limit <= 0:
+        return None
+    if _INTAKE_SEM is None:
+        _INTAKE_SEM = asyncio.Semaphore(limit)
+    return _INTAKE_SEM
+
 
 @asynccontextmanager
 async def lifespan_resources(app):
@@ -49,7 +64,12 @@ async def lifespan_resources(app):
     finally:
         # 不在此处 shutdown Redis：连接为全局共享单例，由应用退出时统一释放，
         # 避免与其它同样使用 Redis 的 router 抢关闭。
-        pass
+        # 关闭 Azure VLM 长生命周期连接池（本 router 独有资源，可安全释放）。
+        try:
+            from services.azure_vlm_client import aclose_clients
+            await aclose_clients()
+        except Exception:  # noqa: BLE001
+            logger.warning("关闭 Azure VLM 连接池异常（忽略）", exc_info=True)
 
 
 async def _payload_from_upload(
@@ -218,7 +238,12 @@ async def understand_file_async(
     ``succeeded``/``failed``。每个请求都很短，可绕开前置网关对单条长连接的读超时。
     """
     try:
-        payload, _ = await _payload_from_upload(file)
+        sem = _intake_semaphore()
+        if sem is not None:
+            async with sem:
+                payload, _ = await _payload_from_upload(file)
+        else:
+            payload, _ = await _payload_from_upload(file)
     except ParseInputError as exc:
         return create_standard_response(
             data={"error": {"code": exc.code, "detail": exc.detail}},

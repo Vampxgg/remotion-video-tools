@@ -97,6 +97,11 @@ class RedisSettings(_Base):
     REDIS_DB: int = 0
     REDIS_PASSWORD: Optional[str] = None
     REDIS_KEY_PREFIX: str = "script_tools"
+    # socket 连接/读写超时（秒）。默认 5.0：2.0 在高并发下（如 file_understand 全局限流器
+    # 每次轮询都打 Redis）易偶发超时误判为不可用；放宽到 5.0 显著降低 limiter_unavailable。
+    REDIS_SOCKET_TIMEOUT_SEC: float = 5.0
+    # 连接池上限。高并发（数百在途请求共享单例）下需显式限定，避免连接抖动/耗尽。
+    REDIS_MAX_CONNECTIONS: int = 128
 
     @property
     def redis_url(self) -> str:
@@ -586,6 +591,10 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_JOB_DIR: Optional[str] = None
     # 异步任务记录的保留时长（秒），超时自动清理。
     FILE_UNDERSTAND_JOB_TTL_SEC: int = 86400
+    # 提交(intake)阶段的进程内并发上限：包裹"读文件字节 + 派发后台任务"，平滑瞬时
+    # 高并发提交（如 60 用户×5 文件同时涌入），避免单机 IO/内存被打满导致提交 Write/ReadTimeout。
+    # 仅约束 intake，不影响后台视觉并发（那由全局限流器控制）。<=0 表示不限制。
+    FILE_UNDERSTAND_INTAKE_CONCURRENCY: int = 32
     # 跨 worker 的 Vertex 视觉理解全局并发上限（基础解析不受限）。
     # 通过 Redis 租约实现；多 worker 下不会被进程数放大。0/None 表示不限。
     FILE_UNDERSTAND_GLOBAL_CONCURRENCY: int = 3
@@ -647,6 +656,10 @@ class FileUnderstandSettings(_Base):
     # 区域级轮询开关：True=跨请求用全局游标把流量分散到该模型的全部 region 端点，
     # 单端点 429/5xx/连接错时自动切下一区域，直接并用多个配额池。排障时可置 False 锁首选区。
     FILE_UNDERSTAND_VLM_REGION_ROTATION: bool = True
+    # Azure VLM 长生命周期 AsyncClient 连接池上限（按 proxy 分桶复用 keep-alive 连接）。
+    # 高并发逐元素打标时复用连接，降低 TCP/TLS 握手开销与连接抖动。
+    FILE_UNDERSTAND_VLM_POOL_MAX_CONNECTIONS: int = 256
+    FILE_UNDERSTAND_VLM_POOL_KEEPALIVE: int = 64
     # 表格元素级视觉校对开关、裁剪 DPI、单文档最多校对表数、低置信度空单元格占比阈值。
     FILE_UNDERSTAND_TABLE_VISION_ENABLED: bool = True
     FILE_UNDERSTAND_TABLE_CROP_DPI: int = 150

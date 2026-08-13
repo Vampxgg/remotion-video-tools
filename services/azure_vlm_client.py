@@ -165,6 +165,57 @@ def _timeout() -> httpx.Timeout:
     )
 
 
+# ============== 长生命周期 AsyncClient 池（按 proxy 分桶复用 keep-alive 连接） ==============
+# 历史实现每次打标都 `async with httpx.AsyncClient(...)` 现建现拆，高并发下 TCP/TLS
+# 握手开销与连接抖动明显。这里按 proxy 值缓存长生命周期客户端，复用 keep-alive 连接池。
+# 事件循环隔离：uvicorn 多 worker 各进程独立；同进程内 asyncio 单事件循环，故按
+# (loop_id, proxy) 分桶，避免跨事件循环复用同一 client（测试/多 loop 场景）。
+_client_lock = threading.Lock()
+_clients: Dict[tuple, httpx.AsyncClient] = {}
+
+
+def _get_client(proxy: Optional[str]) -> httpx.AsyncClient:
+    import asyncio
+
+    try:
+        loop_id = id(asyncio.get_running_loop())
+    except RuntimeError:
+        loop_id = 0
+    key = (loop_id, proxy or "")
+    client = _clients.get(key)
+    if client is not None and not client.is_closed:
+        return client
+    with _client_lock:
+        client = _clients.get(key)
+        if client is not None and not client.is_closed:
+            return client
+        client = httpx.AsyncClient(
+            trust_env=False,
+            proxy=proxy or None,
+            timeout=_timeout(),
+            limits=httpx.Limits(
+                max_connections=int(getattr(_settings, "FILE_UNDERSTAND_VLM_POOL_MAX_CONNECTIONS", 256)),
+                max_keepalive_connections=int(
+                    getattr(_settings, "FILE_UNDERSTAND_VLM_POOL_KEEPALIVE", 64)
+                ),
+            ),
+        )
+        _clients[key] = client
+        return client
+
+
+async def aclose_clients() -> None:
+    """优雅关闭全部缓存的 AsyncClient（供 lifespan shutdown 调用；异常吞掉）。"""
+    with _client_lock:
+        clients = list(_clients.values())
+        _clients.clear()
+    for c in clients:
+        try:
+            await c.aclose()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _extract_content(resp_json: Dict[str, Any]) -> str:
     """从 chat/completions 响应取出文本 content，兼容 content 为分段数组的实现。"""
     choices = resp_json.get("choices") or []
@@ -216,14 +267,10 @@ async def _call_endpoint(
     )
     max_retries = max(0, int(_settings.DOC_IMPORT_AZURE_MAX_RETRIES))
     last_exc: Optional[Exception] = None
+    client = _get_client(_settings.DOC_IMPORT_AZURE_PROXY_URL or None)
     for attempt in range(max_retries + 1):
         try:
-            async with httpx.AsyncClient(
-                trust_env=False,
-                proxy=_settings.DOC_IMPORT_AZURE_PROXY_URL or None,
-                timeout=_timeout(),
-            ) as client:
-                resp = await client.post(url, headers=headers, json=body)
+            resp = await client.post(url, headers=headers, json=body)
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as e:
             last_exc = e
             if attempt < max_retries:

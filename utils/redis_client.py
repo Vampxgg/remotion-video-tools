@@ -26,6 +26,18 @@ except Exception as exc:  # pragma: no cover - 包未装时彻底降级
     RedisError = Exception  # type: ignore[assignment, misc]
     logger.warning("redis 包未安装，Web 搜索缓存层将永远降级为不缓存：%s", exc)
 
+# 偶发建连/读超时自动重试：高并发下 CPU 被视觉任务占满时，建连协程可能得不到及时调度
+# 而超时；一次退避重试即可吸收这类瞬时抖动，避免误判为 limiter_unavailable 而降级。
+try:  # pragma: no cover - 不同 redis-py 版本路径可能不同
+    from redis.retry import Retry
+    from redis.backoff import ExponentialBackoff
+    from redis.exceptions import ConnectionError as _RedisConnError, TimeoutError as _RedisTimeoutError
+except Exception:  # noqa: BLE001
+    Retry = None  # type: ignore[assignment]
+    ExponentialBackoff = None  # type: ignore[assignment]
+    _RedisConnError = Exception  # type: ignore[assignment, misc]
+    _RedisTimeoutError = Exception  # type: ignore[assignment, misc]
+
 
 # 模块级单例（lifespan 控制生命周期）
 _client: Optional["redis_asyncio.Redis"] = None  # type: ignore[name-defined]
@@ -44,12 +56,20 @@ async def startup() -> None:
         return
 
     try:
+        retry_kwargs = {}
+        if Retry is not None and ExponentialBackoff is not None:
+            retry_kwargs = {
+                "retry": Retry(ExponentialBackoff(cap=0.5, base=0.05), retries=2),
+                "retry_on_error": [_RedisConnError, _RedisTimeoutError],
+            }
         _client = redis_asyncio.from_url(
             _settings.redis_url,
             encoding="utf-8",
             decode_responses=True,
-            socket_connect_timeout=2.0,
-            socket_timeout=2.0,
+            socket_connect_timeout=_settings.REDIS_SOCKET_TIMEOUT_SEC,
+            socket_timeout=_settings.REDIS_SOCKET_TIMEOUT_SEC,
+            max_connections=_settings.REDIS_MAX_CONNECTIONS,
+            **retry_kwargs,
         )
         pong = await _client.ping()
         _ready = bool(pong)
