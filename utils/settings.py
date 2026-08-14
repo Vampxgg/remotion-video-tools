@@ -118,11 +118,23 @@ class CommonSettings(_Base):
     # 所有 fish 系模块共用的密钥；若不同模块要分配不同 key 可在各自前缀里覆盖
     FISH_API_KEY: Optional[str] = None
     # GCP / GCS 共享配置
+    # 职责分工（生成与存储解耦）：
+    #   - GCP_PROJECT_ID / GCP_CREDENTIALS_FILE：全局【兜底】凭证。当生成池
+    #     (GCP_ENDPOINTS_FILE) 未配置/为空时，出图/veo 回退用它做单项目生成。
+    #   - GCP_ENDPOINTS_FILE：多项目【生成】池配置（Vertex 出图/veo 分散配额，
+    #     见 utils/gcp_project_pool.py 与 secrets/gcp-endpoints.yaml）。
+    #   - GCS_CREDENTIALS_FILE：【存储】专用凭证。GCS 桶 x-pilot-storage 属于主项目，
+    #     只有它的 SA 有写权限；生成用的 videomaker 令牌对该桶无写权限。故上传单独用
+    #     这份凭证，与生成凭证彻底解耦（见 utils/gcp_credentials.get_gcs_access_token）。
     GCP_PROJECT_ID: str = "x-pilot-469902"
     GCP_LOCATION_ID: str = "us-central1"
     # Vertex/GCS 服务账号 JSON 路径；留空则回退 google.auth.default()(用户级 ADC)。
-    # 相对路径按项目根解析。配置后所有 Vertex 调用(理解/图/视频/live)统一用该凭证。
+    # 相对路径按项目根解析。作为全局兜底凭证（生成池未配置时的单项目生成）。
     GCP_CREDENTIALS_FILE: Optional[str] = None
+    # 多项目"生成"池配置文件（YAML）。相对路径按项目根解析；缺失/空则回退单项目。
+    GCP_ENDPOINTS_FILE: str = "secrets/gcp-endpoints.yaml"
+    # GCS 上传"存储"专用凭证；留空则回退 GCP_CREDENTIALS_FILE/ADC（向后兼容）。
+    GCS_CREDENTIALS_FILE: Optional[str] = None
     GCS_BUCKET_NAME: str = "x-pilot-storage"
     GCS_PUBLIC_URL_PREFIX: str = "https://storage.googleapis.com/x-pilot-storage"
     # Azure 模型注册表（endpoint+apiKey+model→region 路由）。相对路径按项目根解析。
@@ -333,6 +345,9 @@ class CreImageSettings(_Base):
     CRE_IMAGE_HTTPX_POOL_TIMEOUT: float = 30.0
     # 留空表示不做白名单限制；逗号分隔多个主机
     CRE_IMAGE_ALLOWED_URL_HOSTS: str = ""
+    # 注：多 GCP 项目"生成"负载均衡的池成员/并发/熔断/重试，统一收敛到
+    # secrets/gcp-endpoints.yaml（见 CommonSettings.GCP_ENDPOINTS_FILE 与
+    # utils/gcp_project_pool.py），不再在此平铺配置。
 
 
 class CreImageAzureSettings(_Base):

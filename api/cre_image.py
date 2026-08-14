@@ -35,7 +35,8 @@ logger = setup_module_logger(__name__, "logs/image/gemini_image.log")
 
 router = APIRouter()
 
-from utils.gcp_credentials import get_access_token  # noqa: E402
+from utils.gcp_credentials import get_access_token, get_gcs_access_token  # noqa: E402
+from utils.gcp_project_pool import build_router, GcpProjectRouter  # noqa: E402
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 
 GOOGLE_PROJECT_ID = _settings.GCP_PROJECT_ID
@@ -62,10 +63,15 @@ GCS_BUCKET_NAME = _settings.GCS_BUCKET_NAME
 GCS_OUTPUT_DIR = _settings.CRE_IMAGE_OUTPUT_DIR
 GCS_PUBLIC_URL_PREFIX = _settings.GCS_PUBLIC_URL_PREFIX
 
+# endpoint 模板同时参数化 project_id 与 location/model：多项目路由时 project 必须与
+# 所用 access token 的 service account 项目一致，故由调用方成对传入（见 call_vertex）。
 VERTEX_API_ENDPOINT_TEMPLATE = (
-    f"https://aiplatform.googleapis.com/v1beta1/projects/{GOOGLE_PROJECT_ID}"
-    f"/locations/{{location_id}}/publishers/google/models/{{model_id}}:generateContent"
+    "https://aiplatform.googleapis.com/v1beta1/projects/{project_id}"
+    "/locations/{location_id}/publishers/google/models/{model_id}:generateContent"
 )
+
+# 多 GCP 项目路由器（进程内单例）。在 lifespan startup 组池；池为空则回退单项目。
+project_router: Optional[GcpProjectRouter] = None
 
 GCS_UPLOAD_ENDPOINT = (
     f"https://storage.googleapis.com/upload/storage/v1/b/{GCS_BUCKET_NAME}/o"
@@ -158,7 +164,7 @@ import contextlib  # noqa: E402
 
 
 async def _startup_resources() -> None:
-    global http_client
+    global http_client, project_router
     timeout = httpx.Timeout(
         connect=_settings.CRE_IMAGE_HTTPX_CONNECT_TIMEOUT,
         read=_settings.CRE_IMAGE_HTTPX_READ_TIMEOUT,
@@ -168,16 +174,27 @@ async def _startup_resources() -> None:
     # trust_env=False：cre_image 全程访问 Vertex/GCS(googleapis.com)，应直连；
     # 屏蔽进程 HTTP(S)_PROXY，避免被其它模块的代理配置污染。
     http_client = httpx.AsyncClient(timeout=timeout, trust_env=False)
+    # 组多项目路由池：池为空时 project_router.enabled=False，出图回退单项目行为。
+    project_router = build_router()
+    if project_router.enabled:
+        logger.info(
+            f"出图多项目负载均衡已启用，项目池={[p.name for p in project_router.projects]}"
+        )
+    else:
+        logger.info(
+            f"出图多项目池为空，回退单项目行为 (project={GOOGLE_PROJECT_ID})。"
+        )
     logger.info(
         f"全局 httpx.AsyncClient 已创建 (cre_image)，read 上限 {_settings.CRE_IMAGE_HTTPX_READ_TIMEOUT}s 供单次请求覆盖使用。"
     )
 
 
 async def _shutdown_resources() -> None:
-    global http_client
+    global http_client, project_router
     if http_client:
         await http_client.aclose()
         logger.info("httpx.AsyncClient 已关闭 (cre_image)。")
+    project_router = None
 
 
 @contextlib.asynccontextmanager
@@ -214,7 +231,8 @@ async def upload_to_gcs(image_data: bytes, content_type: str, folder: str = GCS_
     ext = _gcs_object_ext(content_type)
     filename = f"{folder}/{uuid.uuid4()}.{ext}"
     upload_url = GCS_UPLOAD_ENDPOINT + filename
-    auth_token = await get_gcloud_auth_token()
+    # 存储凭证与生成凭证解耦：GCS 桶属主项目，用 GCS 专用凭证上传（见 gcp_credentials）。
+    auth_token = await get_gcs_access_token()
     headers = {
         "Authorization": f"Bearer {auth_token}",
         "Content-Type": content_type,
@@ -715,28 +733,41 @@ def _locations_to_try(payload: GenerateImagePayload) -> List[str]:
     return locs[:4]
 
 
-async def call_vertex_generate_content(
+def _is_retryable_status(code: int) -> bool:
+    """429 与 5xx 视为"该项目暂时不可用"，可换项目/换区重试。"""
+    return code == 429 or code >= 500
+
+
+async def _call_one_project(
     request_id: str,
+    project_id: str,
+    auth_token: str,
     model_id: str,
     request_body: Dict[str, Any],
     locations: List[str],
-    read_timeout: float,
+    per_timeout: httpx.Timeout,
 ) -> Dict[str, Any]:
-    auth_token = await get_gcloud_auth_token()
+    """在单个 GCP 项目内做区域轮询调用。project_id 与 auth_token 必须成对（同一 SA）。
+
+    - 200 → 返回 JSON。
+    - 全部区域命中 429/5xx/网络异常 → 抛出最后一个异常，交由上层换项目。
+    - 命中 4xx(非 429) → 参数/权限错误，直接抛出，不再换区/换项目。
+    """
     headers = {
         "Authorization": f"Bearer {auth_token}",
         "Content-Type": "application/json; charset=utf-8",
     }
-    per_timeout = httpx.Timeout(connect=15.0, read=read_timeout, write=120.0, pool=30.0)
     last_exc: Optional[BaseException] = None
     for attempt, location in enumerate(locations):
         endpoint = VERTEX_API_ENDPOINT_TEMPLATE.format(
+            project_id=project_id,
             location_id=location,
             model_id=model_id,
         )
         try:
             logger.debug(
-                f"[{request_id}] Vertex 尝试 location={location} ({attempt + 1}/{len(locations)})"
+                f"[{request_id}] project={project_id} 尝试 location={location} "
+                f"({attempt + 1}/{len(locations)})"
             )
             resp = await http_client.post(
                 endpoint, headers=headers, json=request_body, timeout=per_timeout
@@ -746,19 +777,103 @@ async def call_vertex_generate_content(
         except httpx.HTTPStatusError as e:
             last_exc = e
             code = e.response.status_code
-            if code == 429 or code >= 500:
+            if _is_retryable_status(code):
                 logger.warning(
-                    f"[{request_id}] {location} 失败 {code}: {e.response.text[:500]}"
+                    f"[{request_id}] project={project_id} {location} 失败 {code}: "
+                    f"{e.response.text[:500]}"
                 )
                 continue
+            # 4xx（非 429）：参数/权限错误，换区/换项目也没用，直接抛出。
             raise
         except Exception as e:
             last_exc = e
-            logger.warning(f"[{request_id}] {location} 异常: {e}")
+            logger.warning(
+                f"[{request_id}] project={project_id} {location} 异常: {e}"
+            )
             continue
     if last_exc:
         raise last_exc
     raise RuntimeError("Vertex 调用失败且无异常信息")
+
+
+async def call_vertex_generate_content(
+    request_id: str,
+    model_id: str,
+    request_body: Dict[str, Any],
+    locations: List[str],
+    read_timeout: float,
+) -> Dict[str, Any]:
+    """调用 Vertex generateContent，跨多个 GCP 项目做负载均衡 + 失败转移。
+
+    - 多项目池启用（project_router.enabled）时：按"最空闲优先"选项目，429/5xx/网络异常
+      时熔断该项目并换下一个项目重试（最多 router.max_attempts() 次）。
+    - 池为空时：回退单项目行为——用 GCP_PROJECT_ID + 全局兜底凭证(get_gcloud_auth_token)，
+      与改造前完全一致。
+    """
+    per_timeout = httpx.Timeout(connect=15.0, read=read_timeout, write=120.0, pool=30.0)
+
+    router = project_router
+    if router is None or not router.enabled:
+        # 回退：单项目，凭证走全局兜底加载器，project 用全局 GCP_PROJECT_ID。
+        auth_token = await get_gcloud_auth_token()
+        return await _call_one_project(
+            request_id, GOOGLE_PROJECT_ID, auth_token, model_id,
+            request_body, locations, per_timeout,
+        )
+
+    max_attempts = router.max_attempts()
+    excluded: set = set()
+    last_exc: Optional[BaseException] = None
+
+    for attempt in range(max_attempts):
+        candidates = router.healthy_projects(excluded)
+        if not candidates:
+            logger.warning(
+                f"[{request_id}] 无健康项目可用（已排除 {excluded}），尝试 {attempt}/{max_attempts}"
+            )
+            break
+        project = candidates[0]
+        excluded.add(project.name)
+        try:
+            auth_token = await project.get_access_token()
+        except Exception as e:  # noqa: BLE001
+            last_exc = e
+            router.mark_failure(project, f"token 刷新失败: {e}")
+            logger.warning(f"[{request_id}] project={project.name} token 刷新失败: {e}")
+            continue
+
+        try:
+            project.inflight += 1
+            try:
+                async with project.semaphore:
+                    data = await _call_one_project(
+                        request_id, project.project_id, auth_token, model_id,
+                        request_body, locations, per_timeout,
+                    )
+            finally:
+                project.inflight = max(0, project.inflight - 1)
+            router.mark_success(project)
+            logger.info(
+                f"[{request_id}] 出图命中项目 {project.name} "
+                f"(attempt {attempt + 1}/{max_attempts})"
+            )
+            return data
+        except httpx.HTTPStatusError as e:
+            last_exc = e
+            code = e.response.status_code
+            if _is_retryable_status(code):
+                router.mark_failure(project, f"HTTP {code}")
+                continue
+            # 4xx（非 429）：参数/权限错误，换项目无益，直接抛出。
+            raise
+        except Exception as e:  # noqa: BLE001（网络/超时等，换项目重试）
+            last_exc = e
+            router.mark_failure(project, f"异常: {e}")
+            continue
+
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("Vertex 调用失败：所有项目均不可用")
 
 
 async def extract_images_and_texts(
