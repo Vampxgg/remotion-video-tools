@@ -101,7 +101,8 @@ class RedisSettings(_Base):
     # 每次轮询都打 Redis）易偶发超时误判为不可用；放宽到 5.0 显著降低 limiter_unavailable。
     REDIS_SOCKET_TIMEOUT_SEC: float = 5.0
     # 连接池上限。高并发（数百在途请求共享单例）下需显式限定，避免连接抖动/耗尽。
-    REDIS_MAX_CONNECTIONS: int = 128
+    # 高并发限流轮询下扩大以降低连接争用（file_understand 全局限流器每 1s 轮询打 Redis）。
+    REDIS_MAX_CONNECTIONS: int = 256
 
     @property
     def redis_url(self) -> str:
@@ -612,11 +613,14 @@ class FileUnderstandSettings(_Base):
     FILE_UNDERSTAND_INTAKE_CONCURRENCY: int = 32
     # 跨 worker 的 Vertex 视觉理解全局并发上限（基础解析不受限）。
     # 通过 Redis 租约实现；多 worker 下不会被进程数放大。0/None 表示不限。
-    FILE_UNDERSTAND_GLOBAL_CONCURRENCY: int = 3
+    # 高并发（60 用户×5 文件=300 并发）调优值：在途 VLM 约 20×12=240，摊到 gpt-4o 8 区约 30/区，配额内。
+    FILE_UNDERSTAND_GLOBAL_CONCURRENCY: int = 20
     FILE_UNDERSTAND_GLOBAL_LIMITER_ENABLED: bool = True
     # 租约 TTL 需覆盖单次理解最坏耗时（区域轮询 + 网络抖动）；worker 崩溃后会自动释放。
     FILE_UNDERSTAND_GLOBAL_LEASE_TTL_SEC: int = 600
-    FILE_UNDERSTAND_GLOBAL_WAIT_INTERVAL_SEC: float = 0.5
+    # 排队轮询间隔：130+ 任务排队时每 0.5s 轮询会瞬时打满 Redis 连接池导致
+    # "Timeout connecting to server" 误降级；放宽到 1.0s 使 Redis eval 压力减半。
+    FILE_UNDERSTAND_GLOBAL_WAIT_INTERVAL_SEC: float = 1.0
     # Redis 不可用策略：fallback_base=降级基础解析；open=本地开发可放开；fail=抛错。
     FILE_UNDERSTAND_LIMITER_UNAVAILABLE_POLICY: str = "fallback_base"
 
@@ -632,12 +636,13 @@ class FileUnderstandSettings(_Base):
     # 用于同步/批量场景；异步 iteration 场景由 FILE_UNDERSTAND_ASYNC_BUDGET_SEC 再收敛。
     FILE_UNDERSTAND_VISION_DEADLINE_SEC: float = 480.0
     # 异步理解（/file/understand/async）的默认墙钟总预算（秒），含排队+基础解析+视觉。
-    # 调用方(如 Dify 代码节点)沙箱执行上限为 300s，这里留足下载/轮询间隔的安全余量取 250。
+    # 调用方(如 Dify 代码节点)沙箱执行上限为 300s，这里留足下载/轮询间隔的安全余量。
     # 到点即把 job 置 succeeded 并返回已完成部分（至少基础解析：全文+全部真实图URL）。
-    # 可被请求参数 max_wait 覆盖。
-    FILE_UNDERSTAND_ASYNC_BUDGET_SEC: float = 250.0
+    # 可被请求参数 max_wait 覆盖。高并发调优：给足以减少 limiter_timeout，仍 < Dify 沙箱 300s。
+    FILE_UNDERSTAND_ASYNC_BUDGET_SEC: float = 285.0
     # 全局限流：最大排队等待（秒，0=不限）与等待抖动比例（0-1）。
-    FILE_UNDERSTAND_GLOBAL_MAX_WAIT_SEC: float = 120.0
+    # 高并发调优：120 -> 240，给足排队时间以减少 limiter_timeout 误降级。
+    FILE_UNDERSTAND_GLOBAL_MAX_WAIT_SEC: float = 240.0
     FILE_UNDERSTAND_GLOBAL_WAIT_JITTER: float = 0.3
 
     # ===== 元素级视觉理解（AST + 锚点定位；替代整份 PDF 内联）=====
