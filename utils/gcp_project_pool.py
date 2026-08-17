@@ -115,6 +115,20 @@ def _coerce_positive_float(value, default: float, floor: float = 1.0) -> float:
         return max(floor, default)
 
 
+def _coerce_bool(value, default: bool = True) -> bool:
+    """解析 YAML 布尔：缺省 default；显式 false/no/0/off/"" 记为 False，其余记为 True。"""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() not in ("false", "no", "0", "off", "")
+
+
+# 生成能力标注取值：出图 / veo 视频。用于按能力过滤项目池。
+CAPABILITY_IMG = "img"
+CAPABILITY_VEO = "veo"
+
+
 @dataclass
 class PoolPolicy:
     """池级策略（来自 YAML defaults），由 router 持有，替代散落在 settings 的平铺项。"""
@@ -133,6 +147,11 @@ class GcpProjectRuntime:
     credentials_file: str
     weight: int = 1
     max_concurrency: int = _DEFAULT_MAX_CONCURRENCY
+    # 能力标注：该项目分别是否具备「出图」「veo 视频」的生成访问权。缺省都为 True
+    # （向后兼容：不写=两种都参与）。现实中 5 个项目能力不均等（都能出图，仅个别能 veo），
+    # 用布尔位精确描述，路由时按能力过滤，避免把请求轮到无该能力的项目导致 404。
+    is_img: bool = True
+    is_veo: bool = True
 
     # 运行时（非入参）
     _credentials: Optional[service_account.Credentials] = field(default=None, init=False)
@@ -146,6 +165,16 @@ class GcpProjectRuntime:
         self.weight = max(1, int(self.weight or 1))
         self.max_concurrency = max(1, int(self.max_concurrency or 1))
         self.semaphore = asyncio.Semaphore(self.max_concurrency)
+
+    def has_capability(self, capability: Optional[str]) -> bool:
+        """该项目是否具备指定生成能力。capability 为 None 时不过滤（视为具备）。"""
+        if capability is None:
+            return True
+        if capability == CAPABILITY_IMG:
+            return self.is_img
+        if capability == CAPABILITY_VEO:
+            return self.is_veo
+        raise ValueError(f"未知能力标注: {capability}")
 
     def _load_credentials(self) -> service_account.Credentials:
         path = _resolve_path(self.credentials_file)
@@ -204,26 +233,39 @@ class GcpProjectRouter:
     def __len__(self) -> int:
         return len(self.projects)
 
+    def projects_with_capability(self, capability: Optional[str]) -> List[GcpProjectRuntime]:
+        """按能力取项目子集（不含健康/熔断过滤）。用于统计与判空。"""
+        return [p for p in self.projects if p.has_capability(capability)]
+
     @property
     def enabled(self) -> bool:
         """池内有 >=1 个项目时才启用多项目路由；否则调用方回退单项目行为。"""
         return len(self.projects) > 0
 
-    def max_attempts(self) -> int:
-        """单次生成请求最多跨项目尝试次数：取 min(项目数, 策略配置)，至少 1。"""
-        return max(1, min(len(self.projects), max(1, self.policy.max_attempts)))
+    def has_capability(self, capability: Optional[str]) -> bool:
+        """池内是否至少有一个项目具备该能力。"""
+        return any(p.has_capability(capability) for p in self.projects)
 
-    def healthy_projects(self, excluded: Optional[set] = None) -> List[GcpProjectRuntime]:
-        """返回未熔断、未被本次请求排除的项目，按"最空闲优先"排序。
+    def max_attempts(self, capability: Optional[str] = None) -> int:
+        """单次生成请求最多跨项目尝试次数：取 min(具备该能力的项目数, 策略配置)，至少 1。"""
+        n = len(self.projects_with_capability(capability))
+        return max(1, min(n, max(1, self.policy.max_attempts)))
+
+    def healthy_projects(
+        self, excluded: Optional[set] = None, capability: Optional[str] = None
+    ) -> List[GcpProjectRuntime]:
+        """返回具备指定能力、未熔断、未被本次请求排除的项目，按"最空闲优先"排序。
 
         排序键 (inflight/weight, consecutive_failures, name)：优先挑在途负载低、
-        近期健康的项目，权重高的项目分到更多流量。
+        近期健康的项目，权重高的项目分到更多流量。capability 为 None 时不按能力过滤。
         """
         excluded = excluded or set()
         now = time.monotonic()
         healthy = [
             p for p in self.projects
-            if p.name not in excluded and p.circuit_until <= now
+            if p.name not in excluded
+            and p.circuit_until <= now
+            and p.has_capability(capability)
         ]
         return sorted(
             healthy,
@@ -287,6 +329,8 @@ def _parse_projects(items: list, default_concurrency: int) -> List[GcpProjectRun
                 max_concurrency=_coerce_positive_int(
                     item.get("max_concurrency"), default_concurrency
                 ),
+                is_img=_coerce_bool(item.get("is_img"), default=True),
+                is_veo=_coerce_bool(item.get("is_veo"), default=True),
             )
         )
     return projects
@@ -327,4 +371,7 @@ def build_router() -> GcpProjectRouter:
         f"(threshold={policy.circuit_failure_threshold}, "
         f"cooldown={policy.circuit_cooldown_seconds}s, max_attempts={policy.max_attempts})"
     )
+    img_names = [p.name for p in projects if p.is_img]
+    veo_names = [p.name for p in projects if p.is_veo]
+    logger.info(f"能力分布：出图池={img_names}；veo池={veo_names}")
     return GcpProjectRouter(projects, policy)

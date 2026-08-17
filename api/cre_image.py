@@ -36,7 +36,7 @@ logger = setup_module_logger(__name__, "logs/image/gemini_image.log")
 router = APIRouter()
 
 from utils.gcp_credentials import get_access_token, get_gcs_access_token  # noqa: E402
-from utils.gcp_project_pool import build_router, GcpProjectRouter  # noqa: E402
+from utils.gcp_project_pool import build_router, GcpProjectRouter, CAPABILITY_IMG  # noqa: E402
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 
 GOOGLE_PROJECT_ID = _settings.GCP_PROJECT_ID
@@ -821,12 +821,17 @@ async def call_vertex_generate_content(
             request_body, locations, per_timeout,
         )
 
-    max_attempts = router.max_attempts()
+    if not router.has_capability(CAPABILITY_IMG):
+        raise RuntimeError(
+            "生成池中没有任何具备出图(is_img)能力的项目，请检查 gcp-endpoints.yaml 能力标注"
+        )
+
+    max_attempts = router.max_attempts(CAPABILITY_IMG)
     excluded: set = set()
     last_exc: Optional[BaseException] = None
 
     for attempt in range(max_attempts):
-        candidates = router.healthy_projects(excluded)
+        candidates = router.healthy_projects(excluded, capability=CAPABILITY_IMG)
         if not candidates:
             logger.warning(
                 f"[{request_id}] 无健康项目可用（已排除 {excluded}），尝试 {attempt}/{max_attempts}"

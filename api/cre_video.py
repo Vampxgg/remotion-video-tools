@@ -26,7 +26,7 @@ logger = setup_module_logger(__name__, "logs/video/veo.log")
 router = APIRouter()
 
 from utils.gcp_credentials import get_access_token, get_gcs_access_token  # noqa: E402,F401
-from utils.gcp_project_pool import build_router, GcpProjectRuntime, GcpProjectRouter  # noqa: E402
+from utils.gcp_project_pool import build_router, GcpProjectRuntime, GcpProjectRouter, CAPABILITY_VEO  # noqa: E402
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
 
 # --- Google Vertex AI Veo API 配置 ---
@@ -201,12 +201,17 @@ async def submit_veo_task(
             raise RuntimeError("API 未返回有效的 operation name")
         return _VeoSubmission(op, location_id, model_id, None)
 
-    max_attempts = router.max_attempts()
+    if not router.has_capability(CAPABILITY_VEO):
+        raise RuntimeError(
+            "生成池中没有任何具备 veo(is_veo)能力的项目，请检查 gcp-endpoints.yaml 能力标注"
+        )
+
+    max_attempts = router.max_attempts(CAPABILITY_VEO)
     excluded: set = set()
     last_exc: Optional[BaseException] = None
 
     for attempt in range(max_attempts):
-        candidates = router.healthy_projects(excluded)
+        candidates = router.healthy_projects(excluded, capability=CAPABILITY_VEO)
         if not candidates:
             logger.warning(
                 f"[{workflow_id}] 无健康项目可用（已排除 {excluded}），尝试 {attempt}/{max_attempts}"

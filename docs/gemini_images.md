@@ -156,7 +156,7 @@ HTTP 状态码与 JSON 内的 `code` 在多数成功路径上一致；**部分�
 
 - **候选数**：固定 **`candidateCount: 1`**（避免「多候选 + 图像」类 400）。多张图靠 **`response_count` 并行多次**。
 - **地域**：未设置 `location_override` 时，优先尝试 **`global`**，再尝试少量随机顺序的区域（见 `GOOGLE_LOCATIONS`）；429/5xx 会换区重试。
-- **多 GCP 项目负载均衡（生成端点池）**：Vertex 配额**按项目**计。为消化单项目配额打满/抖动导致的 429/5xx（区域轮询无法缓解，因同项目所有区域共享配额），出图与 veo **共享**一个多项目生成池（见 `utils/gcp_project_pool.py`，池配置在 `secrets/gcp-endpoints.yaml`，路径由 `GCP_ENDPOINTS_FILE` 指定）。单次出图请求按"最空闲优先"选一个健康项目，用**该项目的 SA token + `projects/{project_id}` endpoint 成对**调用；命中 429/5xx/网络异常时熔断该项目并换下一个项目重试（最多 `router.max_attempts()` 次，即 `min(项目数, YAML defaults.max_attempts)`）。**池缺失/为空时回退单项目行为**（`GCP_PROJECT_ID` + 全局兜底凭证），与历史一致。
+- **多 GCP 项目负载均衡（生成端点池）**：Vertex 配额**按项目**计。为消化单项目配额打满/抖动导致的 429/5xx（区域轮询无法缓解，因同项目所有区域共享配额），出图与 veo **共享**一个多项目生成池（见 `utils/gcp_project_pool.py`，池配置在 `secrets/gcp-endpoints.yaml`，路径由 `GCP_ENDPOINTS_FILE` 指定）。单次出图请求按"最空闲优先"选一个健康项目，用**该项目的 SA token + `projects/{project_id}` endpoint 成对**调用；命中 429/5xx/网络异常时熔断该项目并换下一个项目重试（最多 `router.max_attempts()` 次，即 `min(项目数, YAML defaults.max_attempts)`）。**池缺失/为空时回退单项目行为**（`GCP_PROJECT_ID` + 全局兜底凭证），与历史一致。项目可用 `is_img`/`is_veo`（缺省 `true`）标注生成能力，路由按能力过滤：出图只选 `is_img` 项目、veo 只选 `is_veo` 项目，避免把 veo 请求轮到未开通 veo 的项目导致 404（veo 是受限模型，通常仅个别项目开通）。
 - **生成与存储凭证解耦**：出图**生成**用多项目池的 videomaker 令牌轮换；**GCS 上传**恒用 `GCS_CREDENTIALS_FILE` 指定的存储专用凭证（留空回退 `GCP_CREDENTIALS_FILE`/ADC）。因为 GCS 桶 `x-pilot-storage` 属于主项目，只有它的 SA 有写权限，而 videomaker 令牌对该桶**无写权限（实测 403）**。二者由 `utils/gcp_credentials` 的 `get_access_token`（生成）与 `get_gcs_access_token`（存储）分别提供。
 - **生成配置节选**：`temperature=1`、`topP=0.95`、`maxOutputTokens=32768`；`responseModalities` 至少含 `IMAGE`，可选 `TEXT`。
 - **图片落库**：从 Vertex 响应中取出 `inlineData`（图片）解码后上传 GCS，路径目录默认为 `gemini_images/`。

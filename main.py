@@ -179,6 +179,7 @@ from utils.responses import validation_exception_handler  # noqa: E402
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
+# local服务器用这些
 # app.include_router(process_uploads.router)
 # app.include_router(Online_search.router, prefix="/api", tags=["Source Parser"])
 # app.include_router(block_generator.router, prefix="/api", tags=["block_generator"])
@@ -222,6 +223,20 @@ app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])
 # app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])
 # app.include_router(document_import.router, prefix="/api", tags=["document_import"])
 
+
+# 海外用这些
+# app.include_router(Online_search.router, prefix="/api", tags=["Source Parser"])
+# app.include_router(block_generator.router, prefix="/api", tags=["block_generator"])
+# app.include_router(tts.router, prefix="/api", tags=["tts"])
+# app.include_router(cre_audio.router, prefix="/api", tags=["create_audio"])
+# app.include_router(cre_audio_json.router, prefix="/api", tags=["create_audio"])
+# app.include_router(google_tts.router, prefix="/api", tags=["create_audio"])
+# app.include_router(converter.router, prefix="/api", tags=["Converter"])
+# app.include_router(cre_video.router, prefix="/api", tags=["create_veo_video"])
+# app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
+# app.include_router(cre_image_azure.router, prefix="/api", tags=["create_azure_image"])
+# app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
+# app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])
 
 @app.get("/")
 async def root():
