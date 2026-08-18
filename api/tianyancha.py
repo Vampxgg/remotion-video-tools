@@ -355,10 +355,11 @@ async def region_companies_result(job_id: str):
             data={"job_id": job_id, "status": "not_found"},
         )
 
-    # long-poll：在墙钟预算内轮询本地 job 状态，直到 terminal。预算需略小于调用方
-    # （Dify 工具 http 节点）的 read 超时，确保对方能在被 kill 前拿到最终结果。
-    budget = float(getattr(_settings, "TIANYANCHA_REGION_JOB_LONGPOLL_BUDGET_SEC", 90.0) or 90.0)
-    deadline = asyncio.get_event_loop().time() + budget
+    # long-poll：在墙钟预算内轮询本地 job 状态，直到 terminal。预算必须安全小于**上游
+    # 网关**的读超时（K8s Nginx Ingress 默认 60s），否则网关先掐断长连接返回 502。
+    budget = float(getattr(_settings, "TIANYANCHA_REGION_JOB_LONGPOLL_BUDGET_SEC", 25.0) or 25.0)
+    started = asyncio.get_event_loop().time()
+    deadline = started + budget
     interval = 1.0
     while job is not None and job.get("status") not in region_jobs._TERMINAL:  # noqa: SLF001
         if asyncio.get_event_loop().time() >= deadline:
@@ -374,7 +375,12 @@ async def region_companies_result(job_id: str):
             data={"job_id": job_id, "status": "not_found"},
         )
 
+    waited = asyncio.get_event_loop().time() - started
     job_status = job.get("status")
+    logger.info(
+        "[%s] result long-poll 返回 status=%s waited=%.1fs（预算 %.0fs）",
+        job_id, job_status, waited, budget,
+    )
     if job_status == region_jobs.STATUS_SUCCEEDED:
         data = job.get("result") or {}
         message = "区域企业调研完成"

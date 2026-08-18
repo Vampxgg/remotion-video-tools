@@ -904,10 +904,14 @@ class TianyanchaSettings(_Base):
     # 补详情并发度：逐家 baseinfo 由串行改为有限并发，压低单请求耗时。
     # 并发太高易触发天眼查 300004（访问频率过快），默认 5 是稳妥折中。
     TIANYANCHA_DETAIL_CONCURRENCY: int = 5
-    # 区域调研异步任务：job 状态存 Redis 的 TTL（秒）；result long-poll 的墙钟预算（秒），
-    # 需略小于 Dify 工具 http 节点的 read 超时（当前 110s），确保工具能在被 kill 前拿到结果。
+    # 区域调研异步任务：job 状态存 Redis 的 TTL（秒）。
     TIANYANCHA_REGION_JOB_TTL_SEC: int = 86400
-    TIANYANCHA_REGION_JOB_LONGPOLL_BUDGET_SEC: float = 90.0
+    # result 端点单次 long-poll 的墙钟预算（秒）。关键约束：必须安全小于**上游网关**的
+    # 读超时（K8s Nginx Ingress 默认 proxy-read-timeout=60s），否则网关会先掐断长连接
+    # 返回 502——这正是历史同步接口 502 的根因，long-poll 若 hold 超 60s 会重蹈覆辙。
+    # 取 50s：吃满网关 60s 前的安全区（留 10s 缓冲），并发补详情后真实耗时十几秒，
+    # 单跳 50s 足以覆盖绝大多数任务一次返回 done；极端未完成才返回 running。
+    TIANYANCHA_REGION_JOB_LONGPOLL_BUDGET_SEC: float = 50.0
 
 
 # =====================================================================
