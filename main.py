@@ -87,6 +87,7 @@ _LIFESPAN_MODULES = [
     boss_zhipin,
     gemini_live,
     file_understand,
+    tianyancha,
     web_search,
 ]
 

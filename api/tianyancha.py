@@ -4,13 +4,18 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+import asyncio
+from contextlib import asynccontextmanager
+
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.database import get_db
+from db.database import AsyncSessionLocal, get_db
+from services import tianyancha_jobs as region_jobs
 from services.tianyancha_client import TianyanchaAPIError, TianyanchaClient
+from utils import redis_client
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
 from utils.settings import settings as _settings
@@ -19,6 +24,23 @@ logger = setup_module_logger(__name__, "logs/tianyancha/api.log")
 
 router = APIRouter()
 _client = TianyanchaClient()
+
+# 持有异步区域调研后台任务引用，避免 asyncio 在任务结束前将其回收。
+_REGION_BG_TASKS: "set[asyncio.Task]" = set()
+
+
+@asynccontextmanager
+async def lifespan_resources(app):
+    """确保区域调研异步任务依赖的 Redis 已就绪（跨 worker 共享 job 状态）。
+
+    Redis 不可用时 tianyancha_jobs 会降级为进程内内存兜底，功能不至于完全失效，
+    但跨 worker 读取会失效，因此这里尽力保证 Redis startup。
+    """
+    if not redis_client.is_ready():
+        await redis_client.startup()
+    logger.info("tianyancha router 就绪 (redis_ready=%s)", redis_client.is_ready())
+    yield
+    # Redis 为全局共享单例，由应用退出统一释放，这里不 shutdown。
 
 
 class DetailLevel(str, Enum):
@@ -114,18 +136,20 @@ def _http_code_for_tianyancha_error(error_code: int) -> int:
     return 502
 
 
-def _error_response(exc: Exception):
+def _error_parts(exc: Exception):
+    """把异常映射为 (http_code, message, data)，供同步响应与异步 job 复用同一套错误语义。"""
     if isinstance(exc, TianyanchaAPIError):
         http_code = _http_code_for_tianyancha_error(exc.error_code)
-        return create_standard_response(
-            code=http_code,
-            message=exc.reason,
-            data={"tianyancha_error_code": exc.error_code},
-        )
+        return http_code, exc.reason, {"tianyancha_error_code": exc.error_code}
     if isinstance(exc, httpx.HTTPError):
-        return create_standard_response(code=502, message=f"天眼查网络请求失败: {exc}")
+        return 502, f"天眼查网络请求失败: {exc}", None
     logger.error(f"天眼查接口异常: {exc}", exc_info=True)
-    return create_standard_response(code=500, message=f"天眼查接口异常: {exc}")
+    return 500, f"天眼查接口异常: {exc}", None
+
+
+def _error_response(exc: Exception):
+    code, message, data = _error_parts(exc)
+    return create_standard_response(code=code, message=message, data=data)
 
 
 @router.post(
@@ -256,6 +280,123 @@ async def research_region_companies(
     if data.get("need_clarification"):
         message = "区域或行业需要进一步确认"
     return create_standard_response(data=data, message=message)
+
+
+async def _run_region_job(job_id: str, payload: "RegionCompanyResearchPayload") -> None:
+    """后台执行区域调研；用独立 DB session，把结果/错误写入 job 状态。
+
+    真正的耗时（翻页 + 并发补详情）都在这里，绕开单条 HTTP 请求的上游超时上限。
+    """
+    await region_jobs.mark_running(job_id)
+    try:
+        async with AsyncSessionLocal() as db:
+            try:
+                data = await _client.research_region_companies(
+                    db,
+                    region=payload.region,
+                    industry=payload.industry,
+                    keywords=payload.keywords,
+                    limit=payload.limit,
+                    detail_level=payload.detail_level.value,
+                    force_remote=payload.force_remote,
+                    exhaustive=payload.exhaustive,
+                )
+            finally:
+                await db.close()
+        await region_jobs.mark_succeeded(job_id, data)
+    except Exception as exc:  # noqa: BLE001
+        code, message, err_data = _error_parts(exc)
+        await region_jobs.mark_failed(job_id, code, message)
+        # 错误细节（如天眼查 error_code）一并落到 job，便于 result 端点透传诊断。
+        if err_data is not None:
+            job = await region_jobs.read_job(job_id)
+            if job is not None and isinstance(job.get("error"), dict):
+                job["error"]["data"] = err_data
+                await region_jobs._write(job_id, job)  # noqa: SLF001
+
+
+@router.post(
+    "/tianyancha/research/region-companies/submit",
+    summary="Dify Workflow 区域企业调研工具（异步提交，立即返回 job_id）",
+    description=(
+        "提交区域企业调研任务并立即返回 job_id，真正的翻页 + 并发补详情放后台执行。"
+        "随后用 GET /tianyancha/research/region-companies/result/{job_id} 轮询结果，"
+        "每个请求都很短，绕开网关 / Dify http 节点对单条长连接的读超时。"
+    ),
+    dependencies=[Depends(require_api_key)],
+)
+async def submit_region_companies(payload: RegionCompanyResearchPayload):
+    params = payload.model_dump(mode="json")
+    job_id = await region_jobs.create_job(params)
+    task = asyncio.create_task(_run_region_job(job_id, payload))
+    _REGION_BG_TASKS.add(task)
+    task.add_done_callback(_REGION_BG_TASKS.discard)
+    return create_standard_response(
+        data={"job_id": job_id, "status": region_jobs.STATUS_PENDING},
+        message="任务已受理，请轮询 /tianyancha/research/region-companies/result/{job_id} 获取结果",
+    )
+
+
+@router.get(
+    "/tianyancha/research/region-companies/result/{job_id}",
+    summary="查询区域企业调研异步任务结果（long-poll）",
+    description=(
+        "long-poll：内部等到任务完成或接近墙钟预算才返回，通常一次调用即拿到最终结果。"
+        "succeeded 时 data 与同步 /region-companies 的 data 完全一致；仍在跑则返回 running。"
+    ),
+    dependencies=[Depends(require_api_key)],
+)
+async def region_companies_result(job_id: str):
+    job = await region_jobs.read_job(job_id)
+    if job is None:
+        return create_standard_response(
+            code=status.HTTP_404_NOT_FOUND,
+            message="任务不存在或已过期。",
+            data={"job_id": job_id, "status": "not_found"},
+        )
+
+    # long-poll：在墙钟预算内轮询本地 job 状态，直到 terminal。预算需略小于调用方
+    # （Dify 工具 http 节点）的 read 超时，确保对方能在被 kill 前拿到最终结果。
+    budget = float(getattr(_settings, "TIANYANCHA_REGION_JOB_LONGPOLL_BUDGET_SEC", 90.0) or 90.0)
+    deadline = asyncio.get_event_loop().time() + budget
+    interval = 1.0
+    while job is not None and job.get("status") not in region_jobs._TERMINAL:  # noqa: SLF001
+        if asyncio.get_event_loop().time() >= deadline:
+            break
+        await asyncio.sleep(interval)
+        interval = min(interval * 1.5, 5.0)
+        job = await region_jobs.read_job(job_id)
+
+    if job is None:
+        return create_standard_response(
+            code=status.HTTP_404_NOT_FOUND,
+            message="任务不存在或已过期。",
+            data={"job_id": job_id, "status": "not_found"},
+        )
+
+    job_status = job.get("status")
+    if job_status == region_jobs.STATUS_SUCCEEDED:
+        data = job.get("result") or {}
+        message = "区域企业调研完成"
+        if isinstance(data, dict) and data.get("need_clarification"):
+            message = "区域或行业需要进一步确认"
+        return create_standard_response(data=data, message=message)
+
+    if job_status == region_jobs.STATUS_FAILED:
+        err = job.get("error") or {}
+        code = err.get("code") if isinstance(err.get("code"), int) else 502
+        return create_standard_response(
+            code=code,
+            message=err.get("detail") or "区域企业调研失败",
+            data=err.get("data"),
+        )
+
+    # 仍在跑：让调用方稍后再查（HTTP 层仍 200，业务 code=202 表示处理中）。
+    return create_standard_response(
+        code=202,
+        message="任务处理中，请稍后重试查询",
+        data={"job_id": job_id, "status": job_status},
+    )
 
 
 @router.get(

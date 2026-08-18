@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """天眼查企业数据客户端与本地去重入库逻辑。"""
 
+import asyncio
 import hashlib
 import json
 import re
@@ -635,6 +636,7 @@ class TianyanchaClient:
             pool_need = safe_limit
             max_detail_calls = min(
                 _settings.TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST,
+                _settings.TIANYANCHA_DIFY_AGENT_DETAIL_CALLS,
                 safe_limit,
             )
 
@@ -897,23 +899,40 @@ class TianyanchaClient:
                 f"详情补拉额度不足，本次需补 {len(detail_candidates)} 条，实际最多补 {limit} 条"
             )
 
-        for index, company in detail_candidates:
-            if detail_calls >= limit:
-                break
+        # 只处理额度内的候选（priority 已排在前，截断时优先保留高优先级）。
+        targets = detail_candidates[:limit]
+        if not targets:
+            return 0, warnings
 
+        # 并发拉取 baseinfo（纯 HTTP，无 DB）；DB 写入仍串行，避免并发操作同一
+        # AsyncSession（SQLAlchemy 异步会话非并发安全）。信号量限制对天眼查的并发，
+        # 规避 300004（访问频率过快）。
+        concurrency = max(1, int(getattr(_settings, "TIANYANCHA_DETAIL_CONCURRENCY", 5) or 5))
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def _fetch_one(company: TianyanchaCompany):
             keyword = str(company.tianyancha_id or company.credit_code or company.name)
-            try:
-                detail = await self.fetch_baseinfo(keyword)
-            except TianyanchaAPIError as exc:
+            async with semaphore:
+                try:
+                    detail = await self.fetch_baseinfo(keyword)
+                    return company, detail, None
+                except TianyanchaAPIError as exc:
+                    return company, None, exc
+
+        fetched = await asyncio.gather(*(_fetch_one(c) for _, c in targets))
+
+        # 串行落库：按原候选顺序写回，保持结果稳定；单家失败只记 warning 不影响其它。
+        index_by_company = {id(company): index for index, company in targets}
+        for company, detail, exc in fetched:
+            if exc is not None:
                 warnings.append(f"{company.name} 详情补拉失败: {exc.reason}")
                 continue
-
             enriched_company, _ = await self.upsert_company_from_baseinfo(
                 db,
                 detail,
                 fetched_at=now,
             )
-            companies[index] = enriched_company
+            companies[index_by_company[id(company)]] = enriched_company
             detail_calls += 1
 
         return detail_calls, warnings

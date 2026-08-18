@@ -896,7 +896,18 @@ class TianyanchaSettings(_Base):
     TIANYANCHA_DIFY_DEFAULT_LIMIT: int = 20
     TIANYANCHA_DIFY_MAX_LIMIT: int = 50
     TIANYANCHA_DIFY_MAX_DETAIL_CALLS_PER_REQUEST: int = 50
+    # 非穷尽（agent 取样）场景单次补详情上限：并发化后耗时已大幅下降，此项作为
+    # 额外降载/成本旋钮。默认 50 = 不额外收敛（沿用历史行为，与 safe_limit 取小）；
+    # 运维可下调（如 10）在高并发时进一步压低单请求耗时与天眼查配额消耗。
+    TIANYANCHA_DIFY_AGENT_DETAIL_CALLS: int = 50
     TIANYANCHA_ENRICH_NEW_COMPANIES: bool = True
+    # 补详情并发度：逐家 baseinfo 由串行改为有限并发，压低单请求耗时。
+    # 并发太高易触发天眼查 300004（访问频率过快），默认 5 是稳妥折中。
+    TIANYANCHA_DETAIL_CONCURRENCY: int = 5
+    # 区域调研异步任务：job 状态存 Redis 的 TTL（秒）；result long-poll 的墙钟预算（秒），
+    # 需略小于 Dify 工具 http 节点的 read 超时（当前 110s），确保工具能在被 kill 前拿到结果。
+    TIANYANCHA_REGION_JOB_TTL_SEC: int = 86400
+    TIANYANCHA_REGION_JOB_LONGPOLL_BUDGET_SEC: float = 90.0
 
 
 # =====================================================================
