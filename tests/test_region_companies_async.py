@@ -239,3 +239,39 @@ class _AsyncCtxDB:
 
     async def __aexit__(self, *a):
         return False
+
+
+# ─────────────── 字典 URL 失效时优雅降级（根因：天眼查 OSS 字典 404） ───────────────
+
+@pytest.mark.asyncio
+async def test_resolve_area_code_degrades_when_dict_unavailable(monkeypatch):
+    """区域字典 404/网络失败 → resolve_area_code 不抛异常，降级返回 (None, [])，
+    让下游用中文区域名走本地库兜底，而不是让整条调研链路崩溃。"""
+    import httpx as _httpx
+    client = TianyanchaClient()
+
+    async def boom(url):
+        raise _httpx.HTTPStatusError("404", request=None, response=None)
+    monkeypatch.setattr(client, "_fetch_public_json", boom)
+
+    code, candidates = await client.resolve_area_code("厦门")
+    assert code is None
+    assert candidates == []
+    # 纯数字 code 直通不查字典，仍应正常
+    code2, _ = await client.resolve_area_code("350200")
+    assert code2 == "350200"
+
+
+@pytest.mark.asyncio
+async def test_resolve_category_code_degrades_when_dict_unavailable(monkeypatch):
+    """行业字典失效 → resolve_category_code 降级返回 (None, [])，不抛异常。"""
+    import httpx as _httpx
+    client = TianyanchaClient()
+
+    async def boom(url):
+        raise _httpx.HTTPStatusError("404", request=None, response=None)
+    monkeypatch.setattr(client, "_fetch_public_json", boom)
+
+    code, candidates = await client.resolve_category_code("汽车制造")
+    assert code is None
+    assert candidates == []

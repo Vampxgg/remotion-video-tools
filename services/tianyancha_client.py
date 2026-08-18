@@ -1012,7 +1012,15 @@ class TianyanchaClient:
     async def _load_area_codes(self) -> List[Dict[str, str]]:
         if self._area_cache is not None:
             return self._area_cache
-        data = await self._fetch_public_json(_settings.TIANYANCHA_AREA_CODE_URL)
+        try:
+            data = await self._fetch_public_json(_settings.TIANYANCHA_AREA_CODE_URL)
+        except Exception as exc:  # noqa: BLE001
+            # 字典 URL 失效（天眼查已下线 OSS 文件）或网络异常时，不让整条调研链路崩溃：
+            # 降级为空字典并缓存，resolve_area_code 因此返回 code=None，下游用中文区域名
+            # 走 _fallback_local_region_search 直接查本地企业库。字典恢复后重启即自愈。
+            logger.warning("区域代码字典加载失败，降级为空表（改用本地库按区域名兜底）：%s", exc)
+            self._area_cache = []
+            return self._area_cache
         flattened: List[Dict[str, str]] = []
         for province in data.get("areaCode", []):
             province_name = province.get("name") or ""
@@ -1044,7 +1052,15 @@ class TianyanchaClient:
     async def _load_categories(self) -> List[Dict[str, str]]:
         if self._category_cache is not None:
             return self._category_cache
-        data = await self._fetch_public_json(_settings.TIANYANCHA_CATEGORY_URL)
+        try:
+            data = await self._fetch_public_json(_settings.TIANYANCHA_CATEGORY_URL)
+        except Exception as exc:  # noqa: BLE001
+            # 同 _load_area_codes：行业分类字典失效时降级为空表，resolve_category_code 返回
+            # code=None，行业名改由 _fallback_local_region_search 对 name/business_scope 做
+            # ilike 匹配兜底，避免字典 404 让整条链路崩溃。
+            logger.warning("行业分类字典加载失败，降级为空表（改用本地库按行业名兜底）：%s", exc)
+            self._category_cache = []
+            return self._category_cache
         flattened: List[Dict[str, str]] = []
         for primary in data.get("category", []) or []:
             primary_name = primary.get("primInduName") or ""
