@@ -174,6 +174,11 @@ class BlockedIPMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(BlockedIPMiddleware)
 
+# 旁路探针：记录所有命中 /api/scrape/zhilian* 的调用来源与调用量（零业务侵入，可随时移除）。
+from utils.scrape_probe import ScrapeZhilianProbeMiddleware, get_stats as _scrape_probe_stats  # noqa: E402
+
+app.add_middleware(ScrapeZhilianProbeMiddleware)
+
 # 请求体校验失败统一走标准信封（保留 HTTP 422），避免调用方同时兼容
 # FastAPI 默认 {detail:[...]} 和业务 {code,message,data} 两套格式。
 from utils.responses import validation_exception_handler  # noqa: E402
@@ -242,6 +247,16 @@ app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])
 @app.get("/")
 async def root():
     return {"message": "Hello API!"}
+
+
+@app.get("/api/scrape/_probe/stats", tags=["scrape_probe"], summary="[探针] 智联接口调用来源统计")
+async def scrape_probe_stats(days: int = 7):
+    """只读：返回 /api/scrape/zhilian* 的调用量统计（总量、按 IP、按天、按路径、最近命中）。
+
+    - days: 聚合窗口（天），默认 7；总量 total_all_time 为全量。
+    - 该端点本身不计入探针记录（探针只监控 /api/scrape/zhilian 前缀）。
+    """
+    return {"code": 200, "message": "ok", "data": _scrape_probe_stats(days=days)}
 
 
 if __name__ == '__main__':
