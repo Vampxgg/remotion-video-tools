@@ -1,0 +1,8 @@
+# Azure Functions Python runtime
+azure-functions
+
+# Azure SDK：托管身份鉴权 + Monitor 指标查询 + Log Analytics 日志查询 + Blob 写入
+azure-identity>=1.17
+azure-mgmt-monitor>=6.0
+azure-monitor-query>=1.4
+azure-storage-blob>=12.20

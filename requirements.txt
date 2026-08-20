@@ -59,6 +59,11 @@ redis>=5.0
 # 进程内降级缓存（Redis 不可用时兜底）
 cachetools
 
+# 每日消耗报告(api/usage_report_api.py)：Azure 鉴权/Blob 读写 + Markdown 在线渲染
+azure-identity>=1.17
+azure-storage-blob>=12.20
+markdown
+
 # Test (web_search 单测：pytest-httpx 拦截出站，fakeredis 模拟缓存)
 pytest
 pytest-asyncio

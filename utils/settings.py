@@ -914,6 +914,57 @@ class TianyanchaSettings(_Base):
     TIANYANCHA_REGION_JOB_LONGPOLL_BUDGET_SEC: float = 50.0
 
 
+class UsageReportSettings(_Base):
+    """对应 api/usage_report_api.py + static/azure_cost_export_func/{billing_fetch,daily_pipeline}.py。
+
+    每日 Azure 模型消耗报告自动化：拉当天账单 CSV + 复用云函数已导出到 blob 的
+    calls/requests，跑 static/azure_cost_export_func/shared/usage_report.generate()
+    生成 md/html/json 并落盘、可选回传 blob。所有落盘严格限制在 static 子目录内。
+
+    鉴权链路统一走 azure.identity.DefaultAzureCredential：生产用服务主体(读环境变量
+    AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_CLIENT_SECRET)，故此处不承载任何明文密钥。
+    """
+
+    # 对外端点 x-api-key 守卫；留空=不启用鉴权(与其它 router 一致)。
+    USAGE_REPORT_API_KEY: Optional[str] = None
+
+    # ===== Azure 资源定位(与桌面 refresh_billing.py / 云函数 README 对齐) =====
+    USAGE_REPORT_SUBSCRIPTION_ID: str = "a6dfdf96-3081-4996-bd76-7e07d8ea63b0"
+    USAGE_REPORT_RESOURCE_GROUP: str = "x-pilot"
+    USAGE_REPORT_STORAGE_ACCOUNT: str = "xpilotcostexport"
+    USAGE_REPORT_BLOB_CONTAINER: str = "cost-exports"
+    # Cost Management 导出任务名；留空则自动取订阅下第一个 ActualCost 导出。
+    USAGE_REPORT_EXPORT_NAME: str = "daily-actualcost-export"
+    USAGE_REPORT_ARM_API_VERSION: str = "2023-11-01"
+
+    # ===== blob 前缀 =====
+    # calls/requests 由现有 Azure Functions 每天导出，本模块只读；usage 为本模块回传前缀。
+    USAGE_REPORT_CALLS_PREFIX: str = "calls"
+    USAGE_REPORT_REQUESTS_PREFIX: str = "requests"
+    USAGE_REPORT_OUT_PREFIX: str = "usage"
+    # calls/requests blob 文件名后缀：线上云函数导出为 -UTC(<date> 即 UTC 自然日)。
+    USAGE_REPORT_SRC_SUFFIX: str = "UTC"
+    # 本模块回传 usage 报告的文件名后缀(与入参 <date> 北京日语义一致)。
+    USAGE_REPORT_OUT_SUFFIX: str = "CST"
+
+    # ===== 落盘(相对 static_dir_abs 的子目录，唯一数据根) =====
+    USAGE_REPORT_DATA_SUBDIR: str = "azure_cost_export_func/_data"
+
+    # ===== 定时调度(北京时间) =====
+    USAGE_REPORT_ENABLE_SCHEDULER: bool = True
+    # 每日触发时刻 HH:MM(北京)。默认 09:10，晚于云函数 09:00 的 calls/requests 导出，
+    # 确保当天 blob 已就位。
+    USAGE_REPORT_SCHEDULE_HHMM: str = "09:10"
+    # 生成后是否回传 blob(usage/ 前缀)。
+    USAGE_REPORT_UPLOAD_BLOB: bool = True
+
+    # ===== 拉取账单的轮询参数(触发按需导出后等待生成) =====
+    USAGE_REPORT_POLL_SECONDS: int = 15
+    USAGE_REPORT_POLL_MAX: int = 40
+    # 触发按需导出前，若当天 CSV 已存在是否跳过重新拉取(幂等/省时)。
+    USAGE_REPORT_SKIP_IF_CSV_EXISTS: bool = False
+
+
 # =====================================================================
 # 合成最终 Settings
 # =====================================================================
@@ -931,6 +982,7 @@ class Settings(
     ZhipinSettings, BossZhipinSettings, RegionJobsSettings,
     WebSearchSettings,
     TianyanchaSettings,
+    UsageReportSettings,
 ):
     """全局唯一的配置对象。模块中只需 ``from utils.settings import settings`` 后取值。"""
 
@@ -943,6 +995,15 @@ class Settings(
         """STATIC_DIR 的绝对路径；若是相对路径则相对项目根。"""
         p = Path(self.STATIC_DIR)
         return str(p if p.is_absolute() else _PROJECT_ROOT / p)
+
+    @property
+    def usage_report_data_dir_abs(self) -> Path:
+        """每日消耗报告的数据根(唯一落盘位置)：static_dir_abs / USAGE_REPORT_DATA_SUBDIR。
+
+        全部 CSV 缓存、calls/requests 源缓存、md/html/json 产物都在此目录树下，
+        不碰任何其它业务目录；且因位于 static 下，html 可经 /static 直接在线访问。
+        """
+        return Path(self.static_dir_abs) / self.USAGE_REPORT_DATA_SUBDIR
 
 
 @lru_cache(maxsize=1)

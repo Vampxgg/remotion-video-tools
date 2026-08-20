@@ -86,3 +86,16 @@ ceshi/aiqicha_probe.py
 ceshi/aiqicha_xcheck.py
 ceshi/aiqicha_xcheck_db.py
 ceshi/_aqc_search2.png
+
+# ===== Azure 成本导出模块：密钥/本地配置/运行时数据/调试脚本 =====
+static/azure_cost_export_func/_key.txt
+static/azure_cost_export_func/local.settings.json
+static/azure_cost_export_func/_data/
+static/azure_cost_export_func/_*.py
+
+# ===== 导出的原始数据 / 会话记录 / 本地产物 =====
+requests-*-CST.md
+requests-*-CST.ndjson
+*.jsonl
+_baseline_out/
+dist_describe/
