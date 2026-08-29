@@ -64,6 +64,9 @@ azure-identity>=1.17
 azure-storage-blob>=12.20
 markdown
 
+# 每日 AWS Bedrock 用量报告(api/aws_usage_report_api.py)：AssumeRole + CE/Logs/CloudTrail
+boto3>=1.34
+
 # Test (web_search 单测：pytest-httpx 拦截出站，fakeredis 模拟缓存)
 pytest
 pytest-asyncio

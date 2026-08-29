@@ -965,6 +965,44 @@ class UsageReportSettings(_Base):
     USAGE_REPORT_SKIP_IF_CSV_EXISTS: bool = False
 
 
+class AwsUsageReportSettings(_Base):
+    """每日 AWS Bedrock 用量报告(api/aws_usage_report_api.py)配置。
+
+    数据链：本机弱权限用户(默认凭据链，与现有 aws CLI 一致)AssumeRole 到子账号
+    OrganizationAccountAccessRole(Admin)→ CE 成本(双口径+credit) + CloudWatch Logs
+    invocation logging(次数+四类token+identity.arn) + CloudTrail(IP+活跃时段)。
+    凭据不承载明文密钥，走本机 ~/.aws 默认链。
+    """
+
+    # 对外写端点 x-api-key 守卫；留空=不启用(与其它 router 一致)。
+    AWS_USAGE_REPORT_API_KEY: Optional[str] = None
+
+    # ===== AssumeRole / AWS 资源定位 =====
+    # 子账号(用量/花费实际发生处) + 其 Admin 角色 ARN。
+    AWS_USAGE_REPORT_LINKED_ACCOUNT: str = "502225588666"
+    AWS_USAGE_REPORT_ASSUME_ROLE_ARN: str = (
+        "arn:aws:iam::502225588666:role/OrganizationAccountAccessRole"
+    )
+    # 默认 region(CE 固定走 us-east-1 端点，不受此值影响)。
+    AWS_USAGE_REPORT_REGION: str = "us-east-1"
+    # Logs/CloudTrail 查询的 region 列表(逗号分隔)。子账号主用 us-east-1。
+    AWS_USAGE_REPORT_REGIONS: str = "us-east-1"
+    # Bedrock model invocation logging 的 CloudWatch 日志组。
+    AWS_USAGE_REPORT_LOG_GROUP: str = "/bedrock/model-invocations"
+    # CE 成本粒度：DAILY(UTC 日界，默认) 或 HOURLY(需 Payer 开 opt-in，精确北京日)。
+    AWS_USAGE_REPORT_GRANULARITY: str = "DAILY"
+
+    # ===== 落盘(相对 static_dir_abs 的子目录，唯一数据根) =====
+    AWS_USAGE_REPORT_DATA_SUBDIR: str = "aws_cost_export_func/_data"
+
+    # ===== 定时调度(北京时间) =====
+    AWS_USAGE_REPORT_ENABLE_SCHEDULER: bool = True
+    # 每日触发时刻 HH:MM(北京)。默认 09:30，晚于 Azure 版 09:10，错峰。
+    AWS_USAGE_REPORT_SCHEDULE_HHMM: str = "09:30"
+    # 当天报告已存在则跳过(幂等/省 CE 查询费)。
+    AWS_USAGE_REPORT_SKIP_IF_EXISTS: bool = True
+
+
 # =====================================================================
 # 合成最终 Settings
 # =====================================================================
@@ -983,6 +1021,7 @@ class Settings(
     WebSearchSettings,
     TianyanchaSettings,
     UsageReportSettings,
+    AwsUsageReportSettings,
 ):
     """全局唯一的配置对象。模块中只需 ``from utils.settings import settings`` 后取值。"""
 
@@ -1004,6 +1043,15 @@ class Settings(
         不碰任何其它业务目录；且因位于 static 下，html 可经 /static 直接在线访问。
         """
         return Path(self.static_dir_abs) / self.USAGE_REPORT_DATA_SUBDIR
+
+    @property
+    def aws_usage_report_data_dir_abs(self) -> Path:
+        """每日 AWS Bedrock 用量报告的数据根：static_dir_abs / AWS_USAGE_REPORT_DATA_SUBDIR。
+
+        全部 CE/Logs/CloudTrail 源缓存、md/html/json 产物都在此目录树下，位于 static
+        下故 html 可经 /static 直接在线访问。
+        """
+        return Path(self.static_dir_abs) / self.AWS_USAGE_REPORT_DATA_SUBDIR
 
 
 @lru_cache(maxsize=1)
