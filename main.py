@@ -16,7 +16,7 @@ from api import Online_search, block_generator, tts, cre_audio, converter, cre_v
     cre_image_azure, voice_models, \
     job_search, job_search_v2, boss_zhipin, jobs_region, fish_asr, fenbi_gateway, video_compress, gemini_live, \
     tianyancha, web_search, file_parser, file_understand, document_import, usage_report_api, \
-    aws_usage_report_api
+    aws_usage_report_api, aws_spend_guard_api
 from fastapi.staticfiles import StaticFiles
 from db.database import engine, Base, get_db
 from utils.settings import settings
@@ -92,6 +92,7 @@ _LIFESPAN_MODULES = [
     web_search,
     usage_report_api,
     aws_usage_report_api,
+    aws_spend_guard_api,
 ]
 
 
@@ -211,6 +212,7 @@ app.include_router(file_understand.router, prefix="/api", tags=["file_understand
 app.include_router(document_import.router, prefix="/api", tags=["document_import"])
 app.include_router(usage_report_api.router, prefix="/api", tags=["usage_report"])
 app.include_router(aws_usage_report_api.router, prefix="/api", tags=["aws_usage_report"])
+app.include_router(aws_spend_guard_api.router, prefix="/api", tags=["aws_spend_guard"])
 # app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
 # app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
 app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])

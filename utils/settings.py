@@ -1003,6 +1003,30 @@ class AwsUsageReportSettings(_Base):
     AWS_USAGE_REPORT_SKIP_IF_EXISTS: bool = True
 
 
+class AwsSpendGuardSettings(_Base):
+    """Bedrock 每日花销守卫(static/aws_cost_export_func/spend_guard)配置。
+
+    根因说明：Bedrock 无原生"每日花销硬上限"，CE 也无法按 IAM 用户拆成本。故用
+    CloudWatch Logs 的 identity.arn + 四类 token × 单价**估算**每人今日花销，超阈值
+    就给该 IAM 用户挂 inline Deny 策略(禁 bedrock 调用)，次日 0 点(北京)自动解除。
+    复用报告那套 AssumeRole / region / log_group 定位(AWS_USAGE_REPORT_*)。
+    """
+
+    # 守卫总开关。默认关闭：启用前须确认阈值/名单，避免误封。
+    AWS_SPEND_GUARD_ENABLE: bool = False
+    # 每人每日估算花销上限(USD)。超过即封禁该用户当日的 bedrock 调用。
+    AWS_SPEND_GUARD_DAILY_LIMIT_USD: float = 50.0
+    # 仅对这些 IAM 用户名生效(逗号分隔)；留空=对日志中出现的所有 user 生效。
+    # 生产建议显式列出，如 "cursor-bedrock-user,intern-bedrock"，避免误伤运维账号。
+    AWS_SPEND_GUARD_ONLY_USERS: str = "cursor-bedrock-user,intern-bedrock"
+    # 当日轮询间隔(分钟)：每隔多久评估一次今日花销并按需封禁。Logs 近实时。
+    AWS_SPEND_GUARD_POLL_MINUTES: int = 60
+    # 次日重置时刻 HH:MM(北京)：到点解除前一日的所有 SpendGuard 封禁。
+    AWS_SPEND_GUARD_RESET_HHMM: str = "00:05"
+    # 写端点鉴权(手动封/解封)。留空=不启用。
+    AWS_SPEND_GUARD_API_KEY: Optional[str] = None
+
+
 # =====================================================================
 # 合成最终 Settings
 # =====================================================================
@@ -1022,6 +1046,7 @@ class Settings(
     TianyanchaSettings,
     UsageReportSettings,
     AwsUsageReportSettings,
+    AwsSpendGuardSettings,
 ):
     """全局唯一的配置对象。模块中只需 ``from utils.settings import settings`` 后取值。"""
 

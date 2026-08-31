@@ -136,3 +136,78 @@ python -m shared.usage_report --date 2026-08-28 \
 - ✅ CloudTrail 区分 cursor-bedrock-user 与 intern-bedrock，含活跃时段与 IP，IP 明确标注 Cursor 中转。
 - ✅ Logs 缺失日(保留期外)自动降级：仍从 CE 出成本、从 CloudTrail 出调用者维度。
 - ✅ 7 个 `/api/aws-usage/*` 端点在 main.py 注册成功。
+
+## 十一、每日花销守卫(按 IAM 用户限额 + 硬阻断)
+
+解决"每日 token 用量超标"：给每个 IAM 用户设**每日估算花销上限**，超限自动禁用其 Bedrock 调用，次日 0 点自动解除。代码在 `spend_guard/`，router 在 `api/aws_spend_guard_api.py`。
+
+### 为什么不能只用 AWS 原生功能(真实验证)
+
+- **Bedrock 无原生"到 $X 就停"**：官方明确 *"no Stop at $X button"*、*"AWS does not provide native IAM policies to limit Bedrock token consumption"*。
+- **AWS Budgets 不能做每日硬闸**：Budgets Actions 能到阈值自动挂 IAM/SCP Deny，但**周期最细到月**、数据按天更新，做不到"每天重置的硬上限"。
+- **Cost Explorer 无法按 IAM 用户拆成本**：`GetDimensionValues` 无 IAM principal 维度。按 IAM 身份归集成本只在 CUR 2.0 的 `line_item_iam_principal`(走 Athena，延迟约 1h)或给每人建 Application Inference Profile。
+
+### 本方案(唯一能"按人 + 近实时"的路径)
+
+```
+CloudWatch Logs invocation logging (identity.arn + 四类 token)
+        │  按 caller×model 聚合，token × 单价估算(pricing.py)
+        ▼
+每人今日估算花销 > 阈值 ?
+        │ 是
+        ▼
+iam.put_user_policy 给该用户挂 inline Deny "SpendGuardDailyDeny"(禁 bedrock 调用)
+        │  次日北京 00:05 调度器 iam.delete_user_policy 解除
+        ▼
+谁超禁谁，互不影响
+```
+
+- **估算 vs 实付**：守卫用 token×单价的**估算**成本驱动封禁(strict mode，近实时)；真实对账仍以每日报告的 CE 金额为准。估算偏保守(缓存写按高价、未知模型回退最贵 Opus 档)，宁可早封不漏封。
+- **单价表**(`pricing.py`，真实核对 2026-08，USD/1M tokens)：Opus 4.8/5 `5/25/0.5/6.25`、Sonnet 5 `2/10/0.2/2.5`、Sonnet 4.x `3/15/0.3/3.75`、Haiku `1/5/0.1/1.25`(input/output/cacheRead/cacheWrite)。AWS 调价须同步此表。
+- **阻断机制**：固定名 `SpendGuardDailyDeny` 的 inline policy，显式 Deny 立即生效、与用户既有权限正交、只增删自己这条，绝不动其它策略；幂等(已封不重复挂)。
+
+### 命令行
+
+```bash
+cd static/aws_cost_export_func/spend_guard
+
+# 只评估不封禁(试算今日各用户估算花销)
+python -m spend_guard evaluate --dry-run --limit 50 --users cursor-bedrock-user,intern-bedrock
+
+# 评估并封禁超限用户(真实挂 Deny)
+python -m spend_guard evaluate --limit 50 --users cursor-bedrock-user,intern-bedrock
+
+# 查看当前谁被封
+python -m spend_guard status --users cursor-bedrock-user,intern-bedrock
+
+# 手动解除所有 SpendGuard 封禁
+python -m spend_guard release --users cursor-bedrock-user,intern-bedrock
+```
+
+### FastAPI 端点(前缀 `/api`)
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/aws-spend-guard/evaluate` | 立即评估(body: `{date?, dry_run?, wait?}`)；写端点挂 `AWS_SPEND_GUARD_API_KEY` |
+| POST | `/api/aws-spend-guard/release` | 立即解除所有 SpendGuard 封禁 |
+| GET | `/api/aws-spend-guard/status` | 当前封禁名单 + 调度状态 + 最近一次评估/重置 |
+
+调度(仅 `AWS_SPEND_GUARD_ENABLE=True` 时启动)：轮询循环每 `AWS_SPEND_GUARD_POLL_MINUTES`(默认 60)分钟评估一次并按需封禁；重置循环每天北京 `AWS_SPEND_GUARD_RESET_HHMM`(默认 00:05)解除前一日封禁。
+
+### 配置(`utils/settings.py` 的 `AWS_SPEND_GUARD_*`)
+
+| 配置项 | 默认 | 说明 |
+|---|---|---|
+| `AWS_SPEND_GUARD_ENABLE` | `False` | 守卫总开关(默认关，确认阈值/名单后再开) |
+| `AWS_SPEND_GUARD_DAILY_LIMIT_USD` | `50.0` | 每人每日估算花销上限(USD) |
+| `AWS_SPEND_GUARD_ONLY_USERS` | `cursor-bedrock-user,intern-bedrock` | 仅对这些 IAM 用户生效(留空=日志中所有 user) |
+| `AWS_SPEND_GUARD_POLL_MINUTES` | `60` | 当日评估轮询间隔(分钟) |
+| `AWS_SPEND_GUARD_RESET_HHMM` | `00:05` | 次日重置时刻(北京) |
+| `AWS_SPEND_GUARD_API_KEY` | 空 | 写端点 x-api-key；留空=不鉴权 |
+
+> AssumeRole / region / log_group 复用 `AWS_USAGE_REPORT_*`(子账号 Admin 才有 IAM 写权限，用于挂/解 Deny)。
+
+### 验收状态
+
+- ✅ 离线验证(本机真实数据 `2026-08-29`)：单价估算正确(Opus out $25/M 等)；`cursor-bedrock-user` 单日 154 次调用估算 **$23.91**(缓存读 2418 万 token 占大头)；Deny policy JSON 与 ARN 解析正确。
+- ⏳ 碰 AWS 的封禁/解封需在生产服务器(可 AssumeRole)验证：本机走代理无法直连 STS。见下方"生产验证步骤"。
