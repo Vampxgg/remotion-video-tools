@@ -288,6 +288,11 @@ def convert_gcs_to_public_url(gcs_uri: str) -> str:
 # --- Pydantic API 模型 ---
 
 class VeoModelID(str, Enum):
+    # Veo 3.1（当前 GA 推荐，2.0/3.0 已于 2026-06-30 关停，官方指定迁移到 3.1）
+    VEO_3_1_GENERATE = "veo-3.1-generate-001"
+    VEO_3_1_FAST_GENERATE = "veo-3.1-fast-generate-001"
+    VEO_3_1_LITE_GENERATE = "veo-3.1-lite-generate-001"
+    # 以下为已停用端点，保留仅为兼容历史调用与对照测试，不应再作为默认值
     VEO_2_0_GENERATE = "veo-2.0-generate-001"
     VEO_3_0_GENERATE = "veo-3.0-generate-001"
     VEO_3_0_FAST_GENERATE = "veo-3.0-fast-generate-001"
@@ -316,7 +321,7 @@ class GenerateVideoPayload(BaseModel):
     # 根因：use_enum_values=True 不作用于「默认值」，若默认值写成枚举成员，未显式传
     # model_id（如 Dify 调用）时会保持为枚举对象，拼进 Veo endpoint 得到
     # "VeoModelID.XXX" 导致 400 Invalid Endpoint name。默认值直接取 .value。
-    model_id: VeoModelID = Field(VeoModelID.VEO_2_0_GENERATE.value, description="要使用的Veo模型ID。")
+    model_id: VeoModelID = Field(VeoModelID.VEO_3_1_FAST_GENERATE.value, description="要使用的Veo模型ID。默认 veo-3.1-fast-generate-001。")
 
     # 可选参数
     duration_sec: Optional[conint(ge=4, le=8)] = Field(8,
@@ -344,7 +349,7 @@ class BatchGenerateVideoPayload(BaseModel):
 
     # 以下为本批次所有视频共享的参数
     # 默认值取 .value，理由同 GenerateVideoPayload（避免枚举对象拼进 endpoint）。
-    model_id: VeoModelID = Field(VeoModelID.VEO_2_0_GENERATE.value, description="要使用的Veo模型ID。")
+    model_id: VeoModelID = Field(VeoModelID.VEO_3_1_FAST_GENERATE.value, description="要使用的Veo模型ID。默认 veo-3.1-fast-generate-001。")
     duration_sec: Optional[conint(ge=4, le=8)] = Field(8, description="生成视频的时长（秒）。")
     response_count: Optional[conint(ge=1, le=4)] = Field(1, description="每个提示要生成的视频文件数量。")
     aspect_ratio: Optional[AspectRatio] = Field(AspectRatio.LANDSCAPE.value, description="生成视频的宽高比。")
@@ -404,7 +409,7 @@ async def generate_video(payload: GenerateVideoPayload):
                 "personGeneration": payload.person_generation,
                 # 其他可选参数
                 **({"negativePrompt": payload.negative_prompt} if payload.negative_prompt else {}),
-                **({"resolution": payload.resolution} if payload.model_id.startswith("veo-3.0") else {}),
+                **({"resolution": payload.resolution} if payload.model_id.startswith(("veo-3.0", "veo-3.1")) else {}),
                 **({"seed": payload.seed} if payload.seed is not None else {}),
             }
         }
@@ -529,7 +534,7 @@ async def generate_videos_batch(payload: BatchGenerateVideoPayload):
                 "aspectRatio": payload.aspect_ratio,
                 "personGeneration": payload.person_generation,
                 **({"negativePrompt": payload.negative_prompt} if payload.negative_prompt else {}),
-                **({"resolution": payload.resolution} if payload.model_id.startswith("veo-3.0") else {}),
+                **({"resolution": payload.resolution} if payload.model_id.startswith(("veo-3.0", "veo-3.1")) else {}),
                 **({"seed": payload.seed} if payload.seed is not None else {}),
             }
         }

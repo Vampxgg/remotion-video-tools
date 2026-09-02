@@ -357,7 +357,9 @@ def _main(argv: Optional[list[str]] = None) -> int:
 
     p = argparse.ArgumentParser(description="Bedrock 每日花销守卫(按 IAM 用户估算+硬阻断)。")
     p.add_argument("cmd", choices=["evaluate", "release", "status"])
-    p.add_argument("date", nargs="?", help="评估日期 YYYY-MM-DD(北京日)，默认今天")
+    p.add_argument("date", nargs="?", help="评估日期 YYYY-MM-DD(北京日)，默认今天(等价 --date)")
+    p.add_argument("--date", dest="date_opt", default=None,
+                   help="评估日期 YYYY-MM-DD(北京日)；与位置参数二选一，避免和 --users 混排歧义")
     p.add_argument("--limit", type=float,
                    default=float(os.environ.get("AWS_SPEND_GUARD_DAILY_LIMIT_USD", "50")))
     p.add_argument("--users", default=os.environ.get("AWS_SPEND_GUARD_ONLY_USERS", ""),
@@ -385,7 +387,8 @@ def _main(argv: Optional[list[str]] = None) -> int:
     }
 
     if args.cmd == "evaluate":
-        res = evaluate(cfg, args.date, dry_run=args.dry_run)
+        eval_date = args.date_opt or args.date  # --date 优先，其次位置参数，都空=今天
+        res = evaluate(cfg, eval_date, dry_run=args.dry_run)
     elif args.cmd == "release":
         res = release_all(cfg)
     else:
