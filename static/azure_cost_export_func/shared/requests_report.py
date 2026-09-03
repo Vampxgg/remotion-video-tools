@@ -84,6 +84,8 @@ union isfuzzy=true AzureDiagnostics
     DurationMs = column_ifexists("DurationMs", real(null)),
     ResultSignature = column_ifexists("ResultSignature", ""),
     CallerIPAddress = column_ifexists("CallerIPAddress", ""),
+    CorrelationId = column_ifexists("CorrelationId", ""),
+    ItemId = column_ifexists("_ItemId", ""),
     apiName = tostring(props.apiName),
     modelDeploymentName = tostring(props.modelDeploymentName),
     modelName = tostring(props.modelName),
@@ -95,6 +97,13 @@ union isfuzzy=true AzureDiagnostics
     generatedTokens = tolong(props.generatedTokens[0]),
     timeToFirstTokenMs = todouble(props.timeToFirstTokenMs)
 | extend totalTokens = coalesce(promptTokens, tolong(0)) + coalesce(generatedTokens, tolong(0))
+// 双写去重(Azure 2026-08-29 起对 create-response 每请求落两条 RequestResponse:
+// 一条真实 + 一条空壳 DurationMs=0/字节0/token0，共享同一 CorrelationId)。
+// 每个 (Category, CorrelationId) 只保留 DurationMs 最大的真实那条;空 CorrelationId
+// 或 AzureOpenAIRequestUsage 用 ItemId 兜底成唯一 key，逐条保留不被误合并。
+| extend dedupKey = strcat(Category, "|", iif(isempty(CorrelationId), ItemId, CorrelationId))
+| summarize arg_max(DurationMs, *) by dedupKey
+| project-away dedupKey, ItemId
 | order by TimeGenerated asc
 """
 

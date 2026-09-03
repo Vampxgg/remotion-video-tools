@@ -298,6 +298,55 @@ def _beijing_hour(time_beijing: str | None, time_utc: str | None) -> str | None:
     return None
 
 
+def _is_double_write_shell(r: dict) -> bool:
+    """判断一行是否为 Azure 双写产生的"空壳"RequestResponse 记录。
+
+    Azure 平台自 2026-08-29 起对 create-response(responses API)每个请求落两条
+    RequestResponse：一条真实(带 IP、DurationMs>0、字节/token 齐全)，一条空壳
+    (CallerIPAddress 空、DurationMs=0、requestLength/responseLength 全 0)，二者
+    共享同一 CorrelationId。空壳若不剔除会被误当成一个占约一半流量的 (unknown)
+    调用方，并把成本按次数错误分摊给它。
+
+    只有同时满足"空 IP + 零延迟 + 请求/响应字节皆 0"才判为空壳；真实请求即使
+    是流式(requestLength 可能为 0)也一定有 DurationMs>0，故此判据不会误伤。
+    """
+    if r.get("Category") != "RequestResponse":
+        return False
+    ip = (r.get("CallerIPAddress") or "").strip()
+    dur = r.get("DurationMs") or 0
+    reqb = r.get("requestLength") or 0
+    respb = r.get("responseLength") or 0
+    return not ip and not dur and not reqb and not respb
+
+
+def _dedup_double_write(rows: list[dict]) -> list[dict]:
+    """剔除 Azure 双写空壳记录，使 NDJSON 回归"每请求一条"口径。
+
+    两级策略，对历史(无 CorrelationId)与新导出(带 CorrelationId)文件都正确且幂等：
+    1. 硬过滤空壳：丢弃 _is_double_write_shell 命中的行(历史双写文件靠此清理)。
+    2. 若行带 CorrelationId：同一 RequestResponse 的 CorrelationId 仅保留 DurationMs
+       最大的一条，兜底极少数"两条都 DurationMs>0"的重复。
+
+    对正常单写日(无空壳、CorrelationId 唯一)不改变任何结果。
+    """
+    kept: list[dict] = []
+    best_by_corr: dict[str, int] = {}  # CorrelationId -> kept 列表下标
+    for r in rows:
+        if _is_double_write_shell(r):
+            continue
+        corr = r.get("CorrelationId")
+        if r.get("Category") == "RequestResponse" and corr:
+            prev = best_by_corr.get(corr)
+            if prev is None:
+                best_by_corr[corr] = len(kept)
+                kept.append(r)
+            elif (r.get("DurationMs") or 0) > (kept[prev].get("DurationMs") or 0):
+                kept[prev] = r
+        else:
+            kept.append(r)
+    return kept
+
+
 def parse_requests(path: str) -> ParsedRequests:
     """解析 requests NDJSON(Log Analytics)：逐请求延迟/字节/状态码/流式类型/调用方 IP。
 
@@ -334,62 +383,68 @@ def parse_requests(path: str) -> ParsedRequests:
     row_count = 0
 
     with open(path, "r", encoding="utf-8-sig") as f:
+        raw_rows: list[dict] = []
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            row_count += 1
             try:
-                r = json.loads(line)
+                raw_rows.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
-            if r.get("Category") != "RequestResponse":
-                continue
 
-            grand_calls += 1
-            model = r.get("modelDeploymentName") or r.get("modelName") or "(unknown)"
-            status = str(r.get("ResultSignature") or "-")
-            status_calls[status] += 1
-            dur = r.get("DurationMs")
-            if dur is not None:
-                model_dur_sum[model] += float(dur)
-                model_dur_calls[model] += 1
-                durations.append(float(dur))
+    # 双写去重：剔除 Azure 2026-08-29 起产生的空壳 RequestResponse 记录，回归
+    # "每请求一条"。对已在 KQL 侧去重的新文件与正常单写日均幂等。
+    rows_dedup = _dedup_double_write(raw_rows)
+    for r in rows_dedup:
+        row_count += 1
+        if r.get("Category") != "RequestResponse":
+            continue
 
-            ip = (r.get("CallerIPAddress") or "(unknown)").strip() or "(unknown)"
-            proj = normalize_project(r.get("Resource", ""))
-            ip_calls[ip] += 1
-            ip_projects[ip][proj] += 1
-            ip_models[ip][model] += 1
-            ip_status[ip][status] += 1
-            ip_model_project_calls[ip][model][proj] += 1
-            model_project_calls_log[model][proj] += 1
-            if dur is not None:
-                ip_dur_sum[ip] += float(dur)
-                ip_dur_calls[ip] += 1
+        grand_calls += 1
+        model = r.get("modelDeploymentName") or r.get("modelName") or "(unknown)"
+        status = str(r.get("ResultSignature") or "-")
+        status_calls[status] += 1
+        dur = r.get("DurationMs")
+        if dur is not None:
+            model_dur_sum[model] += float(dur)
+            model_dur_calls[model] += 1
+            durations.append(float(dur))
 
-            operation_calls[r.get("OperationName") or "(unknown)"] += 1
+        ip = (r.get("CallerIPAddress") or "(unknown)").strip() or "(unknown)"
+        proj = normalize_project(r.get("Resource", ""))
+        ip_calls[ip] += 1
+        ip_projects[ip][proj] += 1
+        ip_models[ip][model] += 1
+        ip_status[ip][status] += 1
+        ip_model_project_calls[ip][model][proj] += 1
+        model_project_calls_log[model][proj] += 1
+        if dur is not None:
+            ip_dur_sum[ip] += float(dur)
+            ip_dur_calls[ip] += 1
 
-            # 北京小时分桶：优先用日志里已给的 TimeBeijing(带 +08:00)，否则从 UTC 换算。
-            hour = _beijing_hour(r.get("TimeBeijing"), r.get("TimeGenerated"))
-            if hour is not None:
-                hour_calls[hour] += 1
-                is_err = not status.startswith("2")
-                if is_err:
-                    hour_errors[hour] += 1
-                    error_by_hour[status][hour] += 1
-            if not status.startswith("2"):
-                error_by_model[status][model] += 1
-                error_by_ip[status][ip] += 1
+        operation_calls[r.get("OperationName") or "(unknown)"] += 1
 
-            reqb = int(r.get("requestLength") or 0)
-            respb = int(r.get("responseLength") or 0)
-            grand_reqbytes += reqb
-            grand_respbytes += respb
-            st = r.get("streamType") or "(unknown)"
-            stream_calls[st] += 1
-            stream_reqbytes[st] += reqb
-            stream_respbytes[st] += respb
+        # 北京小时分桶：优先用日志里已给的 TimeBeijing(带 +08:00)，否则从 UTC 换算。
+        hour = _beijing_hour(r.get("TimeBeijing"), r.get("TimeGenerated"))
+        if hour is not None:
+            hour_calls[hour] += 1
+            is_err = not status.startswith("2")
+            if is_err:
+                hour_errors[hour] += 1
+                error_by_hour[status][hour] += 1
+        if not status.startswith("2"):
+            error_by_model[status][model] += 1
+            error_by_ip[status][ip] += 1
+
+        reqb = int(r.get("requestLength") or 0)
+        respb = int(r.get("responseLength") or 0)
+        grand_reqbytes += reqb
+        grand_respbytes += respb
+        st = r.get("streamType") or "(unknown)"
+        stream_calls[st] += 1
+        stream_reqbytes[st] += reqb
+        stream_respbytes[st] += respb
 
     return ParsedRequests(
         row_count=row_count,

@@ -99,3 +99,16 @@ requests-*-CST.ndjson
 *.jsonl
 _baseline_out/
 dist_describe/
+
+README.md
+_cmp_parse.py
+_probe_dify_db.py
+bedrock_audit_2026-08-28.csv
+ceshi/bench_file_understand.py
+ceshi/ceshi1.md
+data.py
+gen_sim_topics_xlsx.py
+region_job_market_scan (3).yml
+report/
+static/aws_cost_export_func/_data/
+azure_cost_export_func/

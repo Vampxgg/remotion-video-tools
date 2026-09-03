@@ -438,12 +438,26 @@ class GeminiLiveSettings(_Base):
 
 
 class CreVideoSettings(_Base):
-    """对应 api/cre_video.py"""
+    """对应 api/cre_video.py（Veo）与 api/cre_video_omni.py（Gemini Omni Flash）。
+
+    Omni 走 Vertex/Gemini Enterprise Agent Platform 的 Interactions API，与 Veo 端点、
+    请求体、轮询方式均不同，但复用同一多项目池与 GCS 桶，故配置合并在此类。
+    """
     CRE_VIDEO_GCS_OUTPUT_URI: str = "gs://x-pilot-storage/veo_video/"
     CRE_VIDEO_POLLING_INTERVAL_SEC: int = 10
     CRE_VIDEO_POLLING_TIMEOUT_SEC: int = 180
     CRE_VIDEO_HTTPX_TIMEOUT: float = 15.0
     CRE_VIDEO_HTTPX_CONNECT_TIMEOUT: float = 5.0
+
+    # ── Omni（Interactions API）专用 ──
+    # 视频输出 GCS 目录（delivery=uri 时落此桶；与 Veo 分开便于区分来源）。
+    CRE_OMNI_GCS_OUTPUT_URI: str = "gs://x-pilot-storage/omni_video/"
+    # Omni 视频生成较慢（官方称可能 >1min），且 background 轮询要跨多轮编辑，超时给足。
+    CRE_OMNI_POLLING_INTERVAL_SEC: int = 10
+    CRE_OMNI_POLLING_TIMEOUT_SEC: int = 600
+    # 提交/轮询的 httpx 超时（整体读超时给大，避免同步等待被过早切断）。
+    CRE_OMNI_HTTPX_TIMEOUT: float = 60.0
+    CRE_OMNI_HTTPX_CONNECT_TIMEOUT: float = 5.0
 
 
 class FenbiSettings(_Base):
