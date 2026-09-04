@@ -149,28 +149,28 @@ foreach ($worker in @($workers)) {
     $profileDir = Join-Path $ProfileRoot $profileId
     New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 
-    $proxyId = if ($ProxyId) { $ProxyId } else { $worker.proxy_id }
-    if (-not $proxyId -and $proxyPool.Count -gt 0) {
+    $selectedProxyId = if ($ProxyId) { $ProxyId } else { $worker.proxy_id }
+    if (-not $selectedProxyId -and $proxyPool.Count -gt 0) {
         while ($availableProxyIds.Count -gt 0 -and $usedProxyIds.ContainsKey($availableProxyIds.Peek())) {
             [void]$availableProxyIds.Dequeue()
         }
         if ($availableProxyIds.Count -eq 0) {
             throw "No available proxy left for worker=$($worker.worker_id)."
         }
-        $proxyId = $availableProxyIds.Dequeue()
+        $selectedProxyId = $availableProxyIds.Dequeue()
     }
 
     $chromeProxyServer = $worker.chrome_proxy_server
-    if ($proxyId) {
-        if (-not $proxyById.ContainsKey($proxyId)) {
-            throw "worker=$($worker.worker_id) references missing proxy_id=$proxyId."
+    if ($selectedProxyId) {
+        if (-not $proxyById.ContainsKey($selectedProxyId)) {
+            throw "worker=$($worker.worker_id) references missing proxy_id=$selectedProxyId."
         }
-        $usedProxyIds[$proxyId] = $true
+        $usedProxyIds[$selectedProxyId] = $true
         if (-not $chromeProxyServer) {
-            $chromeProxyServer = $proxyById[$proxyId].chrome_proxy_server
+            $chromeProxyServer = $proxyById[$selectedProxyId].chrome_proxy_server
         }
         if (-not $chromeProxyServer) {
-            throw "worker=$($worker.worker_id) proxy_id=$proxyId missing chrome_proxy_server."
+            throw "worker=$($worker.worker_id) proxy_id=$selectedProxyId missing chrome_proxy_server."
         }
     }
 
@@ -185,7 +185,7 @@ foreach ($worker in @($workers)) {
         $args += "--proxy-server=$chromeProxyServer"
     }
 
-    Write-Host "BOSS worker $($worker.worker_id) port=$($worker.browser_host_port) profile=$profileId proxy_id=$proxyId proxy=$([bool]$chromeProxyServer)"
+    Write-Host "BOSS worker $($worker.worker_id) port=$($worker.browser_host_port) profile=$profileId proxy_id=$selectedProxyId proxy=$([bool]$chromeProxyServer)"
     if ($DryRun) {
         Write-Host "DRY RUN: $chrome $($args -join ' ')"
     } else {
@@ -195,7 +195,7 @@ foreach ($worker in @($workers)) {
             pid = $process.Id
             browser_host_port = $worker.browser_host_port
             profile_id = $profileId
-            proxy_id = $proxyId
+            proxy_id = $selectedProxyId
             chrome_proxy_server = $chromeProxyServer
             started_at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
         }
