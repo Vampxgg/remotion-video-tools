@@ -13,7 +13,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -504,6 +504,8 @@ class JobSearchSettings(_Base):
     JOB_SEARCH_MAX_COMBINATIONS: int = 20
     JOB_SEARCH_MAX_PAGE_SIZE: int = 5
     JOB_SEARCH_SCRAPE_TIMEOUT_SEC: float = 300.0
+    # 智联旧 v1 接口（api/job_search.py）详情 HTTP 并发；V2 区域岗位链路使用
+    # JOB_SEARCH_V2_HTTP_CONCURRENCY，勿把这里的 8 误认为 V2 瓶颈。
     JOB_SEARCH_DETAIL_HTTP_CONCURRENCY: int = 8
     JOB_SEARCH_DETAIL_HTTP_TIMEOUT: float = 10.0
     JOB_SEARCH_ADMIN_EMAIL: str = "1561958968@qq.com"
@@ -527,7 +529,7 @@ class JobSearchV2Settings(_Base):
     JOB_SEARCH_V2_DIRECT_ENABLED: bool = True
     JOB_SEARCH_V2_BROWSER_FALLBACK_ENABLED: bool = True
     JOB_SEARCH_V2_LIST_PAGE_SIZE: int = 20
-    JOB_SEARCH_V2_HTTP_CONCURRENCY: int = 8
+    JOB_SEARCH_V2_HTTP_CONCURRENCY: int = 30
     JOB_SEARCH_V2_HTTP_TIMEOUT: float = 10.0
     JOB_SEARCH_V2_TASK_TTL_SECONDS: int = 1800
     JOB_SEARCH_V2_MAX_COMBINATIONS: int = 50
@@ -782,6 +784,46 @@ class BossZhipinSettings(_Base):
     """对应 api/boss_zhipin.py + services/boss_zhipin_client.py。"""
     BOSS_ZHIPIN_API_KEY: Optional[str] = None
     BOSS_ZHIPIN_BROWSER_HOST_PORT: str = "127.0.0.1:9527"
+    # 多账号 / 多 Chrome profile worker 池。为空时沿用历史单 worker。
+    # 示例：
+    # [
+    #   {
+    #     "worker_id": "boss-a",
+    #     "browser_host_port": "127.0.0.1:9527",
+    #     "profile_id": "account-a",
+    #     "proxy_url": "http://127.0.0.1:7890",
+    #     "per_worker_concurrency": 1
+    #   }
+    # ]
+    BOSS_ZHIPIN_WORKERS: List[Dict[str, Any]] = []
+    # 大规模 worker 配置文件；配置后优先于 BOSS_ZHIPIN_WORKERS。
+    BOSS_ZHIPIN_WORKERS_FILE: Optional[str] = None
+    # BOSS worker 本地代理端口池。注意：这里配置的是本地可消费 HTTP/SOCKS 出口，
+    # 不是 VLESS/Clash 节点本身；VLESS 节点应先由 Clash/mihomo 暴露成本地端口。
+    BOSS_ZHIPIN_PROXY_POOL: List[Dict[str, Any]] = []
+    # 大规模代理库存配置文件；配置后优先于 BOSS_ZHIPIN_PROXY_POOL。
+    BOSS_ZHIPIN_PROXY_POOL_FILE: Optional[str] = None
+    # 可选健康检查 URL；为空则不在启动时探测代理，避免服务启动被外部网络拖慢。
+    BOSS_ZHIPIN_PROXY_HEALTHCHECK_URL: str = ""
+    BOSS_ZHIPIN_PROXY_HEALTHCHECK_TIMEOUT_SEC: float = 8.0
+    BOSS_ZHIPIN_PROXY_COOLDOWN_MINUTES: int = 120
+    BOSS_ZHIPIN_PROXY_SELECTION_STRATEGY: str = "ordered"
+    BOSS_ZHIPIN_PROXY_RECENT_AVOID_COUNT: int = 0
+    # 主 API 多 worker 模式下，BOSS 采集应由单进程 BOSS 服务统一调度；
+    # 主 API 通过该内部地址代理 BOSS 请求，避免多个进程争抢同一批 Chrome profile。
+    BOSS_SERVICE_URL: str = "http://127.0.0.1:2926"
+    BOSS_SERVICE_API_KEY: Optional[str] = None
+    BOSS_PROXY_TIMEOUT_SEC: float = 95.0
+    # 访问受限后是否尝试重启单个 Chrome worker 并重新分配代理。
+    BOSS_ZHIPIN_RECOVER_WORKERS_ON_ACCESS_LIMIT: bool = False
+    # 是否允许后端进程直接管理本机 Chrome worker 进程。
+    BOSS_ZHIPIN_MANAGE_CHROME_WORKERS: bool = False
+    BOSS_ZHIPIN_CHROME_RECOVERY_COOLDOWN_MINUTES: int = 5
+    BOSS_ZHIPIN_LOGIN_REQUIRED_COOLDOWN_MINUTES: int = 0
+    BOSS_ZHIPIN_CHROME_PATH: Optional[str] = None
+    BOSS_ZHIPIN_CHROME_PROFILE_ROOT: str = "runtime/chrome-profiles"
+    BOSS_ZHIPIN_WORKER_STATE_ROOT: str = "runtime/boss-workers"
+    BOSS_ZHIPIN_WORKER_DEVTOOLS_TIMEOUT_SEC: float = 10.0
     BOSS_ZHIPIN_MAX_COMBINATIONS: int = 10
     BOSS_ZHIPIN_MAX_PAGES: int = 3
     BOSS_ZHIPIN_MAX_ITEMS_PER_QUERY: int = 100

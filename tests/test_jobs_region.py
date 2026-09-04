@@ -195,7 +195,13 @@ def test_boss_cooling_skips_client(client, monkeypatch):
 
 
 def test_boss_access_limited_non_retry(client, monkeypatch):
-    fake_boss = _FakeBossClient(raises=BossAccessLimitedError("访问受限", retry_after_seconds=1800))
+    fake_boss = _FakeBossClient(
+        raises=BossAccessLimitedError(
+            "访问受限",
+            retry_after_seconds=1800,
+            worker_status={"boss-a": {"state": "cooldown", "in_flight": 0}},
+        )
+    )
     monkeypatch.setattr(jobs_region, "_boss_client", fake_boss)
     monkeypatch.setattr(jobs_region, "get_zhilian_client", lambda: _FakeZhilianClient(jobs=[_zhilian_job()]))
 
@@ -207,6 +213,7 @@ def test_boss_access_limited_non_retry(client, monkeypatch):
     assert status["error_code"] == "boss_access_limited"
     assert status["retryable"] is False
     assert status["retry_after_seconds"] is not None
+    assert status["worker_status"]["boss-a"]["state"] == "cooldown"
     # 熔断器已开启
     is_open, _, _, _ = jobs_region._boss_circuit.state()
     assert is_open is True
@@ -335,6 +342,70 @@ def test_boss_default_start_page_is_one(client, monkeypatch):
     assert resp.status_code == 200
     args, _kwargs = fake_boss.calls[0]
     assert args[6] == 1
+
+
+def test_boss_worker_metadata_exposed_compatibly(client, monkeypatch):
+    """BOSS worker pool metadata 作为 source_status 扩展字段透出，不破坏旧字段。"""
+
+    class _WorkerMetaBoss:
+        def __init__(self):
+            self.calls = []
+
+        async def scrape_many(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+            return {
+                "summary": {
+                    "combinations": 1,
+                    "pages_fetched": 1,
+                    "total_jobs": 1,
+                    "worker_id": "boss-a",
+                    "worker_status": {
+                        "boss-a": {
+                            "state": "healthy",
+                            "in_flight": 0,
+                            "proxy_id": "boss-proxy-a",
+                            "proxy_state": "leased",
+                            "local_proxy_url_masked": "http://user:***@127.0.0.1:18081",
+                        },
+                    },
+                },
+                "jobs": [_boss_job()],
+                "warnings": [],
+            }
+
+    monkeypatch.setattr(jobs_region, "_boss_client", _WorkerMetaBoss())
+
+    resp = client.post("/api/jobs/region-search", json=_payload(sources=["boss_zhipin"]))
+
+    assert resp.status_code == 200
+    status = resp.json()["data"]["source_status"]["boss_zhipin"]
+    assert status["ok"] is True
+    assert status["worker_id"] == "boss-a"
+    assert status["worker_status"]["boss-a"]["state"] == "healthy"
+    assert status["worker_status"]["boss-a"]["proxy_id"] == "boss-proxy-a"
+    assert status["worker_status"]["boss-a"]["proxy_state"] == "leased"
+    assert "secret" not in status["worker_status"]["boss-a"]["local_proxy_url_masked"]
+    assert set(["ok", "error", "warnings"]).issubset(status.keys())
+
+
+def test_boss_generic_error_exposes_worker_status(client, monkeypatch):
+    """BOSS 通用异常也要带 worker_status，便于灰度定位是哪一个 worker 异常。"""
+
+    class _ErrorBoss:
+        async def scrape_many(self, *args, **kwargs):
+            raise RuntimeError("浏览器异常")
+
+        def worker_status(self):
+            return {"boss-a": {"state": "healthy", "in_flight": 0}}
+
+    monkeypatch.setattr(jobs_region, "_boss_client", _ErrorBoss())
+
+    resp = client.post("/api/jobs/region-search", json=_payload(sources=["boss_zhipin"]))
+
+    assert resp.status_code == 503
+    status = resp.json()["data"]["source_status"]["boss_zhipin"]
+    assert status["error_code"] == "boss_error"
+    assert status["worker_status"]["boss-a"]["state"] == "healthy"
 
 
 def test_on_source_error_fail_returns_non_retry_code(client, monkeypatch):

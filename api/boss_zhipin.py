@@ -3,7 +3,7 @@
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
@@ -16,7 +16,15 @@ from utils.settings import settings as _settings
 logger = setup_module_logger(__name__, "logs/jobs/boss_zhipin.log")
 
 router = APIRouter()
-_client = get_boss_client()
+_client: Optional[Any] = None
+
+
+def _get_client():
+    """惰性初始化 BOSS client，避免主服务多 worker 在 import 阶段抢 Chrome/proxy。"""
+    global _client
+    if _client is None:
+        _client = get_boss_client()
+    return _client
 
 
 @asynccontextmanager
@@ -25,10 +33,11 @@ async def lifespan_resources(app):
     try:
         yield
     finally:
-        try:
-            await _client.shutdown()
-        except Exception as exc:
-            logger.warning(f"BOSS 客户端关闭异常: {exc}")
+        if _client is not None:
+            try:
+                await _client.shutdown()
+            except Exception as exc:
+                logger.warning(f"BOSS 客户端关闭异常: {exc}")
 
 
 async def require_api_key(x_api_key: Optional[str] = Header(None)) -> None:
@@ -162,8 +171,9 @@ async def _run_boss_search(
     )
 
     try:
+        client = _get_client()
         data = await asyncio.wait_for(
-            _client.scrape_many(
+            client.scrape_many(
                 keywords,
                 city_codes,
                 max_pages,

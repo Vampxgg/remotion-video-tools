@@ -287,7 +287,17 @@ POST /api/jobs/region-search
       "region_code": 101280600,
       "detail_level_applied": "summary",
       "error": null,
-      "warnings": []
+      "warnings": [],
+      "worker_id": "boss-a",
+      "worker_status": {
+        "boss-a": {
+          "state": "healthy",
+          "in_flight": 0,
+          "proxy_id": "boss-proxy-a",
+          "proxy_state": "leased",
+          "local_proxy_url_masked": "http://user:***@127.0.0.1:18081"
+        }
+      }
     }
   },
   "jobs": []
@@ -319,6 +329,8 @@ POST /api/jobs/region-search
 | `detail_level_applied` | 该来源应用的数据深度 |
 | `error` | 错误信息，成功时为 `null` |
 | `warnings` | 非致命警告 |
+| `worker_id` | BOSS 多 worker 模式下本次采集使用的 worker；其他来源为 `null` |
+| `worker_status` | BOSS 多 worker 模式下的 worker 健康/冷却与代理快照；代理 URL 只返回脱敏后的 `local_proxy_url_masked`，其他来源为 `null` |
 
 ## 5. `jobs[]` 统一职位字段
 
@@ -598,6 +610,9 @@ curl -X POST "http://127.0.0.1:2906/api/jobs/region-search" \
 - 服务端会通过智联城市接口解析 cityId。
 - 智联列表接口可返回职位编号、公司、薪资、经验、学历、技能等字段。
 - `detail_level=summary` 不补拉职位详情；智联详情只在 `detail_level=description` 时通过职位编号补取。
+- 智联详情抓取并发由 `JOB_SEARCH_V2_HTTP_CONCURRENCY` 控制；当 `data_server` 将
+  `ZHILIAN_UNIT_MAX_UNITS_PER_RUN` 提到 30 时，本服务也应配置
+  `JOB_SEARCH_V2_HTTP_CONCURRENCY=30`，否则上层 30 个 unit 会在详情 HTTP 信号量处排队。
 
 ### 9.2 BOSS 直聘
 
@@ -607,6 +622,150 @@ curl -X POST "http://127.0.0.1:2906/api/jobs/region-search" \
 - 当 `detail_level=description` 时，服务端会逐条打开详情页提取 `.job-sec-text`。
 - BOSS 依赖已登录 Chrome 调试端口和页面正常加载。
 - 遇到登录失效、验证码、环境异常、空响应或风控时，该来源可能失败；错误信息会包含关键词、城市编码、页码和响应摘要。
+- 单 Chrome profile 模式下，`BOSS_ZHIPIN_MAX_CONCURRENCY` 只允许 1 或 2；需要更高总并发时，应配置 `BOSS_ZHIPIN_WORKERS`，用多个独立账号 / Chrome profile / 调试端口 / 稳定代理出口组成 worker 池。
+- 推荐使用 `BOSS_ZHIPIN_PROXY_POOL` + worker `proxy_id` 做稳定租约。代理池配置的是本地可消费 HTTP/SOCKS 端口，例如 `http://127.0.0.1:18081`，不是 VLESS/CF 优选入口 IP；VLESS/Clash 节点必须先由 Clash/mihomo 或认证转发器暴露为本地端口。
+- Chrome 启动时必须使用与 worker `local_proxy_url` 对应的 `chrome_proxy_server`，例如 `--proxy-server="http=127.0.0.1:18081;https=127.0.0.1:18081"`。只给 httpx 配 `proxy_url` 而 Chrome 不走同出口，会导致 Chrome 铸造的 `__zp_stoken__` 与 API 请求出口不一致。
+- 旧式 worker `proxy_url` 仍兼容，但它只作用于 httpx；使用旧式配置时需手工确认 Chrome 进程同出口。
+- 多 worker 模式下，单 worker 风控会同步冷却对应代理；全部 worker 冷却时，BOSS 来源才整体不可用。
+
+代理池配置示例：
+
+```env
+BOSS_ZHIPIN_PROXY_POOL=[{"proxy_id":"boss-proxy-a","local_proxy_url":"http://127.0.0.1:18081","chrome_proxy_server":"http=127.0.0.1:18081;https=127.0.0.1:18081","upstream_label":"CF官方优选1"},{"proxy_id":"boss-proxy-b","local_proxy_url":"http://127.0.0.1:18082","chrome_proxy_server":"http=127.0.0.1:18082;https=127.0.0.1:18082","upstream_label":"CF官方优选2"}]
+BOSS_ZHIPIN_WORKERS=[{"worker_id":"boss-a","browser_host_port":"127.0.0.1:9527","profile_id":"account-a","proxy_id":"boss-proxy-a","per_worker_concurrency":1},{"worker_id":"boss-b","browser_host_port":"127.0.0.1:9528","profile_id":"account-b","proxy_id":"boss-proxy-b","per_worker_concurrency":1}]
+```
+
+100+ 代理库存不要继续塞 `.env` 单行 JSON，推荐改成文件：
+
+```env
+BOSS_ZHIPIN_PROXY_POOL_FILE=secrets/boss-proxy-pool.json
+BOSS_ZHIPIN_WORKERS_FILE=secrets/boss-workers.json
+BOSS_ZHIPIN_PROXY_SELECTION_STRATEGY=random
+BOSS_ZHIPIN_PROXY_COOLDOWN_MINUTES=120
+```
+
+`boss-proxy-pool.json` 维护代理库存：
+
+```json
+[
+  {
+    "proxy_id": "boss-proxy-001",
+    "enabled": true,
+    "kind": "local_http",
+    "group": "cf-vless",
+    "local_proxy_url": "http://127.0.0.1:18081",
+    "chrome_proxy_server": "http=127.0.0.1:18081;https=127.0.0.1:18081",
+    "upstream_label": "CF官方优选1"
+  }
+]
+```
+
+`boss-workers.json` 只维护当前启用的账号 worker：
+
+```json
+[
+  {
+    "worker_id": "boss-a",
+    "browser_host_port": "127.0.0.1:9527",
+    "profile_id": "account-a",
+    "proxy_id": "boss-proxy-001",
+    "per_worker_concurrency": 1
+  }
+]
+```
+
+`profile_id` 应保持稳定，用于复用已登录 Chrome profile。复用已登录浏览器时建议保留
+初始 `proxy_id`，确保 Chrome 铸造 `__zp_stoken__` 的出口和 httpx 请求出口一致。
+`BOSS_ZHIPIN_PROXY_SELECTION_STRATEGY` 当前支持 `ordered`、`random`、`round_robin`，
+主要用于异常恢复时重新分配代理。
+
+`proxy_id` 是内部稳定标识，建议按 `boss-proxy-001` 递增命名；100 个代理是库存，不代表要开 100 个 Chrome worker。普通全局 VPN 只能改变整机出口，不能提供多 worker 独立出口，还可能让 Chrome/httpx 出口不一致。
+
+上游 Clash/mihomo 应固定端口到固定节点，例如 `127.0.0.1:18081 -> CF官方优选1`、`127.0.0.1:18082 -> CF官方优选2`。`7890 AUTO` 只能证明可访问，不能提供多 worker 出口隔离。
+
+BOSS 专用 mihomo 推荐放在 `static/proxy/mihomo-boss/`，由生成脚本把一份 Clash/Mihomo YAML 展开为固定端口：
+
+```powershell
+python scripts/generate_boss_proxy_pool.py `
+  --source-yaml static/proxy/mihomo-boss/config.yaml `
+  --mihomo-config static/proxy/mihomo-boss/config.yaml `
+  --proxy-pool secrets/boss-proxy-pool.json `
+  --start-port 18081
+```
+
+生成规则是 `boss-proxy-001 -> 127.0.0.1:18081`、`boss-proxy-002 -> 127.0.0.1:18082`，依次递增。以后更换 100+ 节点时，只需先替换 `source-yaml`，再运行生成脚本；worker 文件只维护“当前启用哪些账号绑定哪些 proxy_id”。
+
+如果普通 CFW 开启 TUN，必须确认 BOSS 专用节点的 `server` IP 不被 CFW 再代理，否则会形成 `mihomo-boss -> CFW -> 代理节点` 的套代理。生产环境建议把 BOSS 专用 CF 节点与普通 CFW 节点分池，并让 CFW 对这些 BOSS 节点 server IP 走 `DIRECT`，或在采集机关闭 CFW TUN。
+
+可用 `scripts/start_boss_workers.ps1` 按 `.env` 中的 `BOSS_ZHIPIN_WORKERS` 与 `BOSS_ZHIPIN_PROXY_POOL` 启动本机 Chrome：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start_boss_mihomo.ps1
+powershell -ExecutionPolicy Bypass -File scripts/start_boss_workers.ps1 -EnvFile .env
+powershell -ExecutionPolicy Bypass -File scripts/start_boss_workers.ps1 -WorkersFile secrets/boss-workers.json -ProxyFile secrets/boss-proxy-pool.json -DryRun
+powershell -ExecutionPolicy Bypass -File scripts/start_boss_workers.ps1 -WorkersFile secrets/boss-workers.json -ProxyFile secrets/boss-proxy-pool.json -WorkerId boss-b -ProxyId boss-proxy-004 -DryRun
+powershell -ExecutionPolicy Bypass -File scripts/restart_boss_worker.ps1 -WorkerId boss-b -ProxyId boss-proxy-004 -WorkersFile secrets/boss-workers.json -ProxyFile secrets/boss-proxy-pool.json
+python scripts/check_boss_proxy_pool.py --proxy-file secrets/boss-proxy-pool.json --workers-file secrets/boss-workers.json
+```
+
+首次启动后需分别登录每个 worker 对应的 Chrome profile。
+
+#### 9.2.1 主服务 4 worker + BOSS 单进程服务
+
+BOSS 采集依赖已登录 Chrome profile、远程调试端口、稳定代理出口和进程内 worker
+状态（冷却、自愈、in-flight 计数）。这些状态不能由多个 Uvicorn worker 进程重复管理。
+
+生产部署需要主 API 使用 4 个 worker 时，推荐拆成两个服务：
+
+```powershell
+# 1) 启动 BOSS 专用 mihomo 固定端口代理
+powershell -ExecutionPolicy Bypass -File scripts/start_boss_mihomo.ps1
+
+# 2) 启动多个已登录 Chrome worker（一个账号/profile/端口/代理对应一个 worker）
+powershell -ExecutionPolicy Bypass -File scripts/start_boss_workers.ps1 -EnvFile .env
+
+# 3) 启动 BOSS 单进程服务；它内部仍可调度 boss-a/b/c 等多个账号
+uvicorn boss_server:app --host 127.0.0.1 --port 2926 --workers 1
+
+# 4) 启动主 API 服务；BOSS 路由会代理到 BOSS_SERVICE_URL
+uvicorn main:app --host 0.0.0.0 --port 2906 --workers 4
+```
+
+主服务侧配置：
+
+```env
+BOSS_SERVICE_URL=http://127.0.0.1:2926
+BOSS_SERVICE_API_KEY=
+BOSS_PROXY_TIMEOUT_SEC=95
+```
+
+多账号扩容仍通过增加 `boss-workers.json` 条目完成；不要通过把 BOSS 服务自身改成
+多 worker 来扩容同一批账号。需要更大规模时，应拆分多个 BOSS 服务实例，每个实例管理
+不同的账号、Chrome profile、调试端口和代理池分片。
+
+可选开启单 worker 自愈换代理：
+
+```env
+BOSS_ZHIPIN_RECOVER_WORKERS_ON_ACCESS_LIMIT=true
+BOSS_ZHIPIN_MANAGE_CHROME_WORKERS=true
+BOSS_ZHIPIN_CHROME_RECOVERY_COOLDOWN_MINUTES=5
+BOSS_ZHIPIN_LOGIN_REQUIRED_COOLDOWN_MINUTES=0
+BOSS_ZHIPIN_CHROME_PROFILE_ROOT=runtime/chrome-profiles
+BOSS_ZHIPIN_WORKER_STATE_ROOT=runtime/boss-workers
+BOSS_ZHIPIN_WORKER_DEVTOOLS_TIMEOUT_SEC=10
+```
+
+开启后，某个 worker 命中 BOSS 代理/IP 访问受限时，系统会把该 worker 当前代理标记为 `cooldown`，从代理池选择一个未租用、未冷却且健康的新代理，重启该 worker 对应的 Chrome，再重建该 worker 的 httpx/session。登录态/验证码类异常会标记为 `login_required`，不继续轮换代理。其他 healthy worker 不会被停止，仍可继续承接并发请求。
+
+注意：如果换代理后原 Chrome profile 需要重新登录，worker 会进入 `login_required` 或 `cooldown`，不会无限换代理重试。只切换 httpx 代理而不重启 Chrome 是错误做法，因为 Chrome 铸造 `__zp_stoken__` 的出口必须和 API 请求出口一致。
+
+推荐放量顺序：
+
+1. 先配置 2 个 worker + 2 个固定本地代理端口，每个 worker `per_worker_concurrency=1`，跑 1 个关键词、1 个城市、1 页的 `description` 小样本。
+2. 小样本稳定后扩到 5 个 worker，仍保持每 worker 并发 1。
+3. data_server 侧再把 `BOSS_UNIT_MAX_UNITS_PER_RUN` 从 2 提到 3，观察完整采集窗口。
+4. 若 `worker_status` 无扩散性冷却、`proxy_state` 未集中进入 `cooldown`、`code=37` 和 timeout 未异常升高，再提到 5。
+5. 只有 5×1 稳定至少 48 小时后，才评估单个 worker 并发 2；一旦某 worker 出现 token churn 或风控，立即降回 1。
 
 ### 9.3 区县筛选
 

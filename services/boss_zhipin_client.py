@@ -19,21 +19,26 @@ import re
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 from random import uniform
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 
 import httpx
 
+from services.boss_proxy_pool import BossProxyPool, ProxyLease
+from services.boss_worker_runtime import BossWorkerRuntimeManager, WorkerRuntimeConfig
 from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
 
 logger = setup_module_logger(__name__, "logs/jobs/boss_zhipin.log")
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 SEARCH_API_PATTERN = "/wapi/zpgeek/search/joblist.json"
 SEARCH_PAGE_URL = "https://www.zhipin.com/web/geek/jobs"
 LIST_API_URL = "https://www.zhipin.com/wapi/zpgeek/search/joblist.json"
 DETAIL_API_URL = "https://www.zhipin.com/wapi/zpgeek/job/detail.json"
+_MAX_SINGLE_PROFILE_CONCURRENCY = 2
 
 # BOSS 反爬：环境异常错误码，表示 __zp_stoken__ 失效，需要刷新 cookie。
 _BOSS_ENV_ERROR_CODE = 37
@@ -65,10 +70,12 @@ class BossAccessLimitedError(RuntimeError):
         *,
         retry_after_seconds: Optional[int] = None,
         raw_hint: Optional[str] = None,
+        worker_status: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(message)
         self.retry_after_seconds = retry_after_seconds
         self.raw_hint = raw_hint
+        self.worker_status = worker_status
 
 
 def _looks_access_limited(text: Optional[str]) -> bool:
@@ -101,6 +108,34 @@ def _sanitize_hint(text: Optional[str]) -> Optional[str]:
         return None
     scrubbed = re.sub(r"\d+\.\d+\.\d+\.\d+", "<ip>", text)
     return scrubbed.strip()[:200]
+
+
+def _boss_access_error_kind(exc: BossAccessLimitedError) -> str:
+    text = f"{exc} {exc.raw_hint or ''}"
+    if any(marker in text for marker in ("登录", "__zp_stoken__", "验证码", "人机验证")):
+        return "login_required"
+    if any(marker in text for marker in ("Chrome", "DevTools", "tab", "浏览器")):
+        return "chrome_unhealthy"
+    return "proxy_limited"
+
+
+def _single_profile_concurrency(value: Optional[int] = None) -> int:
+    """返回单 Chrome profile 内允许的 BOSS 并发。
+
+    这里刻意拒绝静默 clamp：如果把总 worker 数误写到
+    ``BOSS_ZHIPIN_MAX_CONCURRENCY``，服务应明确报配置错误，避免单 profile
+    被误打到 3+ 并发后触发 stoken churn 和全局熔断。
+    """
+    raw = _settings.BOSS_ZHIPIN_MAX_CONCURRENCY if value is None else value
+    concurrency = max(1, int(raw))
+    if concurrency > _MAX_SINGLE_PROFILE_CONCURRENCY:
+        raise ValueError(
+            "BOSS 单 Chrome profile 并发不能超过 "
+            f"{_MAX_SINGLE_PROFILE_CONCURRENCY}；如需更高总并发，请配置多个 "
+            "BOSS_ZHIPIN_WORKERS（独立账号/profile/代理），不要调大 "
+            "BOSS_ZHIPIN_MAX_CONCURRENCY。"
+        )
+    return concurrency
 
 
 class _DirectBossSession:
@@ -171,7 +206,12 @@ class _DirectBossSession:
             "Referer": referer,
             "x-requested-with": "XMLHttpRequest",
         }
-        resp = self._http.get(url, params=params, headers=headers)
+        try:
+            resp = self._http.get(url, params=params, headers=headers)
+        except (httpx.TimeoutException, httpx.RequestError) as exc:
+            raise BossAccessLimitedError(
+                f"BOSS 直连代理请求失败: {type(exc).__name__}"
+            ) from exc
         try:
             body = resp.json()
         except Exception as exc:
@@ -267,11 +307,26 @@ class BossZhipinClient:
     实例（独立 profile + 各自登录）」，代价与风控面都不值。故本客户端并发上限锁定 2。
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        worker_id: str = "default",
+        browser_host_port: Optional[str] = None,
+        profile_id: Optional[str] = None,
+        proxy_id: Optional[str] = None,
+        proxy_url: Optional[str] = None,
+        chrome_proxy_server: Optional[str] = None,
+        per_worker_concurrency: Optional[int] = None,
+    ) -> None:
+        self.worker_id = worker_id
+        self.profile_id = profile_id or worker_id
+        self.proxy_id = proxy_id
+        self.chrome_proxy_server = chrome_proxy_server
+        self._browser_host_port = browser_host_port or _settings.BOSS_ZHIPIN_BROWSER_HOST_PORT
+        self._proxy_url = proxy_url
         # 并发闸门：默认 1=严格串行（历史行为）。>1 时允许 N 个 scrape 并发。
-        self._sema = asyncio.Semaphore(
-            max(1, int(_settings.BOSS_ZHIPIN_MAX_CONCURRENCY))
-        )
+        self._concurrency = _single_profile_concurrency(per_worker_concurrency)
+        self._sema = asyncio.Semaphore(self._concurrency)
         # 仅 shutdown 使用；scrape 的并发由 _sema 控制。
         self._lock = asyncio.Lock()
         # 共享浏览器 tab 的可重入锁（worker 线程内使用）。
@@ -303,22 +358,37 @@ class BossZhipinClient:
         时间可控；summary 快路径不传，沿用默认页大小，外部 workflow 行为不变。
         """
         async with self._sema:
-            return await asyncio.to_thread(
-                self._scrape_many_sync,
-                keywords,
-                city_codes,
-                max_pages,
-                max_items_per_query,
-                include_raw,
-                include_description,
-                start_page,
-                page_size,
-            )
+            try:
+                return await asyncio.wait_for(
+                    asyncio.to_thread(
+                        self._scrape_many_sync,
+                        keywords,
+                        city_codes,
+                        max_pages,
+                        max_items_per_query,
+                        include_raw,
+                        include_description,
+                        start_page,
+                        page_size,
+                    ),
+                    timeout=_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC,
+                )
+            except asyncio.TimeoutError as exc:
+                raise BossAccessLimitedError(
+                    f"BOSS 同步抓取超时（{_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC:g}s）"
+                ) from exc
 
     async def shutdown(self) -> None:
         """释放持久化浏览器 tab / httpx client（由 lifespan 调用）。"""
         async with self._lock:
             await asyncio.to_thread(self._shutdown_sync)
+
+    async def probe_ready(self) -> None:
+        """轻量验证 worker 的浏览器与直连 cookie 是否可用。
+
+        只做资源初始化和 cookie 铸造，不拉取职位列表，避免恢复动作本身增加抓取压力。
+        """
+        await asyncio.to_thread(self._probe_ready_sync)
 
     # ─────────────── 持久化资源管理（worker 线程内调用）───────────────
 
@@ -342,15 +412,15 @@ class BossZhipinClient:
                 self._close_page_locked()
                 from DrissionPage import ChromiumPage
 
-                logger.info("BOSS 持久化 tab 初始化 …")
+                logger.info("BOSS worker=%s 持久化 tab 初始化 …", self.worker_id)
                 self._page = ChromiumPage(
-                    _settings.BOSS_ZHIPIN_BROWSER_HOST_PORT
+                    self._browser_host_port
                 ).new_tab()
                 # tab 重建后旧会话池作废，强制重建以绑定新 tab。
                 self._drain_pool_locked()
 
             if direct_enabled:
-                concurrency = max(1, int(_settings.BOSS_ZHIPIN_MAX_CONCURRENCY))
+                concurrency = self._concurrency
                 if self._session_pool is None or self._pool_size != concurrency:
                     self._build_pool_locked(concurrency)
 
@@ -359,12 +429,32 @@ class BossZhipinClient:
         self._drain_pool_locked()
         pool: "queue.Queue[_DirectBossSession]" = queue.Queue()
         for _ in range(concurrency):
-            http = httpx.Client(timeout=_settings.BOSS_ZHIPIN_DIRECT_HTTP_TIMEOUT)
+            http = httpx.Client(
+                timeout=_settings.BOSS_ZHIPIN_DIRECT_HTTP_TIMEOUT,
+                trust_env=False,
+                proxy=self._proxy_url or None,
+            )
             self._http_clients.append(http)
             pool.put(_DirectBossSession(self._page, http, self._tab_lock))
         self._session_pool = pool
         self._pool_size = concurrency
-        logger.info("BOSS 直连会话池就绪：并发槽=%s", concurrency)
+        logger.info(
+            "BOSS worker=%s 直连会话池就绪：并发槽=%s proxy=%s",
+            self.worker_id,
+            concurrency,
+            "已配置" if self._proxy_url else "直连",
+        )
+
+    def _probe_ready_sync(self) -> None:
+        direct_enabled = _settings.BOSS_ZHIPIN_DIRECT_ENABLED
+        self._ensure_resources(direct_enabled)
+        if not direct_enabled or self._session_pool is None:
+            return
+        session = self._session_pool.get()
+        try:
+            session._refresh_cookies(force=True)
+        finally:
+            self._session_pool.put(session)
 
     def _drain_pool_locked(self) -> None:
         """（持有 tab_lock 时调用）关闭并清空会话池与其 httpx client。"""
@@ -515,6 +605,7 @@ class BossZhipinClient:
         }
         if session is not None:
             summary["cookie_refreshes"] = session.refresh_count - refreshes_before
+        summary["worker_id"] = self.worker_id
         return {
             "summary": summary,
             "jobs": jobs,
@@ -856,16 +947,557 @@ class BossZhipinClient:
         )
 
 
+class BossWorkerPoolClient:
+    """BOSS 多账号 / 多 profile worker 池。
+
+    对外保持 ``BossZhipinClient.scrape_many`` 合同；内部把每次采集分配给一个
+    healthy worker。单 worker 触发访问受限时只冷却该 worker，避免旧的全局单点
+    风控把所有账号一起停掉。
+    """
+
+    def __init__(
+        self,
+        workers: List[Any],
+        *,
+        cooldown_seconds: Optional[int] = None,
+        proxy_pool: Optional[BossProxyPool] = None,
+        runtime_manager: Optional[BossWorkerRuntimeManager] = None,
+        worker_factory=None,
+        recover_failed_workers: bool = False,
+    ) -> None:
+        if not workers:
+            raise ValueError("BossWorkerPoolClient 至少需要一个 worker")
+        self._workers = list(workers)
+        self._proxy_pool = proxy_pool
+        self._runtime_manager = runtime_manager
+        self._worker_factory = worker_factory or self._default_worker_factory
+        self._recover_failed_workers = bool(recover_failed_workers)
+        self._lock = threading.Lock()
+        self._cursor = 0
+        self._cooldown_until: Dict[str, float] = {}
+        self._cooldown_reason: Dict[str, str] = {}
+        self._recovering: set[str] = set()
+        self._login_required: set[str] = set()
+        self._previous_proxy_id: Dict[str, str] = {}
+        self._recovery_attempts: Dict[str, int] = {}
+        self._last_recovery_error: Dict[str, str] = {}
+        self._runtime_snapshot: Dict[str, Dict[str, Any]] = {}
+        runtime_snapshot = getattr(runtime_manager, "snapshot", None) if runtime_manager is not None else None
+        if runtime_snapshot is not None:
+            for worker in self._workers:
+                snapshot = runtime_snapshot(self._worker_id(worker))
+                snapshot_proxy_id = snapshot.get("proxy_id") if snapshot else None
+                worker_proxy_id = getattr(worker, "proxy_id", None)
+                if snapshot and (not snapshot_proxy_id or snapshot_proxy_id == worker_proxy_id):
+                    self._runtime_snapshot[self._worker_id(worker)] = snapshot
+        self._in_flight: Dict[str, int] = {
+            self._worker_id(worker): 0 for worker in self._workers
+        }
+        self._cooldown_seconds = (
+            cooldown_seconds
+            if cooldown_seconds is not None
+            else _settings.REGION_JOBS_BOSS_COOLDOWN_MINUTES * 60
+        )
+
+    async def scrape_many(self, *args, **kwargs) -> Dict[str, Any]:
+        attempted: set[str] = set()
+        recovery_retries: Dict[str, int] = {}
+        last_error: Optional[BossAccessLimitedError] = None
+        while True:
+            worker = self._acquire_worker(exclude=attempted)
+            if worker is None:
+                reason = str(last_error) if last_error else "无可用 worker"
+                status = self.worker_status()
+                retry_after = self._next_retry_after_seconds()
+                raise BossAccessLimitedError(
+                    f"全部 BOSS worker 均不可用：{reason}",
+                    retry_after_seconds=retry_after,
+                    worker_status=status,
+                )
+
+            worker_id = self._worker_id(worker)
+            attempted.add(worker_id)
+            try:
+                result = await worker.scrape_many(*args, **kwargs)
+                self._record_success(worker_id)
+                return self._attach_worker_status(result, worker_id, self.worker_status())
+            except BossAccessLimitedError as exc:
+                last_error = exc
+                error_kind = _boss_access_error_kind(exc)
+                if error_kind == "login_required":
+                    self._record_login_required(worker_id, reason=str(exc))
+                    continue
+                recovered = await self._recover_worker(worker_id, exc)
+                if recovered:
+                    if (
+                        not self._has_available_worker(exclude=attempted)
+                        and recovery_retries.get(worker_id, 0) < 1
+                    ):
+                        recovery_retries[worker_id] = recovery_retries.get(worker_id, 0) + 1
+                        attempted.discard(worker_id)
+                else:
+                    self._record_cooldown(
+                        worker_id,
+                        seconds=self._cooldown_seconds_for_error(exc, error_kind),
+                        reason=str(exc),
+                    )
+            finally:
+                self._release_worker(worker_id)
+
+    async def shutdown(self) -> None:
+        for worker in self._workers:
+            shutdown = getattr(worker, "shutdown", None)
+            if shutdown is not None:
+                await shutdown()
+
+    def worker_status(self) -> Dict[str, Dict[str, Any]]:
+        now = time.monotonic()
+        with self._lock:
+            statuses: Dict[str, Dict[str, Any]] = {}
+            for worker in self._workers:
+                worker_id = self._worker_id(worker)
+                cooldown_until = self._cooldown_until.get(worker_id)
+                cooling = bool(cooldown_until and cooldown_until > now)
+                proxy_id = getattr(worker, "proxy_id", None)
+                proxy_info = self._proxy_status(proxy_id)
+                runtime_snapshot = self._runtime_snapshot.get(worker_id, {})
+                if worker_id in self._login_required:
+                    state = "login_required"
+                elif worker_id in self._recovering:
+                    state = "recovering"
+                elif cooling:
+                    state = "cooldown"
+                else:
+                    state = "healthy"
+                statuses[worker_id] = {
+                    "state": state,
+                    "in_flight": self._in_flight.get(worker_id, 0),
+                    "cooldown_remaining_seconds": (
+                        int(cooldown_until - now) if cooling and cooldown_until else 0
+                    ),
+                    "reason": (
+                        self._cooldown_reason.get(worker_id)
+                        if cooling or worker_id in self._login_required
+                        else None
+                    ),
+                    "proxy_id": proxy_id,
+                    "previous_proxy_id": self._previous_proxy_id.get(worker_id),
+                    "proxy_state": proxy_info.get("state") if proxy_info else None,
+                    "local_proxy_url_masked": (
+                        proxy_info.get("local_proxy_url_masked") if proxy_info else None
+                    ),
+                    "upstream_label": proxy_info.get("upstream_label") if proxy_info else None,
+                    "recovery_attempts": self._recovery_attempts.get(worker_id, 0),
+                    "last_recovery_error": self._last_recovery_error.get(worker_id),
+                    "chrome_pid": runtime_snapshot.get("pid"),
+                    "devtools_ok": runtime_snapshot.get("devtools_ok"),
+                }
+            return statuses
+
+    def _next_retry_after_seconds(self) -> Optional[int]:
+        now = time.monotonic()
+        with self._lock:
+            remainings = [
+                int(until - now)
+                for until in self._cooldown_until.values()
+                if until > now
+            ]
+        return max(1, min(remainings)) if remainings else None
+
+    def _acquire_worker(self, *, exclude: set[str]) -> Optional[Any]:
+        now = time.monotonic()
+        with self._lock:
+            worker_count = len(self._workers)
+            for offset in range(worker_count):
+                index = (self._cursor + offset) % worker_count
+                worker = self._workers[index]
+                worker_id = self._worker_id(worker)
+                if worker_id in exclude:
+                    continue
+                if worker_id in self._recovering or worker_id in self._login_required:
+                    continue
+                cooldown_until = self._cooldown_until.get(worker_id)
+                if cooldown_until and cooldown_until > now:
+                    continue
+                if cooldown_until and cooldown_until <= now:
+                    self._cooldown_until.pop(worker_id, None)
+                    self._cooldown_reason.pop(worker_id, None)
+                self._cursor = (index + 1) % worker_count
+                self._in_flight[worker_id] = self._in_flight.get(worker_id, 0) + 1
+                return worker
+            return None
+
+    def _has_available_worker(self, *, exclude: set[str]) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            for worker in self._workers:
+                worker_id = self._worker_id(worker)
+                if worker_id in exclude:
+                    continue
+                if worker_id in self._recovering or worker_id in self._login_required:
+                    continue
+                cooldown_until = self._cooldown_until.get(worker_id)
+                if cooldown_until and cooldown_until > now:
+                    continue
+                return True
+            return False
+
+    def _release_worker(self, worker_id: str) -> None:
+        with self._lock:
+            self._in_flight[worker_id] = max(0, self._in_flight.get(worker_id, 0) - 1)
+
+    def _record_success(self, worker_id: str) -> None:
+        with self._lock:
+            self._cooldown_until.pop(worker_id, None)
+            self._cooldown_reason.pop(worker_id, None)
+
+    def _record_login_required(self, worker_id: str, *, reason: str) -> None:
+        with self._lock:
+            self._login_required.add(worker_id)
+            self._cooldown_until.pop(worker_id, None)
+            self._cooldown_reason[worker_id] = reason
+        logger.warning("[boss-worker-pool] worker=%s 需要人工登录/验证：%s", worker_id, reason)
+
+    def _record_cooldown(self, worker_id: str, *, seconds: int, reason: str) -> None:
+        until = time.monotonic() + max(1, int(seconds))
+        with self._lock:
+            self._cooldown_until[worker_id] = until
+            self._cooldown_reason[worker_id] = reason
+        proxy_id = self._worker_proxy_id(worker_id)
+        if self._proxy_pool is not None and proxy_id:
+            self._proxy_pool.mark_cooldown(proxy_id, reason=reason, seconds=seconds)
+        logger.warning(
+            "[boss-worker-pool] worker=%s 冷却 %ss，原因：%s",
+            worker_id,
+            seconds,
+            reason,
+        )
+
+    def _cooldown_seconds_for_error(self, exc: BossAccessLimitedError, error_kind: str) -> int:
+        if exc.retry_after_seconds:
+            return exc.retry_after_seconds
+        if error_kind == "chrome_unhealthy":
+            return _settings.BOSS_ZHIPIN_CHROME_RECOVERY_COOLDOWN_MINUTES * 60
+        if error_kind == "login_required":
+            return _settings.BOSS_ZHIPIN_LOGIN_REQUIRED_COOLDOWN_MINUTES * 60
+        return self._cooldown_seconds
+
+    @staticmethod
+    def _attach_worker_status(
+        result: Dict[str, Any],
+        worker_id: str,
+        worker_status: Dict[str, Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        if not isinstance(result, dict):
+            return result
+        summary = result.setdefault("summary", {})
+        if isinstance(summary, dict):
+            summary["worker_id"] = worker_id
+            summary["worker_status"] = worker_status
+        return result
+
+    @staticmethod
+    def _worker_id(worker: Any) -> str:
+        return str(getattr(worker, "worker_id", None) or id(worker))
+
+    def _worker_proxy_id(self, worker_id: str) -> Optional[str]:
+        for worker in self._workers:
+            if self._worker_id(worker) == worker_id:
+                return getattr(worker, "proxy_id", None)
+        return None
+
+    def _proxy_status(self, proxy_id: Optional[str]) -> Dict[str, Any]:
+        if self._proxy_pool is None or not proxy_id:
+            return {}
+        return self._proxy_pool.status().get(proxy_id, {})
+
+    async def _recover_worker(self, worker_id: str, exc: BossAccessLimitedError) -> bool:
+        if (
+            not self._recover_failed_workers
+            or self._proxy_pool is None
+            or self._runtime_manager is None
+        ):
+            return False
+
+        old_worker = self._find_worker(worker_id)
+        if old_worker is None:
+            return False
+        old_proxy_id = getattr(old_worker, "proxy_id", None)
+        seconds = exc.retry_after_seconds or self._cooldown_seconds
+
+        with self._lock:
+            if worker_id in self._recovering:
+                return False
+            self._recovering.add(worker_id)
+            self._recovery_attempts[worker_id] = self._recovery_attempts.get(worker_id, 0) + 1
+
+        try:
+            lease = self._proxy_pool.reassign_worker(
+                worker_id,
+                bad_proxy_id=old_proxy_id,
+                reason=str(exc),
+                seconds=seconds,
+            )
+            shutdown = getattr(old_worker, "shutdown", None)
+            if shutdown is not None:
+                await shutdown()
+
+            config = self._runtime_config_for_worker(old_worker)
+            snapshot = await asyncio.to_thread(
+                self._runtime_manager.restart_worker,
+                config,
+                proxy_id=lease.proxy_id,
+                chrome_proxy_server=lease.chrome_proxy_server,
+            )
+            if snapshot and snapshot.get("devtools_ok") is False:
+                raise RuntimeError("Chrome DevTools 端口未恢复")
+
+            new_worker = self._worker_factory(old_worker, lease)
+            probe = getattr(new_worker, "probe_ready", None)
+            if probe is not None:
+                await probe()
+            self._replace_worker(worker_id, new_worker)
+            with self._lock:
+                if old_proxy_id:
+                    self._previous_proxy_id[worker_id] = old_proxy_id
+                self._runtime_snapshot[worker_id] = snapshot or {}
+                self._cooldown_until.pop(worker_id, None)
+                self._cooldown_reason.pop(worker_id, None)
+                self._last_recovery_error.pop(worker_id, None)
+                self._login_required.discard(worker_id)
+            logger.info(
+                "[boss-worker-pool] worker=%s 已切换代理 %s -> %s 并完成 Chrome 重启",
+                worker_id,
+                old_proxy_id,
+                lease.proxy_id,
+            )
+            return True
+        except Exception as recovery_exc:
+            if self._proxy_pool is not None:
+                self._proxy_pool.release_worker(worker_id)
+            with self._lock:
+                self._last_recovery_error[worker_id] = str(recovery_exc)
+                recovery_text = f"{exc} {recovery_exc}"
+                if "登录" in recovery_text or "stoken" in recovery_text:
+                    self._login_required.add(worker_id)
+            logger.warning(
+                "[boss-worker-pool] worker=%s 自愈换代理失败：%s",
+                worker_id,
+                recovery_exc,
+            )
+            return False
+        finally:
+            with self._lock:
+                self._recovering.discard(worker_id)
+
+    def _find_worker(self, worker_id: str) -> Optional[Any]:
+        for worker in self._workers:
+            if self._worker_id(worker) == worker_id:
+                return worker
+        return None
+
+    def _replace_worker(self, worker_id: str, new_worker: Any) -> None:
+        with self._lock:
+            for index, worker in enumerate(self._workers):
+                if self._worker_id(worker) == worker_id:
+                    self._workers[index] = new_worker
+                    self._in_flight.setdefault(worker_id, 0)
+                    return
+
+    @staticmethod
+    def _runtime_config_for_worker(worker: Any) -> WorkerRuntimeConfig:
+        return WorkerRuntimeConfig(
+            worker_id=str(getattr(worker, "worker_id")),
+            browser_host_port=str(getattr(worker, "_browser_host_port")),
+            profile_id=str(getattr(worker, "profile_id", getattr(worker, "worker_id"))),
+        )
+
+    @staticmethod
+    def _default_worker_factory(old_worker: Any, lease: ProxyLease) -> BossZhipinClient:
+        return BossZhipinClient(
+            worker_id=str(getattr(old_worker, "worker_id")),
+            browser_host_port=str(getattr(old_worker, "_browser_host_port")),
+            profile_id=str(getattr(old_worker, "profile_id", getattr(old_worker, "worker_id"))),
+            proxy_id=lease.proxy_id,
+            proxy_url=lease.local_proxy_url,
+            chrome_proxy_server=lease.chrome_proxy_server,
+            per_worker_concurrency=int(getattr(old_worker, "_concurrency", 1)),
+        )
+
+
+def _boss_proxy_health_checker():
+    url = str(getattr(_settings, "BOSS_ZHIPIN_PROXY_HEALTHCHECK_URL", "") or "").strip()
+    if not url:
+        return None
+
+    def _check(proxy_url: str) -> bool:
+        try:
+            with httpx.Client(
+                timeout=_settings.BOSS_ZHIPIN_PROXY_HEALTHCHECK_TIMEOUT_SEC,
+                trust_env=False,
+                proxy=proxy_url,
+            ) as client:
+                resp = client.get(url)
+            return 200 <= resp.status_code < 400
+        except Exception as exc:
+            logger.warning(
+                "BOSS 代理健康检查失败 proxy=%s error=%s",
+                "已配置" if proxy_url else "空",
+                exc,
+            )
+            return False
+
+    return _check
+
+
+_configured_proxy_pool: Optional[BossProxyPool] = None
+
+
+def _load_json_list_from_file(path_value: Optional[str], *, setting_name: str) -> Optional[List[Dict[str, Any]]]:
+    if not path_value:
+        return None
+    path = Path(str(path_value))
+    if not path.is_absolute():
+        path = _PROJECT_ROOT / path
+    try:
+        value = json.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError as exc:
+        raise ValueError(f"{setting_name} 指向的文件不存在: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{setting_name} 不是合法 JSON: {path}") from exc
+    if not isinstance(value, list):
+        raise ValueError(f"{setting_name} 必须是 JSON 数组: {path}")
+    if not all(isinstance(item, dict) for item in value):
+        raise ValueError(f"{setting_name} 的每个元素必须是对象: {path}")
+    return value
+
+
+def _boss_config_list(env_attr: str, file_attr: str, setting_name: str) -> List[Dict[str, Any]]:
+    file_value = getattr(_settings, file_attr, None)
+    loaded = _load_json_list_from_file(file_value, setting_name=setting_name)
+    if loaded is not None:
+        logger.info("%s 已从文件加载: %s", setting_name, file_value)
+        return loaded
+    return list(getattr(_settings, env_attr, []) or [])
+
+
+def _configured_boss_workers() -> List[BossZhipinClient]:
+    global _configured_proxy_pool
+    workers_config = _boss_config_list(
+        "BOSS_ZHIPIN_WORKERS",
+        "BOSS_ZHIPIN_WORKERS_FILE",
+        "BOSS_ZHIPIN_WORKERS_FILE",
+    )
+    proxy_pool_config = _boss_config_list(
+        "BOSS_ZHIPIN_PROXY_POOL",
+        "BOSS_ZHIPIN_PROXY_POOL_FILE",
+        "BOSS_ZHIPIN_PROXY_POOL_FILE",
+    )
+    _configured_proxy_pool = (
+        BossProxyPool(
+            proxy_pool_config,
+            default_cooldown_seconds=_settings.BOSS_ZHIPIN_PROXY_COOLDOWN_MINUTES * 60,
+            health_checker=_boss_proxy_health_checker(),
+            selection_strategy=_settings.BOSS_ZHIPIN_PROXY_SELECTION_STRATEGY,
+            recent_avoid_count=_settings.BOSS_ZHIPIN_PROXY_RECENT_AVOID_COUNT,
+        )
+        if proxy_pool_config
+        else None
+    )
+    workers: List[BossZhipinClient] = []
+    multi_worker = len(workers_config) > 1
+    seen_worker_ids: set[str] = set()
+    seen_ports: set[str] = set()
+    seen_profiles: set[str] = set()
+    for index, item in enumerate(workers_config, start=1):
+        if not isinstance(item, dict):
+            raise ValueError("BOSS_ZHIPIN_WORKERS 的每个元素必须是对象")
+        worker_id = str(item.get("worker_id") or item.get("id") or f"boss-{index}")
+        browser_host_port = item.get("browser_host_port") or item.get("host_port")
+        profile_id = item.get("profile_id") or item.get("account_id") or worker_id
+        proxy_id = item.get("proxy_id")
+        proxy_url = item.get("proxy_url")
+        chrome_proxy_server = item.get("chrome_proxy_server")
+        per_worker_concurrency = item.get("per_worker_concurrency", 1)
+        if worker_id in seen_worker_ids:
+            raise ValueError(f"BOSS_ZHIPIN_WORKERS worker_id 重复: {worker_id}")
+        seen_worker_ids.add(worker_id)
+        if multi_worker and not browser_host_port:
+            raise ValueError("BOSS_ZHIPIN_WORKERS 多 worker 模式必须为每个 worker 配置 browser_host_port")
+        if browser_host_port:
+            browser_host_port = str(browser_host_port)
+            if browser_host_port in seen_ports:
+                raise ValueError(
+                    f"BOSS_ZHIPIN_WORKERS browser_host_port 重复: {browser_host_port}"
+                )
+            seen_ports.add(browser_host_port)
+        profile_id = str(profile_id)
+        if profile_id in seen_profiles:
+            raise ValueError(f"BOSS_ZHIPIN_WORKERS profile_id/account_id 重复: {profile_id}")
+        seen_profiles.add(profile_id)
+        if _configured_proxy_pool is not None:
+            lease = _configured_proxy_pool.lease_for_worker(
+                worker_id,
+                requested_proxy_id=proxy_id,
+                requested_proxy_url=proxy_url,
+            )
+            proxy_id = lease.proxy_id
+            proxy_url = lease.local_proxy_url
+            chrome_proxy_server = lease.chrome_proxy_server or chrome_proxy_server
+        logger.info(
+            "配置 BOSS worker: worker_id=%s profile=%s port=%s proxy=%s",
+            worker_id,
+            profile_id,
+            browser_host_port,
+            "已配置" if proxy_url else "直连",
+        )
+        workers.append(
+            BossZhipinClient(
+                worker_id=worker_id,
+                browser_host_port=browser_host_port,
+                profile_id=profile_id,
+                proxy_id=proxy_id,
+                proxy_url=proxy_url,
+                chrome_proxy_server=chrome_proxy_server,
+                per_worker_concurrency=per_worker_concurrency,
+            )
+        )
+    return workers
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  模块级单例：多个 router 共享同一个持久化 tab，避免重复占用浏览器
 # ══════════════════════════════════════════════════════════════════════
 
-_shared_client: Optional[BossZhipinClient] = None
+_shared_client: Optional[Any] = None
 
 
-def get_boss_client() -> BossZhipinClient:
+def get_boss_client():
     """返回进程内共享的 BossZhipinClient 单例。"""
     global _shared_client
     if _shared_client is None:
-        _shared_client = BossZhipinClient()
+        runtime_manager = (
+            BossWorkerRuntimeManager(
+                chrome_path=_settings.BOSS_ZHIPIN_CHROME_PATH,
+                profile_root=_PROJECT_ROOT / _settings.BOSS_ZHIPIN_CHROME_PROFILE_ROOT,
+                state_root=_PROJECT_ROOT / _settings.BOSS_ZHIPIN_WORKER_STATE_ROOT,
+                devtools_timeout=_settings.BOSS_ZHIPIN_WORKER_DEVTOOLS_TIMEOUT_SEC,
+            )
+            if _settings.BOSS_ZHIPIN_MANAGE_CHROME_WORKERS
+            else None
+        )
+        workers = _configured_boss_workers()
+        _shared_client = (
+            BossWorkerPoolClient(
+                workers,
+                proxy_pool=_configured_proxy_pool,
+                runtime_manager=runtime_manager,
+                recover_failed_workers=(
+                    _settings.BOSS_ZHIPIN_RECOVER_WORKERS_ON_ACCESS_LIMIT
+                    and runtime_manager is not None
+                ),
+            )
+            if workers
+            else BossZhipinClient()
+        )
     return _shared_client

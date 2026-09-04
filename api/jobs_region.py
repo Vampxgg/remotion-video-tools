@@ -25,7 +25,15 @@ from utils.settings import settings as _settings
 logger = setup_module_logger(__name__, "logs/jobs/region_search.log")
 
 router = APIRouter()
-_boss_client = get_boss_client()
+_boss_client: Optional[Any] = None
+
+
+def _get_boss_region_client():
+    """惰性获取 BOSS client，避免主服务导入区域岗位路由时初始化 Chrome/proxy。"""
+    global _boss_client
+    if _boss_client is None:
+        _boss_client = get_boss_client()
+    return _boss_client
 
 
 class _BossCircuitBreaker:
@@ -72,6 +80,20 @@ class _BossCircuitBreaker:
 
 
 _boss_circuit = _BossCircuitBreaker()
+
+
+def _boss_worker_status(client: Optional[Any] = None) -> Optional[Dict[str, Any]]:
+    candidate = client if client is not None else _boss_client
+    if candidate is None:
+        return None
+    status_fn = getattr(candidate, "worker_status", None)
+    if status_fn is None:
+        return None
+    try:
+        return status_fn()
+    except Exception as exc:
+        logger.debug("[region-search][boss_zhipin] 读取 worker_status 失败: %s", exc)
+        return None
 
 
 # 账户需要登录 / 命中风控时向管理员发提醒邮件的进程内冷却状态（按来源分别冷却）。
@@ -284,6 +306,9 @@ class SourceRunResult(BaseModel):
     total: Optional[int] = None
     has_more: Optional[bool] = None
     next_page: Optional[int] = None
+    # BOSS worker pool 观测字段（向后兼容扩展）：
+    worker_id: Optional[str] = None
+    worker_status: Optional[Dict[str, Any]] = None
 
 
 def _province_for_city(city: Optional[str], province: Optional[str] = None) -> Optional[str]:
@@ -562,6 +587,7 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
 
 
 async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
+    boss_client: Optional[Any] = None
     pages_requested = len(payload.query.keywords) * payload.collection.max_pages_per_source
     city_code = _resolve_boss_city_code(payload.region)
     if city_code is None:
@@ -595,9 +621,11 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
             queries_attempted=len(payload.query.keywords),
             pages_requested=pages_requested,
             retryable=False,
+            worker_status=_boss_worker_status(),
         )
 
     try:
+        boss_client = _get_boss_region_client()
         include_description = payload.collection.detail_level == DetailLevel.DESCRIPTION
         # BOSS 串行 + 慢节奏：逐条拉详情耗时随记录数线性增长。为保证单轮能在
         # timeout_seconds 内收尾（超时->熔断反而拿不到数据），当需要详情时对本轮实际
@@ -624,7 +652,7 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
             else None
         )
         raw_result = await asyncio.wait_for(
-            _boss_client.scrape_many(
+            boss_client.scrape_many(
                 payload.query.keywords,
                 [city_code],
                 payload.collection.max_pages_per_source,
@@ -669,6 +697,8 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
             total=int(total_val) if total_val is not None else None,
             has_more=bool(summary.get("has_more")),
             next_page=summary.get("next_page"),
+            worker_id=summary.get("worker_id"),
+            worker_status=summary.get("worker_status"),
         )
     except BossAccessLimitedError as exc:
         # 命中风控 → 拉闸冷却（优先用风控页给出的恢复时间），返回非重试型失败
@@ -694,6 +724,7 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
             queries_attempted=len(payload.query.keywords),
             pages_requested=pages_requested,
             retryable=False,
+            worker_status=getattr(exc, "worker_status", None) or _boss_worker_status(boss_client),
         )
     except asyncio.TimeoutError:
         # 超时：底层同步线程可能仍在跑同一个共享 tab / httpx 会话，
@@ -716,6 +747,7 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
             pages_requested=pages_requested,
             region_code=city_code,
             retryable=False,
+            worker_status=_boss_worker_status(boss_client),
         )
     except Exception as exc:
         error = _source_error_message(exc, "BOSS 采集异常")
@@ -728,6 +760,7 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
             queries_attempted=len(payload.query.keywords),
             pages_requested=pages_requested,
             region_code=city_code,
+            worker_status=_boss_worker_status(boss_client),
         )
 
 
@@ -1077,6 +1110,9 @@ def _build_source_status(
             "total": None,
             "has_more": None,
             "next_page": None,
+            # BOSS worker pool 观测字段（向后兼容扩展）：
+            "worker_id": None,
+            "worker_status": None,
         }
         for source in payload.sources
     }
@@ -1100,6 +1136,9 @@ def _build_source_status(
             "total": result.total,
             "has_more": result.has_more,
             "next_page": result.next_page,
+            # BOSS worker pool 观测字段（向后兼容扩展）：
+            "worker_id": result.worker_id,
+            "worker_status": result.worker_status,
         }
     return status_map
 

@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_video_omni, cre_image, \
     cre_image_azure, voice_models, \
-    job_search, job_search_v2, boss_zhipin, jobs_region, fish_asr, fenbi_gateway, video_compress, gemini_live, \
+    job_search, job_search_v2, boss_proxy, jobs_region, fish_asr, fenbi_gateway, video_compress, gemini_live, \
     tianyancha, web_search, file_parser, file_understand, document_import, usage_report_api, \
     aws_usage_report_api, aws_spend_guard_api
 from fastapi.staticfiles import StaticFiles
@@ -86,7 +86,6 @@ _LIFESPAN_MODULES = [
     # fish_asr,
     job_search,
     job_search_v2,
-    boss_zhipin,
     gemini_live,
     file_understand,
     tianyancha,
@@ -205,7 +204,7 @@ app.include_router(cre_image_azure.router, prefix="/api", tags=["create_azure_im
 # app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
 app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
-app.include_router(boss_zhipin.router, prefix="/api", tags=["boss_zhipin"])
+app.include_router(boss_proxy.router, prefix="/api", tags=["boss_zhipin"])
 app.include_router(jobs_region.router, prefix="/api", tags=["jobs_region"])
 app.include_router(tianyancha.router, prefix="/api", tags=["tianyancha"])
 app.include_router(web_search.router, prefix="/api", tags=["web_search"])
