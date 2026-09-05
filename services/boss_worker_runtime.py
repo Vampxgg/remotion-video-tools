@@ -67,6 +67,14 @@ class BossWorkerRuntimeManager:
         self._devtools_checker = devtools_checker or _check_devtools
         self._process_finder = process_finder or self._find_processes_by_runtime
 
+    @property
+    def state_root(self) -> Path:
+        return self._state_root
+
+    @property
+    def profile_root(self) -> Path:
+        return self._profile_root
+
     def restart_worker(
         self,
         config: WorkerRuntimeConfig,

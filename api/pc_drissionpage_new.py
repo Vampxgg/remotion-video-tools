@@ -1,7 +1,6 @@
 import json
 import random
 import time
-from DrissionPage import ChromiumPage
 from DrissionPage.common import By
 from DrissionPage.common import Keys
 import csv
@@ -14,7 +13,8 @@ class Zhilian():
 
         self.url = _settings.ZHAOPIN_LIST_URL  # 访问页面
 
-        self.page = ChromiumPage(_settings.DRISSION_BROWSER_HOST_PORT)
+        from services.browser_connect import connect_existing
+        self.page = connect_existing(_settings.DRISSION_BROWSER_HOST_PORT)
         self.api_url = '/c/i/search/positions?'  ##接口监听接口
 
         '''drissionpage 监听接口'''

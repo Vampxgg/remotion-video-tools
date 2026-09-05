@@ -296,7 +296,8 @@ def run_tuoyu_google_serp(
 
     page = None
     try:
-        page = ChromiumPage(BROWSER_HOST_PORT).new_tab()
+        from services.browser_connect import connect_existing
+        page = connect_existing(BROWSER_HOST_PORT).new_tab()
         for q in qlist:
             time.sleep(random.uniform(0.5, 1.2))
             search_url = _google_search_url(q)

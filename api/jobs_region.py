@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from api.job_search_v2 import get_search_client as get_zhilian_client
 from services.boss_zhipin_client import BossAccessLimitedError, get_boss_client
 from utils import region_map
+from utils import zhilian_filters as zhilian_filters_util
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
 from utils.security import require_api_key
@@ -165,6 +166,28 @@ class RegionSpec(BaseModel):
         return self
 
 
+class JobFilters(BaseModel):
+    """智联全维度筛选（业务语义名，值为中文标签/别名/码值，支持逗号多选）。
+
+    仅对智联来源生效；BOSS 分支忽略。字段值经 utils.zhilian_filters.build_filters
+    统一映射为智联原生 S_SOU_* 字段与码值——本层不做任何码值映射，保持单一 source of truth。
+    - salary: "min,max" 数值区间（单位元，如 "10001,15000"）
+    - subway: 站点码；其余维度传中文标签/别名（如 education="大专"）
+    - 「不限」/空 → 不写入对应字段（等同不筛选）
+    """
+
+    education: Optional[str] = Field(None, description="学历，如 大专/本科/硕士/博士，可逗号多选")
+    salary: Optional[str] = Field(None, description='薪资区间 "min,max"（元），如 "10001,15000"')
+    experience: Optional[str] = Field(None, description="经验，如 1-3年/3-5年/5-10年/10年以上")
+    company_type: Optional[str] = Field(None, description="公司性质，如 国企/民营/上市公司/合资")
+    company_scale: Optional[str] = Field(None, description="公司规模，如 20-99人/1000-9999人")
+    industry: Optional[str] = Field(None, description="行业，如 IT|通信|电子|互联网/金融业")
+    position_type: Optional[str] = Field(None, description="职位大类，如 IT|互联网|通信")
+    subway: Optional[str] = Field(None, description="地铁站点码（原样透传）")
+
+    model_config = {"extra": "forbid"}
+
+
 class QuerySpec(BaseModel):
     keywords: List[str] = Field(
         ...,
@@ -176,6 +199,10 @@ class QuerySpec(BaseModel):
     keyword_mode: KeywordMode = Field(
         KeywordMode.ANY,
         description="关键词匹配模式；第一版仅支持 any",
+    )
+    filters: Optional[JobFilters] = Field(
+        None,
+        description="全维度筛选（仅智联生效）：学历/薪资/经验/公司性质/规模/行业/职位类型/地铁",
     )
 
     @field_validator("keywords")
@@ -489,6 +516,17 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
         client = get_zhilian_client()
         include_detail = payload.collection.detail_level == DetailLevel.DESCRIPTION
         city_id_overrides = {city_name: city_id} if city_id else None
+        # 全维度筛选：把业务语义 filters 映射为智联原生 {S_SOU_*: 码值}。
+        # 映射逻辑不在此硬编码，统一走 utils.zhilian_filters（唯一 source of truth）。
+        zhilian_filters = None
+        if payload.query.filters is not None:
+            zhilian_filters = zhilian_filters_util.build_filters(
+                payload.query.filters.model_dump()
+            )
+            if zhilian_filters:
+                logger.info(
+                    f"[region-search][zhilian] 应用筛选: {zhilian_filters}"
+                )
         raw_jobs = await asyncio.wait_for(
             client.scrape_many(
                 payload.query.keywords,
@@ -496,6 +534,7 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
                 payload.collection.max_pages_per_source,
                 include_detail=include_detail,
                 city_id_overrides=city_id_overrides,
+                filters=zhilian_filters or None,
             ),
             timeout=payload.collection.timeout_seconds,
         )
@@ -679,6 +718,11 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
         warnings = (raw_result or {}).get("warnings") or []
         if capped_warning:
             warnings.append(capped_warning)
+        # 全维度筛选目前仅智联生效；BOSS 不支持，若用户传了 filters 明确告知。
+        if payload.query.filters is not None and any(
+            v is not None for v in payload.query.filters.model_dump().values()
+        ):
+            warnings.append("筛选条件（学历/薪资/经验等）仅对智联来源生效，BOSS 结果未按 filters 过滤")
         warnings.extend(_boss_city_hint_warnings(payload.region, city_code))
         warnings.extend(_multi_keyword_page_warnings(summary, payload))
         warnings.extend(_empty_result_warnings(SourceName.BOSS_ZHIPIN, jobs))

@@ -74,9 +74,9 @@ class BrowserPool:
 
     @staticmethod
     def _init_browser():
-        from DrissionPage import ChromiumPage
+        from services.browser_connect import connect_existing
 
-        page = ChromiumPage(_settings.JOB_SEARCH_BROWSER_HOST_PORT).new_tab()
+        page = connect_existing(_settings.JOB_SEARCH_BROWSER_HOST_PORT).new_tab()
         page.get(_settings.ZHAOPIN_LIST_URL)
         time.sleep(3)
         _handle_login_if_needed(page)
@@ -518,6 +518,7 @@ class ZhaopinDirectClient:
         city_id: str,
         *,
         page: int = 1,
+        filters: Optional[Dict[str, str]] = None,
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         payload = {
             "S_SOU_FULL_INDEX": keyword,
@@ -531,6 +532,13 @@ class ZhaopinDirectClient:
             "platform": 13,
             "version": "0.0.0",
         }
+        # 全维度筛选：filters 的键已是智联原生 S_SOU_* 字段名、值为码值(支持逗号多选)，
+        # 由 utils.zhilian_filters.build_filters 统一生成，这里直接展开进 payload。
+        # 空 filters 时 payload 结构与升级前完全一致，保证向后兼容。
+        if filters:
+            for field, code in filters.items():
+                if field and code:
+                    payload[field] = code
         headers = {
             "Accept": "application/json, text/plain, */*",
             "Origin": "https://www.zhaopin.com",
@@ -617,15 +625,20 @@ class ZhaopinSearchClient:
         city_id: str,
         *,
         page: int = 1,
+        filters: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
-        """单页列表搜索：优先 HTTP 直连，失败时浏览器 listen fallback。"""
+        """单页列表搜索：优先 HTTP 直连，失败时浏览器 listen fallback。
+
+        ``filters`` 为智联原生 ``{S_SOU_*: 码值}`` 映射（由 utils.zhilian_filters
+        生成），仅直连路径支持；浏览器 fallback 不带筛选（直连已足够，fallback 仅兜底）。
+        """
         if self._direct is None:
             await self.startup()
 
         if _settings.JOB_SEARCH_V2_DIRECT_ENABLED and self._direct is not None:
             try:
                 jobs, meta = await self._direct.search_positions(
-                    keyword, city_id, page=page
+                    keyword, city_id, page=page, filters=filters
                 )
                 logger.info(
                     f"直连列表: {keyword}/cityId={city_id} p{page} "
@@ -657,6 +670,11 @@ class ZhaopinSearchClient:
         if not _settings.JOB_SEARCH_V2_BROWSER_FALLBACK_ENABLED:
             return []
 
+        if filters:
+            logger.warning(
+                "浏览器 fallback 不支持筛选，本页将忽略 filters: "
+                f"{keyword}/cityId={city_id} p{page}, filters={filters}"
+            )
         result = await self._browser.navigate_and_listen(keyword, city_id, page)
 
         source = result.get("_source", "listen")
@@ -723,8 +741,12 @@ class ZhaopinSearchClient:
         *,
         include_detail: bool = True,
         city_id_override: Optional[str] = None,
+        filters: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
-        """一个"关键词 × 省份"组合，按页拉列表，可选并发拉详情。"""
+        """一个"关键词 × 省份"组合，按页拉列表，可选并发拉详情。
+
+        ``filters`` 为智联原生 ``{S_SOU_*: 码值}``，逐页透传给 search_positions。
+        """
         city_id = city_id_override or await self._city.resolve(province)
         if not city_id:
             logger.warning(f"[v2] 无法解析城市 '{province}'，跳过")
@@ -737,7 +759,7 @@ class ZhaopinSearchClient:
             t0 = time.monotonic()
             try:
                 raw_list = await self.search_positions(
-                    keyword, city_id, page=page_num
+                    keyword, city_id, page=page_num, filters=filters
                 )
             except Exception as exc:
                 # 页级容错：某页抓取失败时，若前面已抓到数据则停止翻页并保留已有结果，
@@ -862,8 +884,13 @@ class ZhaopinSearchClient:
         *,
         include_detail: bool = True,
         city_id_overrides: Optional[Dict[str, str]] = None,
+        filters: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
-        """顺序执行多个组合（浏览器操作由 Lock 串行化），汇总结果。"""
+        """顺序执行多个组合（浏览器操作由 Lock 串行化），汇总结果。
+
+        ``filters`` 为智联原生 ``{S_SOU_*: 码值}``，对所有关键词×省份组合统一生效，
+        逐层透传至 scrape_combination → search_positions → 直连 payload。
+        """
         all_data: List[Dict[str, Any]] = []
         combinations = 0
         failed_combinations = 0
@@ -890,6 +917,7 @@ class ZhaopinSearchClient:
                         page_size,
                         include_detail=include_detail,
                         city_id_override=city_id_override,
+                        filters=filters,
                     )
                     for item in result:
                         item["_query_keyword"] = kw

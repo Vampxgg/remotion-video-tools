@@ -126,6 +126,21 @@ if (-not $DryRun) {
 } else {
     $chrome = if ($ChromePath) { $ChromePath } else { "chrome.exe" }
 }
+
+# 绝对化 ProfileRoot/StateRoot：Git Bash / 服务进程 / PowerShell 当前目录不一致时，
+# 相对 --user-data-dir 会让 Chrome profile 路径漂移（曾导致 "无法读写数据目录" 弹窗
+# 与临时 profile 混用）。以项目根（脚本上级目录）为基准解析成绝对路径。
+$projectRoot = Split-Path -Parent $PSScriptRoot
+function Resolve-AbsoluteRoot {
+    param([string]$RawPath)
+    if ([System.IO.Path]::IsPathRooted($RawPath)) {
+        return $RawPath
+    }
+    return (Join-Path $projectRoot $RawPath)
+}
+$ProfileRoot = Resolve-AbsoluteRoot -RawPath $ProfileRoot
+$StateRoot = Resolve-AbsoluteRoot -RawPath $StateRoot
+
 New-Item -ItemType Directory -Force -Path $ProfileRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $StateRoot | Out-Null
 

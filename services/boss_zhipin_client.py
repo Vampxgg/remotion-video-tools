@@ -337,6 +337,10 @@ class BossZhipinClient:
         self._session_pool: Optional["queue.Queue[_DirectBossSession]"] = None
         self._pool_size = 0
 
+    @property
+    def browser_host_port(self) -> str:
+        return self._browser_host_port
+
     async def scrape_many(
         self,
         keywords: List[str],
@@ -410,10 +414,10 @@ class BossZhipinClient:
         with self._tab_lock:
             if not self._page_alive():
                 self._close_page_locked()
-                from DrissionPage import ChromiumPage
+                from services.browser_connect import connect_existing
 
                 logger.info("BOSS worker=%s 持久化 tab 初始化 …", self.worker_id)
-                self._page = ChromiumPage(
+                self._page = connect_existing(
                     self._browser_host_port
                 ).new_tab()
                 # tab 重建后旧会话池作废，强制重建以绑定新 tab。
@@ -1049,6 +1053,14 @@ class BossWorkerPoolClient:
             shutdown = getattr(worker, "shutdown", None)
             if shutdown is not None:
                 await shutdown()
+
+    @property
+    def workers(self) -> List[Any]:
+        return list(self._workers)
+
+    @property
+    def runtime_manager(self) -> Optional[BossWorkerRuntimeManager]:
+        return self._runtime_manager
 
     def worker_status(self) -> Dict[str, Dict[str, Any]]:
         now = time.monotonic()

@@ -743,6 +743,48 @@ BOSS_PROXY_TIMEOUT_SEC=95
 多 worker 来扩容同一批账号。需要更大规模时，应拆分多个 BOSS 服务实例，每个实例管理
 不同的账号、Chrome profile、调试端口和代理池分片。
 
+#### 9.2.2 Chrome worker 自动编排（免手动运维）
+
+当 `BOSS_ZHIPIN_MANAGE_CHROME_WORKERS=true` 时，`boss_server` 启动会以
+`secrets/boss-workers.json` 为唯一真相，在 lifespan 内自动完成一轮 reconcile，
+不再需要手动 kill 进程 / 跑 `start_boss_workers.ps1` / 查端口：
+
+1. 清理：杀掉 DrissionPage 自起的临时 profile 浏览器（`%TEMP%\DrissionPage\userData\*`）；
+   删除配置里已不存在的孤儿运行态状态文件（如从 3 个 worker 缩到 2 个后残留的 `boss-c.json`）。
+2. 对齐：遍历配置里每个 worker 逐个 `ensure_worker`——端口已在监听且代理一致就复用，
+   否则用绝对路径重启 Chrome。因此改 `boss-workers.json` 增减 worker 后，只需重启
+   `boss_server`，多一个少一个都会被自动对齐，不会因运行态漂移导致抢端口/抢 profile。
+3. 验证：每个 worker 打开 `https://httpbin.org/ip` 校验出口 IP，结果写入日志
+   （`logs/boss/reconciler.log`）与 `/health` 的 `worker_report`，可直观核对出口是否正确；
+   随后页面停在 BOSS 搜索首页。
+
+因此正常运维只需一条命令：
+
+```powershell
+uvicorn boss_server:app --host 127.0.0.1 --port 2926 --workers 1
+```
+
+`scripts/start_boss_workers.ps1` 仅保留为应急手动备用；它已把 `ProfileRoot`/`StateRoot`
+绝对化（以脚本上级目录为项目根），避免 Git Bash / 服务进程 / PowerShell 当前目录不一致
+导致的 Chrome profile 路径漂移。
+
+根治说明：所有连接已存在 Chrome 调试端口的地方统一走 `services/browser_connect.py`
+的 `connect_existing()`（内部 `existing_only()`）。端口连不上时直接抛错，绝不再静默自起
+无登录、无代理的临时 profile 浏览器。
+
+#### 9.2.3 浏览器调试端口隔离
+
+BOSS worker 独占 `9527/9528/9529`。智联 V2 主链路走 HTTP 直连，浏览器仅在 fallback
+时使用，但其默认端口与 BOSS 的 `account-a`(9527) 相同，会造成交叉污染。已在 `.env`
+把智联及旧浏览器模块统一隔离到专用端口：
+
+```env
+JOB_SEARCH_BROWSER_HOST_PORT=127.0.0.1:9540
+ZHIPIN_BROWSER_HOST_PORT=127.0.0.1:9540
+DRISSION_BROWSER_HOST_PORT=127.0.0.1:9540
+TUOYU_SERP_BROWSER_HOST_PORT=127.0.0.1:9540
+```
+
 可选开启单 worker 自愈换代理：
 
 ```env
