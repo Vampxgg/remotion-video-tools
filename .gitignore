@@ -101,6 +101,14 @@ static/azure_cost_export_func/local.settings.json
 static/azure_cost_export_func/_data/
 static/azure_cost_export_func/_*.py
 
+# ===== 本地探针 / 一次性分析脚本 / 调试产物（不入库）=====
+_*.py
+_*.txt
+_*.json
+_boss_userdata/
+runtime/
+static/proxy/
+
 # ===== 导出的原始数据 / 会话记录 / 本地产物 =====
 requests-*-CST.md
 requests-*-CST.ndjson

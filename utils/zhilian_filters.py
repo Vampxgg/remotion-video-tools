@@ -17,6 +17,12 @@ POST /c/i/search/positions 的原生 S_SOU_* 字段与码值。
 - 多选——同一维度传入以英文逗号分隔的多个标签/码值，逐项映射后重新用逗号拼接。
 - 薪资(salary)——值形如 "min,max"（单位元，如 "10001,15000"），不查 options，原样透传。
 - 地铁(subway)——值为站点码，不查 options，原样透传。
+- 区县(district)——智联区县**复用城市字段 S_SOU_WORK_CITY**（与 BOSS 独立 multiBusinessDistrict
+  不同）：填入区县码即按区县筛，码为智联自有码（如天河区=2048，取自官方 region_relation 字典
+  并经浏览器实测校验），非国标码。by_city 按城市消歧重名区县（朝阳区/新华区等），需由调用方
+  传入 city（build_filters(payload, city)）；city_aliases 把民族自治州/地区全称（如
+  「延边朝鲜族自治州」）归一到智联简称（「延边」）以稳定命中 by_city。后端把 district 的
+  S_SOU_WORK_CITY 展开进直连 payload 时会覆盖城市码，天然实现"选区县则按区县筛"。
 - 「不限」/空值——map_value 返回 None，build_filters 不写入该字段（保持不筛选）。
 """
 
@@ -81,6 +87,24 @@ _SEED: Dict[str, Dict[str, Any]] = {
     "industry": {"field": "S_SOU_JD_INDUSTRY_LEVEL", "options": {}},
     "salary": {"field": "S_SOU_SALARY", "options": {}},
     "subway": {"field": "S_SOU_SUBWAY_STATION", "options": {}},
+    # district：区县复用 S_SOU_WORK_CITY；种子仅放广州/上海少量兜底，
+    # 全量 337 城 2900+ 区县 + city_aliases(民族自治州全称->简称) 在 filters.json。
+    "district": {
+        "field": "S_SOU_WORK_CITY",
+        "by_city": {
+            "广州": {
+                "越秀区": "2045", "海珠区": "2046", "荔湾区": "2047", "天河区": "2048",
+                "白云区": "2049", "黄埔区": "2053", "番禺区": "2052", "花都区": "2051",
+                "南沙区": "2054", "增城区": "2475", "从化区": "2474",
+            },
+        },
+        "city_aliases": {},
+        "options": {
+            "越秀区": "2045", "海珠区": "2046", "荔湾区": "2047", "天河区": "2048",
+            "白云区": "2049", "黄埔区": "2053", "番禺区": "2052", "花都区": "2051",
+            "南沙区": "2054", "增城区": "2475", "从化区": "2474",
+        },
+    },
 }
 
 
@@ -107,6 +131,42 @@ def field_name(dim: str) -> Optional[str]:
     return info.get("field") if info else None
 
 
+def _district_options(city: Optional[str]) -> Dict[str, str]:
+    """返回用于 district 维度映射的 {区县名: 智联区县码} 表。
+
+    有 city 上下文时优先取该城市的区县表（by_city，消歧重名区县如朝阳区/新华区）；
+    无 city 或该城市缺失时回退扁平 options（重名取首个，宽松兜底）。
+
+    城市名归一化顺序（与上层可能传入的多种形式对齐）：
+    1) 原名直接命中 by_city；
+    2) city_aliases 别名（民族自治州/地区全称 → 智联简称，如「延边朝鲜族自治州」→「延边」，
+       数据驱动、避免脆弱的民族词正则）；
+    3) 去尾缀（市/地区/盟/自治州/特别行政区）后再命中。
+    """
+    info = _load().get("district") or {}
+    by_city: Dict[str, Dict[str, str]] = info.get("by_city") or {}
+    flat: Dict[str, str] = info.get("options") or {}
+    aliases: Dict[str, str] = info.get("city_aliases") or {}
+    if city:
+        raw = (city or "").strip()
+        # 1) 原名
+        if raw in by_city:
+            return by_city[raw]
+        # 2) 别名（全称 -> 简称）
+        alias = aliases.get(raw)
+        if alias and alias in by_city:
+            return by_city[alias]
+        # 3) 去尾缀
+        name = raw
+        for suf in ("特别行政区", "自治州", "地区", "盟", "市"):
+            if name.endswith(suf) and len(name) > len(suf):
+                name = name[: -len(suf)]
+                break
+        if name in by_city:
+            return by_city[name]
+    return flat
+
+
 def _map_single(dim: str, token: str, options: Dict[str, str]) -> Optional[str]:
     """把单个标签/码值映射为码值。
 
@@ -128,16 +188,22 @@ def _map_single(dim: str, token: str, options: Dict[str, str]) -> Optional[str]:
     return t
 
 
-def map_value(dim: str, raw: Optional[str]) -> Optional[str]:
+def map_value(dim: str, raw: Optional[str], city: Optional[str] = None) -> Optional[str]:
     """把业务标签/中文/别名 -> 码值；支持逗号多选。
 
     多选：以英文逗号分隔逐项映射，去重保序后重新用逗号拼接。
     全部项都是「不限/空」时返回 None（不写入该字段）。
+
+    ``city``：仅对 district 维度有意义——用于在该城市的区县表里消歧（重名区县）。
+    其余维度忽略 city。
     """
     if raw is None:
         return None
-    info = _load().get(dim)
-    options: Dict[str, str] = (info.get("options") if info else {}) or {}
+    if dim == "district":
+        options = _district_options(city)
+    else:
+        info = _load().get(dim)
+        options = (info.get("options") if info else {}) or {}
     parts = [p for p in (raw.split(",") if isinstance(raw, str) else [str(raw)])]
     codes: list[str] = []
     seen: set[str] = set()
@@ -149,13 +215,20 @@ def map_value(dim: str, raw: Optional[str]) -> Optional[str]:
     return ",".join(codes) if codes else None
 
 
-def build_filters(payload: Optional[Dict[str, Any]]) -> Dict[str, str]:
+def build_filters(
+    payload: Optional[Dict[str, Any]], city: Optional[str] = None
+) -> Dict[str, str]:
     """入参为业务语义 dict（education/salary/experience/company_type/company_scale/
-    industry/position_type/employment_type/subway），输出 {S_SOU_*: 码值}。
+    industry/position_type/employment_type/subway/district），输出 {S_SOU_*: 码值}。
 
     - 未知维度、「不限/空」值一律跳过（不写入）。
     - 值支持逗号多选。
     - 供后端与其它调用方复用，是"业务语义 → 智联字段"的唯一映射入口。
+    - ``city``：用于 district 维度按城市消歧（重名区县）。后端应传 payload.region.city，
+      使"广州+天河区"等精确映射；缺省时 district 走扁平表兜底。
+    - 注意：district 的 field 是 S_SOU_WORK_CITY（与城市码同字段）。当同时提供城市码与
+      district 时，后端把本函数结果展开进直连 payload 会覆盖城市码为区县码——这正是智联
+      "选区县即按区县筛"的原生行为，无需额外处理。
     """
     result: Dict[str, str] = {}
     if not payload:
@@ -164,7 +237,7 @@ def build_filters(payload: Optional[Dict[str, Any]]) -> Dict[str, str]:
     for dim, raw in payload.items():
         if raw is None or dim not in dims:
             continue
-        code = map_value(dim, raw if isinstance(raw, str) else str(raw))
+        code = map_value(dim, raw if isinstance(raw, str) else str(raw), city)
         if not code:
             continue
         field = dims[dim].get("field")

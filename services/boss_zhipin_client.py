@@ -254,6 +254,7 @@ class _DirectBossSession:
         city_code: int,
         page_num: int,
         page_size: Optional[int] = None,
+        filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         params = {
             "scene": 1,
@@ -262,6 +263,13 @@ class _DirectBossSession:
             "page": page_num,
             "pageSize": page_size or _settings.BOSS_ZHIPIN_DIRECT_PAGE_SIZE,
         }
+        # 全维度筛选：BOSS 原生 query 参数名（degree/experience/salary/scale/stage/
+        # jobType/industry/multiBusinessDistrict），值已由 utils.boss_filters 映射为码值。
+        # filters 为空时不注入任何键，params 结构与历史完全一致（向后兼容）。
+        if filters:
+            for key, value in filters.items():
+                if value:
+                    params[key] = value
         referer = (
             f"{SEARCH_PAGE_URL}?{urlencode({'query': keyword, 'city': city_code})}"
         )
@@ -351,6 +359,7 @@ class BossZhipinClient:
         include_description: bool,
         start_page: int = 1,
         page_size: Optional[int] = None,
+        filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """串行采集多个关键词和城市组合。
 
@@ -360,6 +369,10 @@ class BossZhipinClient:
 
         ``page_size`` 覆盖单页条数（默认走 settings）：逐条详情累积时用较小页保证单轮
         时间可控；summary 快路径不传，沿用默认页大小，外部 workflow 行为不变。
+
+        ``filters``：已由 utils.boss_filters.build_filters 映射为 BOSS 原生 query 参数
+        （degree/experience/salary/scale/stage/jobType/industry/multiBusinessDistrict）
+        的全维度筛选；为空/None 时不注入任何筛选，请求结构与历史完全一致（向后兼容）。
         """
         async with self._sema:
             try:
@@ -374,6 +387,7 @@ class BossZhipinClient:
                         include_description,
                         start_page,
                         page_size,
+                        filters,
                     ),
                     timeout=_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC,
                 )
@@ -498,6 +512,7 @@ class BossZhipinClient:
         include_description: bool,
         start_page: int = 1,
         page_size: Optional[int] = None,
+        filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         direct_enabled = _settings.BOSS_ZHIPIN_DIRECT_ENABLED
         self._ensure_resources(direct_enabled)
@@ -528,7 +543,7 @@ class BossZhipinClient:
                     for page_num in range(start_page, start_page + max_pages):
                         body = self._fetch_list(
                             page, session, keyword, city_code, page_num, warnings,
-                            page_size,
+                            page_size, filters,
                         )
                         zp_data = body.get("zpData") or {}
                         raw_jobs = zp_data.get("jobList") or []
@@ -639,15 +654,19 @@ class BossZhipinClient:
         page_num: int,
         warnings: List[str],
         page_size: Optional[int] = None,
+        filters: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """优先直连列表接口，失败时回退浏览器 listen 拦截。
 
         命中风控（``BossAccessLimitedError``）时直接向上抛，不回退浏览器：
         继续用浏览器导航同一个被封站点只会加重风控。
+
+        ``filters``：已映射为 BOSS 原生 query 参数的全维度筛选（空则不筛选）；
+        直连与浏览器回退两条路径都会注入。
         """
         if session is not None:
             try:
-                return session.fetch_list(keyword, city_code, page_num, page_size)
+                return session.fetch_list(keyword, city_code, page_num, page_size, filters)
             except BossAccessLimitedError:
                 raise
             except Exception as exc:
@@ -657,7 +676,7 @@ class BossZhipinClient:
                 )
                 logger.warning(msg)
                 warnings.append(msg)
-        return self._fetch_page(page, keyword, city_code, page_num)
+        return self._fetch_page(page, keyword, city_code, page_num, filters)
 
     def _enrich_description(
         self,
@@ -692,8 +711,9 @@ class BossZhipinClient:
                 )
         self._enrich_job_description(page, job)
 
-    def _fetch_page(self, page, keyword: str, city_code: int, page_num: int) -> Dict[str, Any]:
-        url = self._build_search_url(keyword, city_code, page_num)
+    def _fetch_page(self, page, keyword: str, city_code: int, page_num: int,
+                    filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        url = self._build_search_url(keyword, city_code, page_num, filters)
         logger.info(f"BOSS 搜索: keyword={keyword}, city={city_code}, page={page_num}")
 
         # 浏览器回退：独占共享 tab（并发>1 时避免与其它会话的 tab 操作交叉）。
@@ -858,14 +878,23 @@ class BossZhipinClient:
         return text[section_start:section_end].strip(" ：:\n\t")
 
     @staticmethod
-    def _build_search_url(keyword: str, city_code: int, page_num: int) -> str:
-        query = urlencode({
+    def _build_search_url(keyword: str, city_code: int, page_num: int,
+                          filters: Optional[Dict[str, str]] = None) -> str:
+        params: Dict[str, Any] = {
             "query": keyword,
             "city": city_code,
             "industry": "",
             "position": "",
             "page": page_num,
-        })
+        }
+        # 全维度筛选：把已映射的 BOSS 原生参数拼进 query string。命中 industry 时覆盖
+        # 上面的空占位；其余维度（degree/experience/salary/scale/stage/jobType/
+        # multiBusinessDistrict）追加。filters 为空时 URL 与历史完全一致。
+        if filters:
+            for key, value in filters.items():
+                if value:
+                    params[key] = value
+        query = urlencode(params)
         return f"{SEARCH_PAGE_URL}?{query}"
 
     @staticmethod

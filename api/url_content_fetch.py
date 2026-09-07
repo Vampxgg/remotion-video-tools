@@ -122,6 +122,54 @@ async def _validate_images_in_md(md: str, client: httpx.AsyncClient) -> str:
     return await cleaner.validate_image_urls(md, client)
 
 
+def _looks_like_html(text: str) -> bool:
+    """嗅探一段文本是否其实是 HTML 文档。
+
+    用途：部分站点（如腾讯新闻）HEAD 谎报 ``Content-Type: text/plain``，导致 URL
+    被误判为 .txt 文档、把整页 HTML 当纯文本原样返回，严重污染 LLM 上下文。
+    下载到 body 后用本函数做二次嗅探，命中则回退到 HTML 抽取流水线。
+    """
+    if not text:
+        return False
+    head = text.lstrip()[:2048].lower()
+    if head.startswith(("<!doctype", "<html", "<?xml")):
+        return True
+    # 兜底：开头出现典型 HTML 结构标签也判为 HTML
+    return any(tag in head for tag in ("<head", "<body", "<meta", "<title", "<div"))
+
+
+async def _extract_html_to_markdown(
+    html_content: str,
+    final_url: str,
+    client: httpx.AsyncClient,
+    cfg: Any,
+    max_chars: int,
+) -> str:
+    """把 HTML 抽成清洗后的 markdown（trafilatura + 噪声清洗 + 图片校验 + 视频补充）。
+
+    抽取失败返回空串（调用方据此置 empty，绝不回退到原始 HTML）。
+    """
+    raw_content = await asyncio.to_thread(
+        trafilatura.extract,
+        html_content,
+        config=cfg,
+        output_format="markdown",
+        include_images=True,
+        favor_recall=True,
+    )
+    if not raw_content:
+        return ""
+    cleaned = _HtmlContentCleaner.clean_markdown_sync(raw_content)
+    cleaned = await _validate_images_in_md(cleaned, client)
+    videos = _HtmlContentCleaner.parse_videos(html_content, final_url)
+    if videos:
+        cleaned += "\n\n## 参考视频:\n" + "\n".join(f"- {v}" for v in videos)
+    cleaned = cleaned.strip()
+    if not cleaned:
+        return ""
+    return cleaned[:max_chars] if len(cleaned) > max_chars else cleaned
+
+
 async def fetch_url_content(
     url: str,
     client: httpx.AsyncClient,
@@ -247,6 +295,27 @@ async def fetch_url_content(
                 base_out["content_error"] = "下载后超过 20MB"
                 return base_out
 
+            # HEAD 可能谎报 Content-Type（如腾讯新闻把 HTML 报成 text/plain）。
+            # 对"文本类"文档（.txt/.md/.markdown）在解析前嗅探真实内容：若其实是 HTML，
+            # 回退到 HTML 抽取流水线，避免把整页 HTML 当纯文本原样返回污染上下文。
+            if ext in (".txt", ".md", ".markdown"):
+                try:
+                    sniff_text = file_bytes.decode("utf-8", errors="replace")
+                except Exception:
+                    sniff_text = ""
+                if _looks_like_html(sniff_text):
+                    base_out["content_kind"] = "html"
+                    extracted = await _extract_html_to_markdown(
+                        sniff_text, final_url, client, cfg, max_chars
+                    )
+                    if not extracted:
+                        base_out["content_fetch_status"] = "empty"
+                        base_out["content_error"] = "内容提取为空（HEAD 误报 text/*，实际为 HTML）"
+                        return base_out
+                    base_out["content_text"] = extracted
+                    base_out["content_fetch_status"] = "ok"
+                    return base_out
+
             parsed = await asyncio.to_thread(
                 parser.parse_document, file_bytes, ext or ".bin", url
             )
@@ -281,29 +350,15 @@ async def fetch_url_content(
         final_url = str(response.url)
         base_out["final_url"] = final_url
         html_content = response.text
-        raw_content = await asyncio.to_thread(
-            trafilatura.extract,
-            html_content,
-            config=cfg,
-            output_format="markdown",
-            include_images=True,
-            favor_recall=True,
+        raw_content = await _extract_html_to_markdown(
+            html_content, final_url, client, cfg, max_chars
         )
-        if raw_content:
-            cleaned = _HtmlContentCleaner.clean_markdown_sync(raw_content)
-            cleaned = await _validate_images_in_md(cleaned, client)
-            videos = _HtmlContentCleaner.parse_videos(html_content, final_url)
-            if videos:
-                cleaned += "\n\n## 参考视频:\n" + "\n".join(f"- {v}" for v in videos)
-            raw_content = cleaned
-
         if not raw_content:
             base_out["content_fetch_status"] = "empty"
             base_out["content_error"] = "内容提取为空"
             return base_out
 
-        text = raw_content[:max_chars] if len(raw_content) > max_chars else raw_content
-        base_out["content_text"] = text
+        base_out["content_text"] = raw_content
         base_out["content_fetch_status"] = "ok"
         return base_out
 

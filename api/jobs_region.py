@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from api.job_search_v2 import get_search_client as get_zhilian_client
 from services.boss_zhipin_client import BossAccessLimitedError, get_boss_client
 from utils import region_map
+from utils import boss_filters as boss_filters_util
 from utils import zhilian_filters as zhilian_filters_util
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
@@ -152,7 +153,8 @@ class RegionSpec(BaseModel):
     city: str = Field(..., min_length=1, max_length=50, description="城市，例如 深圳")
     district: Optional[str] = Field(
         None,
-        description="区县/区域；第一版只记录，不承诺平台级精准筛选",
+        description="区县/区域标注；仅用于结果地域回填与展示。若要按区县筛选，请用 "
+        "query.filters.district（智联/BOSS 均精准生效）",
     )
     platform_hints: RegionPlatformHints = Field(
         default_factory=RegionPlatformHints,
@@ -167,23 +169,36 @@ class RegionSpec(BaseModel):
 
 
 class JobFilters(BaseModel):
-    """智联全维度筛选（业务语义名，值为中文标签/别名/码值，支持逗号多选）。
+    """全维度筛选（业务语义名，source 无关；值为中文标签/别名/码值，支持逗号多选）。
 
-    仅对智联来源生效；BOSS 分支忽略。字段值经 utils.zhilian_filters.build_filters
-    统一映射为智联原生 S_SOU_* 字段与码值——本层不做任何码值映射，保持单一 source of truth。
-    - salary: "min,max" 数值区间（单位元，如 "10001,15000"）
-    - subway: 站点码；其余维度传中文标签/别名（如 education="大专"）
-    - 「不限」/空 → 不写入对应字段（等同不筛选）
+    共享超集：每个维度由各来源的映射器（utils.zhilian_filters / utils.boss_filters）
+    翻译成自己的原生参数与码值——本层不做任何码值映射，保持单一 source of truth。
+    某来源不支持的维度会被其映射器静默忽略，并由 _run_* 按维度粒度写入 warnings。
+
+    支持矩阵：
+    - 两源通用：education / experience / salary / company_scale / industry /
+      position_type / district（工作区域-区县，两源均精准支持：智联复用 S_SOU_WORK_CITY 填
+      智联区县码，BOSS 用 multiBusinessDistrict 填国标码；均按 region.city 消歧重名区县）
+    - 智联专属：company_type（公司性质）/ subway（地铁站点码）
+    - BOSS 专属：stage（融资阶段）
+
+    值约定：
+    - salary：智联期望 "min,max" 数值区间（元，如 "10001,15000"）；BOSS 期望**档位标签**
+      （如 "10-20K"，映射为档位码）。二者语义不同，上层按目标来源选择填法，各映射器只认自己那套。
+    - subway：站点码；其余维度传中文标签/别名（如 education="大专"）。
+    - 「不限」/空 → 不写入对应字段（等同不筛选）。
     """
 
     education: Optional[str] = Field(None, description="学历，如 大专/本科/硕士/博士，可逗号多选")
-    salary: Optional[str] = Field(None, description='薪资区间 "min,max"（元），如 "10001,15000"')
+    salary: Optional[str] = Field(None, description='薪资：智联填 "min,max"（元）；BOSS 填档位标签如 "10-20K"')
     experience: Optional[str] = Field(None, description="经验，如 1-3年/3-5年/5-10年/10年以上")
-    company_type: Optional[str] = Field(None, description="公司性质，如 国企/民营/上市公司/合资")
+    company_type: Optional[str] = Field(None, description="公司性质（仅智联），如 国企/民营/上市公司/合资")
     company_scale: Optional[str] = Field(None, description="公司规模，如 20-99人/1000-9999人")
-    industry: Optional[str] = Field(None, description="行业，如 IT|通信|电子|互联网/金融业")
+    industry: Optional[str] = Field(None, description="行业，如 IT|通信|电子|互联网/金融业/互联网")
     position_type: Optional[str] = Field(None, description="职位大类，如 IT|互联网|通信")
-    subway: Optional[str] = Field(None, description="地铁站点码（原样透传）")
+    district: Optional[str] = Field(None, description="工作区域-区县（智联/BOSS 均精准生效，如 天河区/浦东新区/黄浦区），按 region.city 消歧重名区县")
+    stage: Optional[str] = Field(None, description="融资阶段（仅 BOSS），如 未融资/A轮/已上市/不需要融资")
+    subway: Optional[str] = Field(None, description="地铁站点码（仅智联，原样透传）")
 
     model_config = {"extra": "forbid"}
 
@@ -202,7 +217,11 @@ class QuerySpec(BaseModel):
     )
     filters: Optional[JobFilters] = Field(
         None,
-        description="全维度筛选（仅智联生效）：学历/薪资/经验/公司性质/规模/行业/职位类型/地铁",
+        description=(
+            "全维度筛选（共享超集，各来源映射自己支持的维度）："
+            "两源通用=学历/薪资/经验/公司规模/行业/职位类型；"
+            "智联专属=公司性质/地铁；BOSS 专属=融资阶段/工作区域(区县)"
+        ),
     )
 
     @field_validator("keywords")
@@ -518,10 +537,14 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
         city_id_overrides = {city_name: city_id} if city_id else None
         # 全维度筛选：把业务语义 filters 映射为智联原生 {S_SOU_*: 码值}。
         # 映射逻辑不在此硬编码，统一走 utils.zhilian_filters（唯一 source of truth）。
+        # 传入 region.city 供 district 维度按城市消歧（重名区县如朝阳区/新华区）；
+        # district 映射为 S_SOU_WORK_CITY（区县复用城市字段），展开进直连 payload 时
+        # 会覆盖城市码为区县码——这正是智联"选区县即按区县筛"的原生行为。
         zhilian_filters = None
         if payload.query.filters is not None:
             zhilian_filters = zhilian_filters_util.build_filters(
-                payload.query.filters.model_dump()
+                payload.query.filters.model_dump(),
+                payload.region.city,
             )
             if zhilian_filters:
                 logger.info(
@@ -577,6 +600,23 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
             )
 
         warnings = _empty_result_warnings(SourceName.ZHILIAN, jobs)
+        # 按维度粒度提示：智联不支持的维度（如 BOSS 专属的 stage 融资阶段）被
+        # zhilian_filters 静默忽略，这里逐一列出，避免上层误以为已按该维过滤。
+        # district（工作区域）智联已支持（复用 S_SOU_WORK_CITY，field_name 非 None），
+        # 会自动落在"支持"侧，无需特殊排除。
+        if payload.query.filters is not None:
+            filled = {
+                k: v
+                for k, v in payload.query.filters.model_dump().items()
+                if v is not None and str(v).strip() != ""
+            }
+            unsupported = [
+                k for k in filled if zhilian_filters_util.field_name(k) is None
+            ]
+            if unsupported:
+                warnings.append(
+                    "以下筛选维度智联不支持、已忽略（仅对 BOSS 生效）：" + "、".join(unsupported)
+                )
         if failed_combinations:
             warnings.append(
                 f"智联部分关键词组合采集失败（{failed_combinations}/{combinations}），"
@@ -690,6 +730,20 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
             if include_description
             else None
         )
+        # 全维度筛选：把业务语义 filters 映射为 BOSS 原生 query 参数（degree/experience/
+        # salary/scale/stage/jobType/industry/multiBusinessDistrict）。映射逻辑统一走
+        # utils.boss_filters（唯一 source of truth）；BOSS 不支持的维度会被静默忽略。
+        # 传入 region.city 供 district 维度按城市消歧（重名区县如朝阳区/新华区）。
+        boss_filters = None
+        if payload.query.filters is not None:
+            boss_filters = boss_filters_util.build_filters(
+                payload.query.filters.model_dump(),
+                payload.region.city,
+            )
+            if boss_filters:
+                logger.info(
+                    f"[region-search][boss_zhipin] 应用筛选: {boss_filters}"
+                )
         raw_result = await asyncio.wait_for(
             boss_client.scrape_many(
                 payload.query.keywords,
@@ -700,6 +754,7 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
                 include_description,
                 payload.collection.start_page,
                 boss_page_size,
+                boss_filters or None,
             ),
             timeout=payload.collection.timeout_seconds,
         )
@@ -718,11 +773,20 @@ async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
         warnings = (raw_result or {}).get("warnings") or []
         if capped_warning:
             warnings.append(capped_warning)
-        # 全维度筛选目前仅智联生效；BOSS 不支持，若用户传了 filters 明确告知。
-        if payload.query.filters is not None and any(
-            v is not None for v in payload.query.filters.model_dump().values()
-        ):
-            warnings.append("筛选条件（学历/薪资/经验等）仅对智联来源生效，BOSS 结果未按 filters 过滤")
+        # 按维度粒度提示：BOSS 支持的维度已生效，未支持的（如公司性质/地铁/职位类型）
+        # 被静默忽略，这里逐一列出，避免上层误以为已按该维过滤。
+        if payload.query.filters is not None:
+            filled = {
+                k: v
+                for k, v in payload.query.filters.model_dump().items()
+                if v is not None and str(v).strip() != ""
+            }
+            unsupported = [k for k in filled if boss_filters_util.field_name(k) is None]
+            if unsupported:
+                warnings.append(
+                    "以下筛选维度 BOSS 不支持、已忽略（仅对智联生效）："
+                    + "、".join(unsupported)
+                )
         warnings.extend(_boss_city_hint_warnings(payload.region, city_code))
         warnings.extend(_multi_keyword_page_warnings(summary, payload))
         warnings.extend(_empty_result_warnings(SourceName.BOSS_ZHIPIN, jobs))
