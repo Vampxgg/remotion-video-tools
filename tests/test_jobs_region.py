@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from api import jobs_region
 from services.boss_zhipin_client import BossAccessLimitedError
+from utils import zhilian_filters
 from utils.responses import validation_exception_handler
 
 
@@ -118,6 +119,12 @@ def _payload(**overrides):
 
 
 # ─────────────── 用例 ───────────────
+
+def test_zhilian_food_industry_maps_to_native_code():
+    assert zhilian_filters.build_filters(
+        {"industry": "食品/饮品/烟酒制造"}
+    ) == {"S_SOU_JD_INDUSTRY_LEVEL": "500100000"}
+
 
 def test_success_dual_source_envelope(client, monkeypatch):
     monkeypatch.setattr(jobs_region, "_boss_client", _FakeBossClient(jobs=[_boss_job()]))
