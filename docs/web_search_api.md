@@ -820,6 +820,7 @@ python -m scripts.smoke_web_search
 3. **`locale.country` 在 Tavily 侧只覆盖 14 个常用 ISO 国家**：见 `services/web_search/tavily_provider.py::_ISO_TO_TAVILY_COUNTRY`，按需扩充。
 4. **`include_raw_provider_payload=true` 会显著放大响应体**：Tavily 单条 `raw_content` 可达 50KB+，仅调试 / 审计场景启用。
 5. **Redis 缓存以请求体为 key**：因此 `include_raw_provider_payload` 等会改变响应大小的字段值不同 → 不同 key、互不命中。
+6. **`hl` 必须是完整语言码**（如 `zh-cn`）：SearchAPI google engine 会拒绝 `hl=zh` 报 400 `Unsupported value \`zh\` in hl parameter`，进而 `all_providers_failed`→502。`_build_params` 直接透传 `locale.language.lower()`，不得截断。回归见 `tests/test_searchapi_google_params.py`。
 
 ### 14.2 后续计划（不在本次范围）
 

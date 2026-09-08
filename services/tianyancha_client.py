@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import httpx
@@ -19,6 +20,13 @@ from utils.settings import settings as _settings
 logger = setup_module_logger(__name__, "logs/tianyancha/client.log")
 
 CANDIDATE_PREVIEW_LIMIT = 10
+
+# 本地静态字典目录：天眼查已下线其公开 OSS 地区码/行业码字典（404），改为优先读取
+# 本仓 static/tianyancha 下由权威公开数据（GB/T 2260 行政区划、GB/T 4754-2017 行业分类）
+# 构建的静态文件；本地缺失时才回退到 OSS URL。构建脚本见同目录 build_*.py。
+_STATIC_DICT_DIR = Path(__file__).resolve().parent.parent / "static" / "tianyancha"
+_LOCAL_AREA_CODE_FILE = _STATIC_DICT_DIR / "area_code.json"
+_LOCAL_CATEGORY_FILE = _STATIC_DICT_DIR / "category.json"
 
 
 ERROR_MESSAGES = {
@@ -1009,15 +1017,35 @@ class TianyanchaClient:
             raise RuntimeError(f"字典接口返回格式异常: {url}")
         return data
 
+    @staticmethod
+    def _load_local_dict(path: Path) -> Dict[str, Any]:
+        """读取本地静态字典 JSON（地区码 / 行业码）。
+
+        天眼查已下线公开 OSS 字典，本地静态文件是权威主源；读取失败（文件缺失/损坏）
+        时抛出，由调用方回退到 OSS URL。
+        """
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise RuntimeError(f"本地字典格式异常: {path}")
+        return data
+
     async def _load_area_codes(self) -> List[Dict[str, str]]:
         if self._area_cache is not None:
             return self._area_cache
         try:
-            data = await self._fetch_public_json(_settings.TIANYANCHA_AREA_CODE_URL)
+            # 本地静态字典为主源；缺失/损坏才回退到（可能已 404 的）OSS URL。
+            try:
+                data = self._load_local_dict(_LOCAL_AREA_CODE_FILE)
+            except Exception as local_exc:  # noqa: BLE001
+                logger.warning(
+                    "本地区域字典不可用（%s），回退 OSS URL：%s",
+                    _LOCAL_AREA_CODE_FILE, local_exc,
+                )
+                data = await self._fetch_public_json(_settings.TIANYANCHA_AREA_CODE_URL)
         except Exception as exc:  # noqa: BLE001
-            # 字典 URL 失效（天眼查已下线 OSS 文件）或网络异常时，不让整条调研链路崩溃：
-            # 降级为空字典并缓存，resolve_area_code 因此返回 code=None，下游用中文区域名
-            # 走 _fallback_local_region_search 直接查本地企业库。字典恢复后重启即自愈。
+            # 本地与 OSS 均不可用时，不让整条调研链路崩溃：降级为空字典并缓存，
+            # resolve_area_code 因此返回 code=None，下游用中文区域名走
+            # _fallback_local_region_search 直接查本地企业库。字典恢复后重启即自愈。
             logger.warning("区域代码字典加载失败，降级为空表（改用本地库按区域名兜底）：%s", exc)
             self._area_cache = []
             return self._area_cache
@@ -1053,11 +1081,19 @@ class TianyanchaClient:
         if self._category_cache is not None:
             return self._category_cache
         try:
-            data = await self._fetch_public_json(_settings.TIANYANCHA_CATEGORY_URL)
+            # 本地静态字典为主源；缺失/损坏才回退到（可能已 404 的）OSS URL。
+            try:
+                data = self._load_local_dict(_LOCAL_CATEGORY_FILE)
+            except Exception as local_exc:  # noqa: BLE001
+                logger.warning(
+                    "本地行业字典不可用（%s），回退 OSS URL：%s",
+                    _LOCAL_CATEGORY_FILE, local_exc,
+                )
+                data = await self._fetch_public_json(_settings.TIANYANCHA_CATEGORY_URL)
         except Exception as exc:  # noqa: BLE001
-            # 同 _load_area_codes：行业分类字典失效时降级为空表，resolve_category_code 返回
-            # code=None，行业名改由 _fallback_local_region_search 对 name/business_scope 做
-            # ilike 匹配兜底，避免字典 404 让整条链路崩溃。
+            # 本地与 OSS 均不可用时降级为空表，resolve_category_code 返回 code=None，
+            # 行业名改由 _fallback_local_region_search 对 name/business_scope 做 ilike 匹配兜底，
+            # 避免字典失效让整条链路崩溃。
             logger.warning("行业分类字典加载失败，降级为空表（改用本地库按行业名兜底）：%s", exc)
             self._category_cache = []
             return self._category_cache

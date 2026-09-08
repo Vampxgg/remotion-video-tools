@@ -209,8 +209,9 @@ def _build_params(
         if common.locale.country:
             params["gl"] = common.locale.country.strip().lower()
         if common.locale.language:
-            # 取语言前缀，如 zh-CN -> zh
-            params["hl"] = common.locale.language.split("-")[0].strip().lower()
+            # SearchAPI/Google 的 hl 需要完整语言码（如 zh-cn），不能截成 zh：
+            # 截断后 google engine 会 400 "Unsupported value `zh` in hl parameter"。
+            params["hl"] = common.locale.language.strip().lower()
 
     # overrides 直通
     if overrides is not None:
