@@ -937,10 +937,10 @@ class TianyanchaSettings(_Base):
         "http://open.api.tianyancha.com/services/open/ic/baseinfo/normal"
     )
     TIANYANCHA_AREA_CODE_URL: str = (
-        "https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/newAreaCodeV2024.json"
+        "https://doc-open.tianyancha.com/document/newAreaCodeV2024.json"
     )
     TIANYANCHA_CATEGORY_URL: str = (
-        "https://jindi-oss-open.oss-cn-beijing.aliyuncs.com/document/category.json"
+        "https://doc-open.tianyancha.com/document/category.json"
     )
     TIANYANCHA_HTTP_TIMEOUT: float = 15.0
     TIANYANCHA_SEARCH_CACHE_TTL_SECONDS: int = 31536000
