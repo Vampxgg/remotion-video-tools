@@ -193,7 +193,7 @@ async def scrape_sync(payload: V2Payload):
     )
 
     try:
-        data = await asyncio.wait_for(
+        result = await asyncio.wait_for(
             client.scrape_many(payload.keywords, payload.provinces, payload.page_size),
             timeout=_settings.JOB_SEARCH_V2_SYNC_TIMEOUT,
         )
@@ -205,6 +205,7 @@ async def scrape_sync(payload: V2Payload):
     except RuntimeError as exc:
         return create_standard_response(code=503, message=str(exc))
 
+    data = (result or {}).get("jobs") or []
     msg = f"同步搜索完成，共 {len(data)} 条"
     logger.info(f"[v2/sync] {msg}")
     return create_standard_response(data=data, message=msg)
@@ -221,9 +222,10 @@ async def _run_async_task(
 ) -> None:
     _tasks[task_id]["status"] = TaskStatus.PROCESSING
     try:
-        data = await client.scrape_many(
+        result = await client.scrape_many(
             payload.keywords, payload.provinces, payload.page_size,
         )
+        data = (result or {}).get("jobs") or []
         _tasks[task_id].update({
             "status": TaskStatus.COMPLETED,
             "data": data,

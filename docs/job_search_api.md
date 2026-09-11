@@ -6,9 +6,12 @@
 
 ```http
 POST /api/jobs/region-search
+GET  /api/jobs/region-search/filters
 ```
 
-用途：按业务区域统一获取智联招聘和 BOSS 直聘岗位数据，并返回平台中立的统一字段结构。
+用途：`POST` 按业务区域统一获取智联招聘和 BOSS 直聘岗位数据，并返回平台中立的统一字段结构；
+`GET .../filters` 返回 `query.filters` 支持的全部过滤维度（key/中文标签/支持来源/是否多选/可选标签），
+供控制面板渲染过滤配置，详见 [§3.2.1](#321-filters-过滤维度) 与 [§11](#11-可用过滤维度发现接口)。
 
 设计原则：
 
@@ -136,6 +139,24 @@ POST /api/jobs/region-search
 | --- | --- | --- | --- | --- |
 | `keywords` | string[] | 是 | 无 | 岗位关键词列表，最多 10 个 |
 | `keyword_mode` | string | 否 | `any` | 关键词匹配模式，第一版仅支持 `any` |
+| `filters` | object | 否 | 无 | 过滤维度，业务语义 → 各来源原生码值，见 §3.2.1 |
+
+#### 3.2.1 `filters` 过滤维度
+
+`filters` 是「业务语义」到各来源原生码值的映射（由映射器 + `static/{zhilian,boss}/filters.json`
+统一翻译），可用维度、支持来源、可选标签由 `GET /api/jobs/region-search/filters` 动态返回（§11），
+不必硬编码。示例：
+
+```json
+{ "keywords": ["食品检验员"], "filters": { "industry": "食品/饮品/烟酒制造" } }
+```
+
+- **salary 统一档位标签**：填 `3K以下 / 3-5K / 5-10K / 10-20K / 20-50K / 50K以上`（大小写不敏感）。
+  智联侧自动转成其原生 `min,max` 区间（如 `10-20K → "10001,20000"`），BOSS 用其档位码；
+  已是 `"min,max"` 形式的输入（手动调用方）原样透传，向后兼容。
+- **来源差异**：`company_type / position_type / subway` 仅智联，`stage`（融资阶段）仅 BOSS；
+  某来源不支持的维度会被其映射器忽略，不报错。
+- **district（区县）**：随 `region.city` 动态，不在发现接口吐全量，按城市查询各来源区县码。
 
 ### 3.3 `sources`
 
@@ -875,4 +896,54 @@ BOSS_ZHIPIN_WORKER_DEVTOOLS_TIMEOUT_SEC=10
   }
 }
 ```
+
+## 11. 可用过滤维度发现接口
+
+```http
+GET /api/jobs/region-search/filters
+```
+
+返回 `query.filters` 支持的全部过滤维度，供控制面板渲染过滤配置（`filters.json` 是唯一
+source of truth，采集实际用的映射与告诉前端可用什么是同一份）。响应：
+
+```json
+{
+  "code": 200,
+  "message": "共 10 个可用过滤维度",
+  "data": {
+    "dimensions": [
+      {
+        "key": "salary",
+        "label": "薪资",
+        "sources": ["zhilian", "boss_zhipin"],
+        "multi": false,
+        "options": [],
+        "note": "统一填档位标签（3K以下/3-5K/5-10K/10-20K/20-50K/50K以上）；智联侧自动转 min,max 区间，BOSS 用档位码。"
+      },
+      {
+        "key": "district",
+        "label": "工作区域(区县)",
+        "sources": ["zhilian", "boss_zhipin"],
+        "multi": true,
+        "options": [],
+        "dynamic_by_city": true
+      }
+    ]
+  }
+}
+```
+
+字段说明：
+
+| 字段 | 说明 |
+| --- | --- |
+| `key` | 维度键，作为 `query.filters` 的 key |
+| `label` | 中文名 |
+| `sources` | 支持该维度的来源（`company_type/position_type/subway` 仅 zhilian，`stage` 仅 boss_zhipin） |
+| `multi` | 是否支持多选（逗号分隔多个标签） |
+| `options` | 可选标签列表；`salary/subway/district` 为空（见 `note` / `dynamic_by_city`） |
+| `note` | 特殊取值提示（如 salary 档位标签口径） |
+| `dynamic_by_city` | 为 `true` 表示随 `region.city` 动态（district），不吐全量 |
+
+共 10 个维度（以 `JobFilters` schema 为准，即 `query.filters` 真正接受的维度）。
 

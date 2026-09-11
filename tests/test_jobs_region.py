@@ -57,7 +57,7 @@ class _FakeZhilianClient:
 
     async def scrape_many(self, *args, **kwargs):
         self.calls.append((args, kwargs))
-        return list(self._jobs)
+        return {"jobs": list(self._jobs), "summary": dict(self._last_scrape_summary)}
 
 
 def _boss_job():
@@ -433,3 +433,64 @@ def test_on_source_error_fail_returns_non_retry_code(client, monkeypatch):
     data = resp.json()["data"]
     assert data["source_status"]["boss_zhipin"]["ok"] is False
     assert "boss_zhipin" in data["summary"]["sources_failed"]
+
+
+# ─────────────── salary 档位统一（智联侧档位→区间转换） ───────────────
+
+@pytest.mark.parametrize(
+    ("token", "expected"),
+    [
+        ("3K以下", "0,3000"),
+        ("3-5K", "3001,5000"),
+        ("5-10K", "5001,10000"),
+        ("10-20K", "10001,20000"),
+        ("20-50K", "20001,50000"),
+        ("50K以上", "50000,999999"),
+        ("10-20k", "10001,20000"),  # 大小写不敏感
+    ],
+)
+def test_zhilian_salary_tier_to_range(token, expected):
+    """面板统一档位标签 → 智联原生 min,max 区间。"""
+    assert zhilian_filters.map_value("salary", token) == expected
+
+
+def test_zhilian_salary_passthrough_range_unchanged():
+    """已是 min,max 形式的输入（手动调用方）原样透传，向后兼容。"""
+    assert zhilian_filters.map_value("salary", "10001,20000") == "10001,20000"
+
+
+def test_zhilian_salary_unlimited_dropped():
+    """不限 → 不写入该字段。"""
+    assert zhilian_filters.build_filters({"salary": "不限"}) == {}
+
+
+# ─────────────── 可用过滤维度发现接口 ───────────────
+
+def test_region_search_filters_endpoint(client):
+    resp = client.get("/api/jobs/region-search/filters")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["code"] == 200
+    dims = {d["key"]: d for d in body["data"]["dimensions"]}
+
+    # 10 维度齐全（以 JobFilters schema 为准）
+    assert set(dims) == {
+        "education", "experience", "salary", "company_type", "company_scale",
+        "industry", "position_type", "district", "stage", "subway",
+    }
+    # 支持矩阵：company_type/position_type/subway 仅智联，stage 仅 BOSS
+    assert dims["company_type"]["sources"] == ["zhilian"]
+    assert dims["position_type"]["sources"] == ["zhilian"]
+    assert dims["subway"]["sources"] == ["zhilian"]
+    assert dims["stage"]["sources"] == ["boss_zhipin"]
+    # 通用维度双源
+    assert set(dims["education"]["sources"]) == {"zhilian", "boss_zhipin"}
+    # district 不吐全量区县，只标 dynamic_by_city
+    assert dims["district"]["options"] == []
+    assert dims["district"]["dynamic_by_city"] is True
+    # salary 走档位标签（有 note，不吐 options）
+    assert dims["salary"]["options"] == []
+    assert "note" in dims["salary"]
+    # 常规维度有可选标签
+    assert len(dims["education"]["options"]) > 0
+

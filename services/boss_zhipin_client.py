@@ -120,11 +120,20 @@ def _boss_access_error_kind(exc: BossAccessLimitedError) -> str:
 
 
 def _single_profile_concurrency(value: Optional[int] = None) -> int:
-    """返回单 Chrome profile 内允许的 BOSS 并发。
+    """返回单 Chrome profile 内允许的 BOSS 并发（= 同一 profile 同时处理的 unit 数）。
 
     这里刻意拒绝静默 clamp：如果把总 worker 数误写到
     ``BOSS_ZHIPIN_MAX_CONCURRENCY``，服务应明确报配置错误，避免单 profile
     被误打到 3+ 并发后触发 stoken churn 和全局熔断。
+
+    ⚠️ 强烈建议单 profile 并发 = 1（严格串行），原因（2026-09 实测 + 排查结论）：
+    ``__zp_stoken__`` 是**浏览器 profile 级共享**的消耗型令牌。单 profile 并发 >1 时，
+    同一 profile 上的多个 unit 各自铸 stoken 会**互相挤失效**，触发高频 code=37 重铸
+    （churn），这是被 BOSS 风控封禁的**主要根因**——不是"单个 unit 打太多请求"（单 unit
+    内部是严格串行的，每次调用间隔 1.2~3s）。
+    要提高总吞吐，正解是**横向加 worker**（多 Chrome profile + 多账号 + 多代理，各自 stoken
+    完全隔离），而不是调高单 profile 并发。并发度应满足：
+    ``data_server.BOSS_UNIT_MAX_UNITS_PER_RUN ≈ worker 数``，让每个 profile 同时只跑 1 个 unit。
     """
     raw = _settings.BOSS_ZHIPIN_MAX_CONCURRENCY if value is None else value
     concurrency = max(1, int(raw))
@@ -1459,6 +1468,14 @@ def _configured_boss_workers() -> List[BossZhipinClient]:
         proxy_id = item.get("proxy_id")
         proxy_url = item.get("proxy_url")
         chrome_proxy_server = item.get("chrome_proxy_server")
+        # ⚠️ per_worker_concurrency = 该 worker（单 Chrome profile）同时处理的 unit 数。
+        # 这才是**真正生效**的单 profile 并发闸门（覆盖全局 BOSS_ZHIPIN_MAX_CONCURRENCY，
+        # 后者仅在未配置 workers 文件时兜底）。改 .env 的 BOSS_ZHIPIN_MAX_CONCURRENCY 对
+        # 已配 BOSS_ZHIPIN_WORKERS_FILE 的部署**无效**，必须改这里的 boss-workers.json。
+        #
+        # 强烈建议保持 = 1（严格串行）。>1 会让同一 profile 上多个 unit 的 __zp_stoken__
+        # 互相挤失效（profile 级共享令牌），高频 code=37 重铸 → BOSS 风控封禁的主要根因。
+        # 提吞吐请加 worker（多 profile/账号/代理），不要调高本值。详见 _single_profile_concurrency。
         per_worker_concurrency = item.get("per_worker_concurrency", 1)
         if worker_id in seen_worker_ids:
             raise ValueError(f"BOSS_ZHIPIN_WORKERS worker_id 重复: {worker_id}")

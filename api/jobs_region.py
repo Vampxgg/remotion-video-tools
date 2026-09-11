@@ -255,7 +255,7 @@ class CollectionOptions(BaseModel):
     start_page: int = Field(
         1,
         ge=1,
-        description="翻页游标起始页（当前仅 BOSS 生效）；配合响应里的 next_page/has_more 多轮累积",
+        description="翻页游标起始页（BOSS 与智联均生效）；配合响应里的 next_page/has_more 多轮累积",
     )
     detail_level: DetailLevel = Field(
         DetailLevel.SUMMARY,
@@ -347,7 +347,7 @@ class SourceRunResult(BaseModel):
     retry_after_seconds: Optional[int] = None
     blocked_until: Optional[str] = None
     retryable: bool = True
-    # 翻页游标（当前仅 BOSS 提供）：total=可翻页总数上限，has_more=是否还有下一页，
+    # 翻页游标（BOSS 与智联单组合场景均提供）：total=可翻页总数上限，has_more=是否还有下一页，
     # next_page=下一轮应传的起始页；上层应用据此多轮累积到目标量。
     total: Optional[int] = None
     has_more: Optional[bool] = None
@@ -513,6 +513,89 @@ async def search_region_jobs(payload: RegionJobSearchPayload):
     return create_standard_response(data=data, message=f"区域岗位搜索完成，共 {len(data['jobs'])} 条")
 
 
+# 可用过滤维度元数据：以 JobFilters schema 的维度为基准（这些才是 query.filters 真正接受的），
+# 标注中文 label 与是否多选。options 从各来源映射器的 filters.json 投影（按码值去重取代表标签），
+# district 因区县全量达数千条，只标 dynamic_by_city（随 region.city 变化），不在此吐全量。
+_FILTER_DIMENSION_META: Dict[str, Dict[str, Any]] = {
+    "education": {"label": "学历", "multi": True},
+    "experience": {"label": "经验", "multi": True},
+    "salary": {
+        "label": "薪资",
+        "multi": False,
+        "note": "统一填档位标签（3K以下/3-5K/5-10K/10-20K/20-50K/50K以上）；"
+        "智联侧自动转 min,max 区间，BOSS 用档位码。",
+    },
+    "company_type": {"label": "公司性质", "multi": True},
+    "company_scale": {"label": "公司规模", "multi": True},
+    "industry": {"label": "行业", "multi": True},
+    "position_type": {"label": "职位类型", "multi": True},
+    "district": {"label": "工作区域(区县)", "multi": True, "dynamic_by_city": True},
+    "stage": {"label": "融资阶段", "multi": True},
+    "subway": {"label": "地铁站点", "multi": False},
+}
+
+
+def _dim_source_support(dim: str) -> List[str]:
+    """该维度被哪些来源支持（映射器能给出原生 field 即视为支持）。"""
+    sources: List[str] = []
+    if zhilian_filters_util.field_name(dim) is not None:
+        sources.append(SourceName.ZHILIAN.value)
+    if boss_filters_util.field_name(dim) is not None:
+        sources.append(SourceName.BOSS_ZHIPIN.value)
+    return sources
+
+
+def _dim_options(dim: str) -> List[str]:
+    """投影某维度的可选标签：合并两来源映射器的 options，按码值去重取代表标签。
+
+    - passthrough / dynamic 维度（salary/subway/district）不吐 options（值为区间/站点码/
+      随城市变化的区县），返回空列表，由 note/dynamic_by_city 提示前端如何取值。
+    - 其余维度：以「码值」为去重键，同码多个别名标签只取首个（代表标签）。
+    """
+    if dim in ("salary", "subway", "district"):
+        return []
+    labels_by_code: Dict[str, str] = {}
+    for loader in (zhilian_filters_util, boss_filters_util):
+        info = loader._load().get(dim) or {}
+        options = info.get("options") or {}
+        for label, code in options.items():
+            code_str = str(code)
+            if code_str not in labels_by_code:
+                labels_by_code[code_str] = label
+    return list(labels_by_code.values())
+
+
+@router.get(
+    "/jobs/region-search/filters",
+    summary="区域岗位搜索：可用过滤维度",
+    description=(
+        "返回 query.filters 支持的全部过滤维度、各维度支持的来源、可选标签，"
+        "供控制面板渲染过滤配置。district 因区县全量达数千条，随 region.city 动态变化，"
+        "只标 dynamic_by_city 不吐全量。"
+    ),
+    dependencies=[Depends(require_api_key("REGION_JOBS_API_KEY"))],
+)
+async def region_search_filters():
+    dimensions = []
+    for dim, meta in _FILTER_DIMENSION_META.items():
+        entry: Dict[str, Any] = {
+            "key": dim,
+            "label": meta["label"],
+            "sources": _dim_source_support(dim),
+            "multi": meta["multi"],
+            "options": _dim_options(dim),
+        }
+        if meta.get("note"):
+            entry["note"] = meta["note"]
+        if meta.get("dynamic_by_city"):
+            entry["dynamic_by_city"] = True
+        dimensions.append(entry)
+    return create_standard_response(
+        data={"dimensions": dimensions},
+        message=f"共 {len(dimensions)} 个可用过滤维度",
+    )
+
+
 def _failure_status_code(failed: List["SourceRunResult"]) -> int:
     """决定「全部/整体失败」时返回的 HTTP 状态码。
 
@@ -550,7 +633,7 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
                 logger.info(
                     f"[region-search][zhilian] 应用筛选: {zhilian_filters}"
                 )
-        raw_jobs = await asyncio.wait_for(
+        raw_result = await asyncio.wait_for(
             client.scrape_many(
                 payload.query.keywords,
                 [city_name],
@@ -558,13 +641,15 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
                 include_detail=include_detail,
                 city_id_overrides=city_id_overrides,
                 filters=zhilian_filters or None,
+                start_page=payload.collection.start_page,
             ),
             timeout=payload.collection.timeout_seconds,
         )
         if city_id is None:
             city_id = await _resolve_zhilian_city_id(client, city_name)
 
-        summary = getattr(client, "_last_scrape_summary", {}) or {}
+        raw_jobs = (raw_result or {}).get("jobs") or []
+        summary = (raw_result or {}).get("summary") or {}
         limited = _limit_jobs_by_keyword(
             raw_jobs,
             payload.collection.max_records_per_source,
@@ -622,6 +707,8 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
                 f"智联部分关键词组合采集失败（{failed_combinations}/{combinations}），"
                 f"返回结果可能不完整"
             )
+        # 翻页游标（单组合场景由 scrape_many 精确透出）：与 BOSS 对齐，供上层多轮累积。
+        total_val = summary.get("total_count")
         return SourceRunResult(
             source=SourceName.ZHILIAN,
             ok=True,
@@ -631,6 +718,9 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
             pages_requested=int(summary.get("pages_requested") or 0),
             region_code=city_id,
             warnings=warnings,
+            total=int(total_val) if total_val is not None else None,
+            has_more=summary.get("has_more"),
+            next_page=summary.get("next_page"),
         )
     except asyncio.TimeoutError:
         error = f"智联采集超时: {payload.collection.timeout_seconds:g}s"
@@ -1214,7 +1304,7 @@ def _build_source_status(
             "retry_after_seconds": None,
             "blocked_until": None,
             "retryable": True,
-            # 翻页游标（当前仅 BOSS 提供）：
+            # 翻页游标（BOSS 与智联单组合场景均提供）：
             "total": None,
             "has_more": None,
             "next_page": None,

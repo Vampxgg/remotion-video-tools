@@ -626,8 +626,13 @@ class ZhaopinSearchClient:
         *,
         page: int = 1,
         filters: Optional[Dict[str, str]] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """单页列表搜索：优先 HTTP 直连，失败时浏览器 listen fallback。
+
+        返回 ``(jobs, meta)``：``meta`` 携带分页信息（``count`` 总数 /
+        ``isEndPage`` 是否末页 / ``isVerification`` 是否验证码），供上层做跨轮翻页
+        游标累积。浏览器 fallback 无法拿到 count/isEndPage，回一个空 meta（各字段
+        为 None），上层据此退回启发式判界。
 
         ``filters`` 为智联原生 ``{S_SOU_*: 码值}`` 映射（由 utils.zhilian_filters
         生成），仅直连路径支持；浏览器 fallback 不带筛选（直连已足够，fallback 仅兜底）。
@@ -647,7 +652,7 @@ class ZhaopinSearchClient:
                     f"{meta.get('cost')}s)"
                 )
                 if jobs:
-                    return jobs
+                    return jobs, meta
                 # 直连返回空要区分两种情况：
                 # 1) 正常翻到底（isEndPage=1 且非验证码）→ 这不是失败，直接返回空，
                 #    让上层停止翻页并保留前面已抓到的结果，绝不能回退浏览器（既慢又可能撞登录墙）。
@@ -657,7 +662,7 @@ class ZhaopinSearchClient:
                         f"直连已到末页(isEndPage=1)，正常结束，不回退: "
                         f"{keyword}/cityId={city_id} p{page}, meta={meta}"
                     )
-                    return []
+                    return [], meta
                 logger.warning(
                     f"直连列表为空: {keyword}/cityId={city_id} p{page}, meta={meta}"
                 )
@@ -667,8 +672,10 @@ class ZhaopinSearchClient:
                     f"{keyword}/cityId={city_id} p{page}: {exc}"
                 )
 
+        # 浏览器 fallback：拿不到 count/isEndPage，回空 meta（上层退回启发式判界）。
+        empty_meta: Dict[str, Any] = {"count": None, "isEndPage": None, "isVerification": None}
         if not _settings.JOB_SEARCH_V2_BROWSER_FALLBACK_ENABLED:
-            return []
+            return [], empty_meta
 
         if filters:
             logger.warning(
@@ -701,7 +708,7 @@ class ZhaopinSearchClient:
             f"列表搜索: {keyword}/cityId={city_id} p{page} "
             f"→ {len(results)} 条 (source={source})"
         )
-        return results
+        return results, empty_meta
 
     # ─────────────── 职位详情 ───────────────
 
@@ -742,23 +749,35 @@ class ZhaopinSearchClient:
         include_detail: bool = True,
         city_id_override: Optional[str] = None,
         filters: Optional[Dict[str, str]] = None,
-    ) -> List[Dict[str, Any]]:
-        """一个"关键词 × 省份"组合，按页拉列表，可选并发拉详情。
+        start_page: int = 1,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """一个"关键词 × 省份"组合，从 ``start_page`` 起按页拉列表，可选并发拉详情。
+
+        返回 ``(jobs, page_meta)``：``page_meta`` 携带跨轮翻页游标信息
+        （``count`` 总数 / ``last_page`` 本轮最后成功页 / ``is_end_page`` 是否末页），
+        供上层（``scrape_many`` → ``_run_zhilian``）回填 total/next_page/has_more。
+
+        ``start_page`` 为翻页游标起始页（默认 1）：上层按 unit 记录 next_page，每轮从
+        上次的下一页继续，配合返回的 last_page/is_end_page 多轮精确累积。
 
         ``filters`` 为智联原生 ``{S_SOU_*: 码值}``，逐页透传给 search_positions。
         """
+        start_page = max(1, int(start_page or 1))
         city_id = city_id_override or await self._city.resolve(province)
         if not city_id:
             logger.warning(f"[v2] 无法解析城市 '{province}'，跳过")
-            return []
+            return [], {"count": None, "last_page": start_page - 1, "is_end_page": None}
 
         all_jobs: List[Dict[str, Any]] = []
         pages_fetched = 0
+        last_page_done = start_page - 1
+        total_count: Optional[int] = None
+        is_end_page: Optional[bool] = None
 
-        for page_num in range(1, max_pages + 1):
+        for page_num in range(start_page, start_page + max_pages):
             t0 = time.monotonic()
             try:
-                raw_list = await self.search_positions(
+                raw_list, page_meta = await self.search_positions(
                     keyword, city_id, page=page_num, filters=filters
                 )
             except Exception as exc:
@@ -773,6 +792,11 @@ class ZhaopinSearchClient:
                     break
                 raise
             pages_fetched += 1
+            # 记录分页元数据（每页刷新，最终以本轮最后成功页为准）。
+            if page_meta.get("count") is not None:
+                total_count = page_meta.get("count")
+            if page_meta.get("isEndPage") is not None:
+                is_end_page = bool(page_meta.get("isEndPage"))
             cost = round(time.monotonic() - t0, 2)
             logger.info(
                 f"[v2] {keyword}|{province}(cityId={city_id}) "
@@ -782,6 +806,7 @@ class ZhaopinSearchClient:
             if not raw_list:
                 break
 
+            last_page_done = page_num
             page_jobs = self._normalize_list(raw_list, province)
 
             if include_detail:
@@ -806,11 +831,16 @@ class ZhaopinSearchClient:
 
             all_jobs.extend(page_jobs)
 
-            if page_num < max_pages:
+            if page_num < start_page + max_pages - 1:
                 await asyncio.sleep(uniform(0.3, 0.8))
 
         self._last_combination_pages = pages_fetched
-        return all_jobs
+        page_meta_out = {
+            "count": total_count,
+            "last_page": last_page_done,
+            "is_end_page": is_end_page,
+        }
+        return all_jobs, page_meta_out
 
     @staticmethod
     def _normalize_list(
@@ -885,51 +915,61 @@ class ZhaopinSearchClient:
         include_detail: bool = True,
         city_id_overrides: Optional[Dict[str, str]] = None,
         filters: Optional[Dict[str, str]] = None,
-    ) -> List[Dict[str, Any]]:
+        start_page: int = 1,
+    ) -> Dict[str, Any]:
         """顺序执行多个组合（浏览器操作由 Lock 串行化），汇总结果。
 
+        返回 ``{"jobs": [...], "summary": {...}}``（与 BOSS 客户端对齐）：``summary``
+        携带跨轮翻页游标信息，供 ``_run_zhilian`` 回填 total/has_more/next_page。
+        单组合场景（1 keyword × 1 city，data_server 采集正是此形态）下，游标语义精确：
+        - ``total_count`` = 智联返回的 count 总数；
+        - ``next_page`` = 本轮最后成功页 + 1（配合 unit.next_page 跨轮推进）；
+        - ``has_more`` = 未到末页(isEndPage=0) 且 已翻页数 < count。
+        多组合场景不透出精确游标（保持 total_count/has_more/next_page 为 None），沿用
+        pages_fetched 等聚合统计即可。
+
+        游标信息随**返回值**上浮，不再经 ``_last_scrape_summary`` 实例属性传出，避免
+        多 unit 并发调用同一 client 实例时互相串写。
+
+        ``start_page`` 为翻页游标起始页（默认 1），透传给 scrape_combination。
         ``filters`` 为智联原生 ``{S_SOU_*: 码值}``，对所有关键词×省份组合统一生效，
         逐层透传至 scrape_combination → search_positions → 直连 payload。
         """
+        start_page = max(1, int(start_page or 1))
         all_data: List[Dict[str, Any]] = []
         combinations = 0
         failed_combinations = 0
         pages_fetched = 0
-        self._last_scrape_summary = {
-            "keywords": keywords,
-            "provinces": provinces,
-            "max_pages": page_size,
-            "include_detail": include_detail,
-            "combinations": 0,
-            "failed_combinations": 0,
-            "pages_fetched": 0,
-            "pages_requested": 0,
-            "total_jobs": 0,
-        }
+        # 单组合场景下才透出精确游标（data_server 每 unit 恒为 1kw×1city）。
+        single_combination = len(keywords) == 1 and len(provinces) == 1
+        last_page_meta: Dict[str, Any] = {}
         for kw in keywords:
             for prov in provinces:
                 combinations += 1
                 city_id_override = (city_id_overrides or {}).get(prov)
                 try:
-                    result = await self.scrape_combination(
+                    result, page_meta = await self.scrape_combination(
                         kw,
                         prov,
                         page_size,
                         include_detail=include_detail,
                         city_id_override=city_id_override,
                         filters=filters,
+                        start_page=start_page,
                     )
                     for item in result:
                         item["_query_keyword"] = kw
                         item["_query_region"] = prov
                     all_data.extend(result)
                     pages_fetched += self._last_combination_pages
+                    last_page_meta = page_meta
                 except Exception as exc:
                     failed_combinations += 1
                     logger.error(
                         f"[v2] {kw}|{prov} 失败: {exc}", exc_info=True
                     )
-        self._last_scrape_summary = {
+
+        summary: Dict[str, Any] = {
             "keywords": keywords,
             "provinces": provinces,
             "max_pages": page_size,
@@ -939,5 +979,37 @@ class ZhaopinSearchClient:
             "pages_fetched": pages_fetched,
             "pages_requested": combinations * page_size,
             "total_jobs": len(all_data),
+            "start_page": start_page,
         }
-        return all_data
+        # 单组合精确游标：last_page/is_end_page/count → next_page/has_more/total_count。
+        if single_combination and last_page_meta:
+            count = last_page_meta.get("count")
+            last_page = last_page_meta.get("last_page")
+            is_end_page = last_page_meta.get("is_end_page")
+            next_page = (last_page + 1) if isinstance(last_page, int) else None
+            # 已采条数上限估算用真实列表页大小(JOB_SEARCH_V2_LIST_PAGE_SIZE，直连 pageSize)，
+            # 不能用本方法的 page_size 入参——它语义是 max_pages(每轮页数，data_server 恒=1)，
+            # 与"每页多少条"无关，误用会把已采条数严重低估、导致 has_more 判界失真。
+            list_page_size = _settings.JOB_SEARCH_V2_LIST_PAGE_SIZE
+            fetched_upper = (
+                last_page * list_page_size if isinstance(last_page, int) else None
+            )
+            has_more: Optional[bool] = None
+            if is_end_page is not None:
+                # 未到末页 且 (未知 count 或 已翻页数仍 < count) → 还有下一页
+                more_by_count = (
+                    True
+                    if count is None or fetched_upper is None
+                    else fetched_upper < count
+                )
+                has_more = (not is_end_page) and more_by_count
+            summary.update(
+                {
+                    "total_count": count,
+                    "next_page": next_page,
+                    "has_more": has_more,
+                }
+            )
+        # 保留实例属性仅用于旧的观测/日志兼容，不再作为游标传出通道。
+        self._last_scrape_summary = summary
+        return {"jobs": all_data, "summary": summary}

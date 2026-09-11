@@ -41,6 +41,19 @@ _FILTER_FILE = Path(_settings.static_dir_abs) / "zhilian" / "filters.json"
 # 值本身即是数值区间/站点码、不做标签映射的维度（options 为空，直接透传）。
 _PASSTHROUGH_DIMS = frozenset({"salary", "subway"})
 
+# 薪资档位标签 -> 智联 min,max 数值区间（元）。
+# 面板统一用档位标签（与 BOSS 档位码对齐，见 boss_filters），智联侧在此转成其原生
+# min,max 区间；已是 "min,max" 形式的输入不命中本表，走 passthrough 原样透传（向后兼容）。
+# 大小写不敏感（K/k），键统一小写匹配。
+_SALARY_TIER_TO_RANGE = {
+    "3k以下": "0,3000",
+    "3-5k": "3001,5000",
+    "5-10k": "5001,10000",
+    "10-20k": "10001,20000",
+    "20-50k": "20001,50000",
+    "50k以上": "50000,999999",
+}
+
 # 表示「不限/不筛选」的输入，映射结果为 None（不写入该字段）。
 # 注意："-1" 是智联「不限」的显式码值，若用户显式选择「不限」标签会经 options 命中，
 # 这里仅拦截空串/None/常见「不限」措辞，避免误把有效码当成空。
@@ -180,6 +193,12 @@ def _map_single(dim: str, token: str, options: Dict[str, str]) -> Optional[str]:
     if t.lower() in _UNLIMITED_TOKENS:
         return None
     if dim in _PASSTHROUGH_DIMS:
+        # salary：面板统一传档位标签 → 转成智联 min,max 区间；
+        # 已是 "min,max" 或站点码等非档位输入不命中，原样透传。
+        if dim == "salary":
+            tier = _SALARY_TIER_TO_RANGE.get(t.lower())
+            if tier is not None:
+                return tier
         return t
     if t in options:
         return options[t]

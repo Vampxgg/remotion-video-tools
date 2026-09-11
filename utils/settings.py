@@ -838,12 +838,21 @@ class BossZhipinSettings(_Base):
     BOSS_ZHIPIN_DIRECT_ENABLED: bool = True
     # 单个 __zp_stoken__ 的安全调用配额；实测一次浏览器导航刷新后恰好支持 5 次
     # 成功调用（列表/详情共享），第 6 次必返回 code=37。留 1 次余量取 5。
+    # ⚠️ 这是 BOSS 侧的**硬限制**（每次成功的 httpx 调用扣 1，见 _DirectBossSession.get），
+    # 不能靠调大本值突破——调大只会更早撞 code=37。一个 unit 一轮（1 列表 + ~15 详情 ≈ 16 次
+    # 调用）本就要铸 3~4 次 stoken；单 profile 若再并发多个 unit，铸造频次叠加 → churn 被封。
     BOSS_ZHIPIN_DIRECT_BUDGET_PER_TOKEN: int = 5
     BOSS_ZHIPIN_MAX_CONCURRENCY: int = 2
     # BOSS 单例客户端允许的并发 scrape 数。1=严格串行（历史行为）；2=实测可真并行且未风控。
     # >1 时：每个并发槽有独立 httpx client + 独立 __zp_stoken__ 配额，互不污染 cookie；
     # 唯一共享的浏览器 tab（铸造 cookie / 浏览器回退）用可重入锁串行，避免 tab 被并发搞崩。
     # 注意：这是把风控暴露给 BOSS，若频繁 access_limited 请改回 1。
+    #
+    # ⚠️ 重要（2026-09 排查结论）：本值**仅在未配置 BOSS_ZHIPIN_WORKERS(_FILE) 时**作为
+    # 单 profile 并发的兜底。一旦配了 workers 文件（多 worker 部署），**真正生效的是每个
+    # worker 自己的 per_worker_concurrency**（见 boss-workers.json / _configured_boss_workers），
+    # 改本值对这类部署无效。且实测单 profile 并发 >1 会因 __zp_stoken__ profile 级共享而
+    # 互挤失效、高频 code=37 重铸，是被封主因；提吞吐请加 worker，别调高单 profile 并发。
     BOSS_ZHIPIN_DIRECT_HTTP_TIMEOUT: float = 15.0
     # 直连列表默认每页条数（summary 快路径用，保持与历史一致=30，不影响外部 workflow）。
     # 官方实测 15/30 均遵守。逐条详情(description)累积路径会按"单轮记录预算"临时用更小
@@ -877,7 +886,11 @@ class RegionJobsSettings(_Base):
     # 当 BOSS 需要详情时，对单来源实际抓取的记录数做服务端安全上限：调用方仍可要更多，
     # 由上层应用（如 data_server）分多轮"慢慢"累积。仅在 detail_level=description 时生效，
     # summary 快速路径不受影响。设为 0 表示不限制。
-    REGION_JOBS_BOSS_MAX_DETAIL_RECORDS: int = 15
+    # 取值 20：与智联每轮页大小(JOB_SEARCH_V2_LIST_PAGE_SIZE=20)对齐，两来源每轮产出条数
+    # 一致、便于节奏统一。注意 BOSS 逐条详情串行 + 每条间 1.2~3s 延时，20 条单轮耗时明显
+    # 高于智联（智联并发拉详情），故 data_server 采集侧对 BOSS 放宽 timeout_seconds 到 120s
+    # （见 job_collector._collect_unit），并相应抬高 data_server HTTP 层超时留返回余量。
+    REGION_JOBS_BOSS_MAX_DETAIL_RECORDS: int = 20
     # 账户需要登录 / 命中风控时，向该管理员邮箱发送提醒邮件，保证接口稳定在线。
     # 复用 JOB_SEARCH_SMTP_* 邮件配置（HOST/PORT/USERNAME/PASSWORD/FROM/USE_SSL/STARTTLS）。
     REGION_JOBS_ADMIN_EMAIL: str = "hx1561958968@gmail.com"
