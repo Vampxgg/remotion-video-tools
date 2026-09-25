@@ -43,6 +43,10 @@ _MAX_SINGLE_PROFILE_CONCURRENCY = 2
 # BOSS 反爬：环境异常错误码，表示 __zp_stoken__ 失效，需要刷新 cookie。
 _BOSS_ENV_ERROR_CODE = 37
 
+# BOSS 账户级封禁错误码：code=32 "您的账户存在异常行为，已暂时被禁止使用"。
+# 与 code=37(token 失效可刷新) 不同，这是账户维度封禁，换代理/等冷却均无效，需人工换号/申诉。
+_BOSS_ACCOUNT_BANNED_CODE = 32
+
 # 命中访问受限 / IP 异常 / 验证码等风控拦截页的文本特征。
 _ACCESS_LIMITED_MARKERS = (
     "访问受限",
@@ -133,7 +137,7 @@ def _single_profile_concurrency(value: Optional[int] = None) -> int:
     内部是严格串行的，每次调用间隔 1.2~3s）。
     要提高总吞吐，正解是**横向加 worker**（多 Chrome profile + 多账号 + 多代理，各自 stoken
     完全隔离），而不是调高单 profile 并发。并发度应满足：
-    ``data_server.BOSS_UNIT_MAX_UNITS_PER_RUN ≈ worker 数``，让每个 profile 同时只跑 1 个 unit。
+    ``data_server.BOSS_UNIT_GLOBAL_MAX_CONCURRENCY ≈ worker 数``，让每个 profile 同时只跑 1 个 unit。
     """
     raw = _settings.BOSS_ZHIPIN_MAX_CONCURRENCY if value is None else value
     concurrency = max(1, int(raw))
@@ -252,6 +256,15 @@ class _DirectBossSession:
                 raise BossAccessLimitedError(
                     "BOSS 连续返回 code=37（环境异常/风控），已停止重试"
                 )
+
+        # 账户级封禁（code=32）：换代理/刷 cookie/回退浏览器都救不了，继续请求只会加重风控。
+        # 抛风控异常且 message 含"登录"语义 -> _boss_access_error_kind 归为 login_required
+        # -> worker 池立即停用该 worker（不冷却重试、不回退浏览器），等人工换号/申诉。
+        if body.get("code") == _BOSS_ACCOUNT_BANNED_CODE:
+            raise BossAccessLimitedError(
+                f"BOSS 账户被封禁（code=32，需人工登录/换号）: {body.get('message')!r}",
+                raw_hint=_sanitize_hint(str(body.get("message") or "")),
+            )
 
         if body.get("code") == 0:
             self._budget -= 1

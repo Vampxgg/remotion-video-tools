@@ -205,6 +205,8 @@ app.include_router(cre_image_azure.router, prefix="/api", tags=["create_azure_im
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
 app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
 app.include_router(boss_proxy.router, prefix="/api", tags=["boss_zhipin"])
+# 主 API 始终通过单进程 boss_server 代理 BOSS region-search，避免多 worker 初始化真实 BOSS client。
+jobs_region.set_boss_region_search_proxy_enabled(True)
 app.include_router(jobs_region.router, prefix="/api", tags=["jobs_region"])
 app.include_router(tianyancha.router, prefix="/api", tags=["tianyancha"])
 app.include_router(web_search.router, prefix="/api", tags=["web_search"])

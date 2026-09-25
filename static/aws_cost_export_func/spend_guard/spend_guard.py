@@ -46,12 +46,15 @@ CST = dt.timezone(dt.timedelta(hours=8))
 # 固定的 inline policy 名：既是封禁标记，也是幂等/解除的锚点。
 DENY_POLICY_NAME = "SpendGuardDailyDeny"
 
-# 被封时禁用的动作：覆盖 Bedrock 运行时的全部推理入口。
+# 被封时禁用的动作：覆盖 Bedrock 运行时与 API Key/Bearer Token 入口。
 _DENIED_ACTIONS = [
     "bedrock:InvokeModel",
     "bedrock:InvokeModelWithResponseStream",
     "bedrock:Converse",
     "bedrock:ConverseStream",
+    # Bedrock API Key 使用 Bearer Token 鉴权；Mantle 走独立权限命名空间。
+    "bedrock:CallWithBearerToken",
+    "bedrock-mantle:CallWithBearerToken",
 ]
 
 

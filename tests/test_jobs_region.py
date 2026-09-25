@@ -13,6 +13,7 @@
 """
 
 import pytest
+import httpx
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.testclient import TestClient
@@ -89,9 +90,11 @@ def client():
     app.include_router(jobs_region.router, prefix="/api")
     # 每个用例前重置 BOSS 熔断器，避免用例间串扰
     jobs_region._boss_circuit.reset()
+    jobs_region.set_boss_region_search_proxy_enabled(False)
     with TestClient(app) as test_client:
         yield test_client
     jobs_region._boss_circuit.reset()
+    jobs_region.set_boss_region_search_proxy_enabled(False)
 
 
 def _payload(**overrides):
@@ -181,6 +184,72 @@ def test_duplicate_sources_deduped(client, monkeypatch):
     assert list(data["source_status"].keys()) == ["boss_zhipin"]
     # 去重后只跑一次
     assert len(fake_boss.calls) == 1
+
+
+def test_boss_region_search_proxies_to_single_process_service(client, monkeypatch):
+    calls = []
+
+    class _FailingLocalBossClient:
+        async def scrape_many(self, *args, **kwargs):
+            raise AssertionError("main region-search must proxy BOSS to boss_server")
+
+    class _FakeAsyncClient:
+        def __init__(self, *, timeout, trust_env):
+            self.timeout = timeout
+            self.trust_env = trust_env
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def post(self, url, *, json, headers):
+            calls.append({"url": url, "json": json, "headers": headers})
+            return httpx.Response(
+                200,
+                json={
+                    "code": 200,
+                    "message": "ok",
+                    "data": {
+                        "jobs": [{"source": "boss_zhipin", "source_job_id": "boss-1"}],
+                        "source_status": {
+                            "boss_zhipin": {
+                                "ok": True,
+                                "error": None,
+                                "warnings": [],
+                                "pages_fetched": 1,
+                                "queries_attempted": 1,
+                                "pages_requested": 1,
+                                "region_code": 101280600,
+                                "total": 1,
+                                "has_more": False,
+                                "next_page": 2,
+                                "worker_id": "boss-a",
+                                "worker_status": {"boss-a": {"state": "ok"}},
+                            }
+                        },
+                    },
+                },
+            )
+
+    jobs_region.set_boss_region_search_proxy_enabled(True)
+    monkeypatch.setattr(jobs_region, "_boss_client", _FailingLocalBossClient())
+    monkeypatch.setattr(jobs_region._settings, "BOSS_SERVICE_URL", "http://boss.local")
+    monkeypatch.setattr(jobs_region._settings, "BOSS_SERVICE_API_KEY", "internal-key", raising=False)
+    monkeypatch.setattr(jobs_region._settings, "BOSS_PROXY_TIMEOUT_SEC", 3.0, raising=False)
+    monkeypatch.setattr(jobs_region.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.post("/api/jobs/region-search", json=_payload(sources=["boss_zhipin"]))
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["jobs"][0]["source"] == "boss_zhipin"
+    assert data["jobs"][0]["source_job_id"] == "boss-1"
+    assert data["source_status"]["boss_zhipin"]["worker_id"] == "boss-a"
+    assert calls[0]["url"] == "http://boss.local/api/jobs/region-search"
+    assert calls[0]["json"]["sources"] == ["boss_zhipin"]
+    assert calls[0]["headers"] == {"x-api-key": "internal-key"}
 
 
 def test_boss_cooling_skips_client(client, monkeypatch):

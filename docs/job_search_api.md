@@ -229,7 +229,7 @@ GET  /api/jobs/region-search/filters
 | --- | --- |
 | `REGION_JOBS_MAX_PAGES_PER_SOURCE` | `3` |
 | `REGION_JOBS_MAX_RECORDS_PER_SOURCE` | `50` |
-| `REGION_JOBS_MAX_COMBINATIONS` | `10` |
+| `REGION_JOBS_MAX_COMBINATIONS` | `20` |
 
 ### 3.5 `output`
 
@@ -632,11 +632,12 @@ curl -X POST "http://127.0.0.1:2906/api/jobs/region-search" \
 - 智联列表接口可返回职位编号、公司、薪资、经验、学历、技能等字段。
 - `detail_level=summary` 不补拉职位详情；智联详情只在 `detail_level=description` 时通过职位编号补取。
 - 智联详情抓取并发由 `JOB_SEARCH_V2_HTTP_CONCURRENCY` 控制；当 `data_server` 将
-  `ZHILIAN_UNIT_MAX_UNITS_PER_RUN` 提到 30 时，本服务也应配置
+  `ZHILIAN_UNIT_GLOBAL_MAX_CONCURRENCY` 提到 30 时，本服务也应配置
   `JOB_SEARCH_V2_HTTP_CONCURRENCY=30`，否则上层 30 个 unit 会在详情 HTTP 信号量处排队。
 
 ### 9.2 BOSS 直聘
 
+- 主 API 中 `POST /api/jobs/region-search` 的 BOSS 来源默认代理到单进程 `boss_server` 的同名接口；智联仍在主 API 进程内执行。这样主 API 多 worker 部署时不会让多个进程同时初始化/争抢同一批 BOSS Chrome profile。
 - BOSS 更依赖城市编码，例如深圳 `101280600`。
 - 如果调用方知道 BOSS 城市编码，建议传 `platform_hints.boss_city_code`。
 - BOSS 列表接口不包含完整岗位职责。
@@ -748,7 +749,7 @@ powershell -ExecutionPolicy Bypass -File scripts/start_boss_workers.ps1 -EnvFile
 # 3) 启动 BOSS 单进程服务；它内部仍可调度 boss-a/b/c 等多个账号
 uvicorn boss_server:app --host 127.0.0.1 --port 2926 --workers 1
 
-# 4) 启动主 API 服务；BOSS 路由会代理到 BOSS_SERVICE_URL
+# 4) 启动主 API 服务；BOSS 路由与 region-search 的 BOSS 来源会代理到 BOSS_SERVICE_URL
 uvicorn main:app --host 0.0.0.0 --port 2906 --workers 4
 ```
 
@@ -826,7 +827,7 @@ BOSS_ZHIPIN_WORKER_DEVTOOLS_TIMEOUT_SEC=10
 
 1. 先配置 2 个 worker + 2 个固定本地代理端口，每个 worker `per_worker_concurrency=1`，跑 1 个关键词、1 个城市、1 页的 `description` 小样本。
 2. 小样本稳定后扩到 5 个 worker，仍保持每 worker 并发 1。
-3. data_server 侧再把 `BOSS_UNIT_MAX_UNITS_PER_RUN` 从 2 提到 3，观察完整采集窗口。
+3. data_server 侧再把 `BOSS_UNIT_GLOBAL_MAX_CONCURRENCY` 从 2 提到 3，观察完整采集窗口。
 4. 若 `worker_status` 无扩散性冷却、`proxy_state` 未集中进入 `cooldown`、`code=37` 和 timeout 未异常升高，再提到 5。
 5. 只有 5×1 稳定至少 48 小时后，才评估单个 worker 并发 2；一旦某 worker 出现 token churn 或风控，立即降回 1。
 

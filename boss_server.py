@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import boss_zhipin
+from api import boss_zhipin, jobs_region
 from services.boss_zhipin_client import get_boss_client
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response, validation_exception_handler
@@ -68,7 +68,9 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
+jobs_region.set_boss_region_search_proxy_enabled(False)
 app.include_router(boss_zhipin.router, prefix="/api", tags=["boss_zhipin"])
+app.include_router(jobs_region.router, prefix="/api", tags=["jobs_region"])
 
 
 @app.get("/health")

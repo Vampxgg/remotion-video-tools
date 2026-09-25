@@ -11,6 +11,7 @@ from enum import Enum
 from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple
 
+import httpx
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -28,6 +29,13 @@ logger = setup_module_logger(__name__, "logs/jobs/region_search.log")
 
 router = APIRouter()
 _boss_client: Optional[Any] = None
+_boss_region_search_proxy_enabled = True
+
+
+def set_boss_region_search_proxy_enabled(enabled: bool) -> None:
+    """切换 BOSS region-search 是否代理到单进程 boss_server。"""
+    global _boss_region_search_proxy_enabled
+    _boss_region_search_proxy_enabled = enabled
 
 
 def _get_boss_region_client():
@@ -36,6 +44,15 @@ def _get_boss_region_client():
     if _boss_client is None:
         _boss_client = get_boss_client()
     return _boss_client
+
+
+def _boss_service_url(path: str) -> str:
+    return f"{_settings.BOSS_SERVICE_URL.rstrip('/')}{path}"
+
+
+def _boss_service_headers() -> Dict[str, str]:
+    api_key = _settings.BOSS_SERVICE_API_KEY or _settings.REGION_JOBS_API_KEY
+    return {"x-api-key": api_key} if api_key else {}
 
 
 class _BossCircuitBreaker:
@@ -755,7 +772,74 @@ async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
         )
 
 
+async def _run_boss_via_service(payload: RegionJobSearchPayload) -> SourceRunResult:
+    boss_only_payload = payload.model_copy(update={"sources": [SourceName.BOSS_ZHIPIN]})
+    try:
+        async with httpx.AsyncClient(
+            timeout=_settings.BOSS_PROXY_TIMEOUT_SEC,
+            trust_env=False,
+        ) as client:
+            resp = await client.post(
+                _boss_service_url("/api/jobs/region-search"),
+                json=boss_only_payload.model_dump(mode="json"),
+                headers=_boss_service_headers(),
+            )
+    except httpx.TimeoutException:
+        return SourceRunResult(
+            source=SourceName.BOSS_ZHIPIN,
+            ok=False,
+            error=f"BOSS 服务代理请求超时（{_settings.BOSS_PROXY_TIMEOUT_SEC:g}s）",
+            error_code="boss_service_timeout",
+            retryable=True,
+        )
+    except httpx.RequestError as exc:
+        return SourceRunResult(
+            source=SourceName.BOSS_ZHIPIN,
+            ok=False,
+            error=f"BOSS 服务不可用: {exc}",
+            error_code="boss_service_unavailable",
+            retryable=True,
+        )
+
+    try:
+        body = resp.json()
+    except ValueError:
+        return SourceRunResult(
+            source=SourceName.BOSS_ZHIPIN,
+            ok=False,
+            error=f"BOSS 服务返回非 JSON 响应: status={resp.status_code}",
+            error_code="boss_service_bad_response",
+            retryable=True,
+        )
+
+    data = body.get("data") or {}
+    status = (data.get("source_status") or {}).get(SourceName.BOSS_ZHIPIN.value) or {}
+    return SourceRunResult(
+        source=SourceName.BOSS_ZHIPIN,
+        ok=bool(status.get("ok")),
+        jobs=data.get("jobs") or [],
+        pages_fetched=int(status.get("pages_fetched") or 0),
+        queries_attempted=int(status.get("queries_attempted") or 0),
+        pages_requested=int(status.get("pages_requested") or 0),
+        region_code=status.get("region_code"),
+        error=status.get("error") or body.get("message"),
+        warnings=status.get("warnings") or [],
+        error_code=status.get("error_code"),
+        retry_after_seconds=status.get("retry_after_seconds"),
+        blocked_until=status.get("blocked_until"),
+        retryable=bool(status.get("retryable", True)),
+        total=status.get("total"),
+        has_more=status.get("has_more"),
+        next_page=status.get("next_page"),
+        worker_id=status.get("worker_id"),
+        worker_status=status.get("worker_status"),
+    )
+
+
 async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
+    if _boss_region_search_proxy_enabled:
+        return await _run_boss_via_service(payload)
+
     boss_client: Optional[Any] = None
     pages_requested = len(payload.query.keywords) * payload.collection.max_pages_per_source
     city_code = _resolve_boss_city_code(payload.region)

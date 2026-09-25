@@ -32,13 +32,24 @@ def test_importing_boss_router_does_not_initialize_real_client(monkeypatch):
 
 def test_boss_server_exposes_real_boss_routes_without_main_app(monkeypatch):
     sys.modules.pop("boss_server", None)
+    sys.modules.pop("api.boss_zhipin", None)
+
+    import services.boss_zhipin_client as client_module
+
+    class _FakeBossClient:
+        async def shutdown(self):
+            return None
+
+    monkeypatch.setattr(client_module, "get_boss_client", lambda: _FakeBossClient())
 
     module = importlib.import_module("boss_server")
 
     paths = {route.path for route in module.app.routes}
+    assert module.jobs_region._boss_region_search_proxy_enabled is False
     assert "/health" in paths
     assert "/api/scrape/boss/search" in paths
     assert "/api/scrape/boss/batch-search" in paths
+    assert "/api/jobs/region-search" in paths
 
     with TestClient(module.app) as client:
         resp = client.get("/health")
@@ -53,17 +64,23 @@ def test_main_mounts_boss_proxy_not_real_boss_router(monkeypatch):
     sys.modules.pop("api.boss_proxy", None)
 
     import services.boss_zhipin_client as client_module
+    from api import jobs_region
 
     def fail_if_called():
         raise AssertionError("main app must not initialize real BOSS client")
 
     monkeypatch.setattr(client_module, "get_boss_client", fail_if_called)
+    monkeypatch.setattr(jobs_region, "get_boss_client", fail_if_called)
+    jobs_region.set_boss_region_search_proxy_enabled(False)
+    monkeypatch.setattr(jobs_region, "_boss_client", None)
 
     module = importlib.import_module("main")
     boss_search_routes = [
         route for route in module.app.routes if getattr(route, "path", None) == "/api/scrape/boss/search"
     ]
 
+    assert jobs_region._boss_region_search_proxy_enabled is True
+    assert jobs_region._boss_client is None
     assert boss_search_routes
     assert boss_search_routes[0].endpoint.__module__ == "api.boss_proxy"
 
