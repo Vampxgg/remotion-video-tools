@@ -813,7 +813,7 @@ class BossZhipinSettings(_Base):
     # 主 API 通过该内部地址代理 BOSS 请求，避免多个进程争抢同一批 Chrome profile。
     BOSS_SERVICE_URL: str = "http://127.0.0.1:2926"
     BOSS_SERVICE_API_KEY: Optional[str] = None
-    BOSS_PROXY_TIMEOUT_SEC: float = 95.0
+    BOSS_PROXY_TIMEOUT_SEC: float = 195.0
     # 访问受限后是否尝试重启单个 Chrome worker 并重新分配代理。
     BOSS_ZHIPIN_RECOVER_WORKERS_ON_ACCESS_LIMIT: bool = False
     # 是否允许后端进程直接管理本机 Chrome worker 进程。
@@ -828,7 +828,7 @@ class BossZhipinSettings(_Base):
     BOSS_ZHIPIN_MAX_PAGES: int = 3
     BOSS_ZHIPIN_MAX_ITEMS_PER_QUERY: int = 100
     BOSS_ZHIPIN_LISTEN_TIMEOUT_SEC: float = 15.0
-    BOSS_ZHIPIN_SYNC_TIMEOUT_SEC: float = 90.0
+    BOSS_ZHIPIN_SYNC_TIMEOUT_SEC: float = 150.0
     BOSS_ZHIPIN_MIN_DELAY_SEC: float = 1.0
     BOSS_ZHIPIN_MAX_DELAY_SEC: float = 2.5
     BOSS_ZHIPIN_DETAIL_MIN_DELAY_SEC: float = 1.0
@@ -860,12 +860,12 @@ class BossZhipinSettings(_Base):
     BOSS_ZHIPIN_DIRECT_PAGE_SIZE: int = 30
     # 直连模式下两次 httpx 调用（列表翻页 / 逐条详情）之间的随机延时。
     # BOSS 全程串行，这里刻意放慢节奏（"串行慢慢采集"）以显著降低风控概率；
-    # 是控制 BOSS 抓取速率的主要旋钮，调大更稳、调小更快。
-    BOSS_ZHIPIN_DIRECT_MIN_DELAY_SEC: float = 1.2
-    BOSS_ZHIPIN_DIRECT_MAX_DELAY_SEC: float = 3.0
+    # 逐条详情成功后等待 3~5 秒；区域详情每轮最多 10 条，给网络/刷新预留超时余量。
+    BOSS_ZHIPIN_DIRECT_MIN_DELAY_SEC: float = 3.0
+    BOSS_ZHIPIN_DIRECT_MAX_DELAY_SEC: float = 5.0
     # 铸造 cookie 时导航后等待 JS 生成 stoken 的时间。实测 <1.2s 偏早会 code=37，
-    # 取 1.5s 留安全余量。
-    BOSS_ZHIPIN_DIRECT_COOKIE_WAIT_SEC: float = 1.5
+    # 取 2s 预留 JS 生成时间；这不是列表/详情请求的限速间隔。
+    BOSS_ZHIPIN_DIRECT_COOKIE_WAIT_SEC: float = 2.0
 
 
 class RegionJobsSettings(_Base):
@@ -886,11 +886,10 @@ class RegionJobsSettings(_Base):
     # 当 BOSS 需要详情时，对单来源实际抓取的记录数做服务端安全上限：调用方仍可要更多，
     # 由上层应用（如 data_server）分多轮"慢慢"累积。仅在 detail_level=description 时生效，
     # summary 快速路径不受影响。设为 0 表示不限制。
-    # 取值 20：与智联每轮页大小(JOB_SEARCH_V2_LIST_PAGE_SIZE=20)对齐，两来源每轮产出条数
-    # 一致、便于节奏统一。注意 BOSS 逐条详情串行 + 每条间 1.2~3s 延时，20 条单轮耗时明显
-    # 高于智联（智联并发拉详情），故 data_server 采集侧对 BOSS 放宽 timeout_seconds 到 120s
-    # （见 job_collector._collect_unit），并相应抬高 data_server HTTP 层超时留返回余量。
-    REGION_JOBS_BOSS_MAX_DETAIL_RECORDS: int = 20
+    # 取值 10：5~8s 的详情等待最多消耗 80s，核心 150s 留出网络/刷新余量。
+    # 实测 10 条详情耗时 109s；data_server 业务闸 180s，转发 195s，HTTP 层 210s。
+    # 50 条目标通常分 5 轮累计；智联页大小不受此值影响。
+    REGION_JOBS_BOSS_MAX_DETAIL_RECORDS: int = 10
     # 账户需要登录 / 命中风控时，向该管理员邮箱发送提醒邮件，保证接口稳定在线。
     # 复用 JOB_SEARCH_SMTP_* 邮件配置（HOST/PORT/USERNAME/PASSWORD/FROM/USE_SSL/STARTTLS）。
     REGION_JOBS_ADMIN_EMAIL: str = "hx1561958968@gmail.com"
