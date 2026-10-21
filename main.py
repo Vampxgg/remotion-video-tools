@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from api import Online_search, block_generator, tts, cre_audio, converter, cre_video, cre_video_omni, cre_image, \
-    cre_image_azure, voice_models, \
+    cre_image_azure, mcp_azure_image, voice_models, \
     job_search, job_search_v2, boss_proxy, jobs_region, fish_asr, fenbi_gateway, video_compress, gemini_live, \
     tianyancha, web_search, file_parser, file_understand, document_import, usage_report_api, \
     aws_usage_report_api, aws_spend_guard_api
@@ -201,6 +201,7 @@ app.include_router(converter.router, prefix="/api", tags=["Converter"])
 app.include_router(cre_video_omni.router, prefix="/api", tags=["create_omni_video"])
 app.include_router(cre_image.router, prefix="/api", tags=["create_gemini_image"])
 app.include_router(cre_image_azure.router, prefix="/api", tags=["create_azure_image"])
+app.include_router(mcp_azure_image.router)
 # app.include_router(voice_models.router, prefix="/api", tags=["voice_models"])
 app.include_router(job_search.router, prefix="/api", tags=["jobs_datas"])
 app.include_router(job_search_v2.router, prefix="/api", tags=["jobs_datas_v2"])
