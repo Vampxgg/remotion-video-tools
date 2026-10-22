@@ -389,7 +389,9 @@ class CreImageAzureSettings(_Base):
     CRE_IMAGE_AZURE_ALLOWED_URL_HOSTS: str = ""
     # 429 限流重试次数（指数退避）
     CRE_IMAGE_AZURE_MAX_RETRIES: int = 2
-    # 每个 Azure endpoint 的默认并发上限；gpt-image-2 当前每区域 10 RPM，实测 5 并发更稳。
+    # 每个 Azure endpoint 的本地在途并发上限（同时发出去的请求数），不是门户 Capacity。
+    # gpt-image-2 的 Capacity 单位是 RPM：当前各区域 Capacity=12，即每区域每分钟 12 次请求。
+    # 单次生图往往要几十秒，并发若按 RPM 拉到 12，一分钟内容易打满并触发 429；实测 5 更稳。
     CRE_IMAGE_AZURE_ENDPOINT_MAX_CONCURRENCY: int = 5
     # 单 endpoint 连续瞬时失败达到阈值后短暂熔断，避免高并发时持续命中坏节点。
     CRE_IMAGE_AZURE_CIRCUIT_FAILURE_THRESHOLD: int = 3

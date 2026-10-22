@@ -100,6 +100,8 @@ class AzureEndpointRuntime:
     inflight: int = 0
     consecutive_failures: int = 0
     circuit_until: float = 0.0
+    # 平滑加权轮询的累计权重；相等 weight 时按池顺序依次命中每一个区域。
+    rr_credit: int = 0
 
     def __post_init__(self) -> None:
         self.endpoint = self.endpoint.rstrip("/")
@@ -588,16 +590,33 @@ def _extract_azure_error(data: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _healthy_endpoints(excluded: Set[str]) -> List[AzureEndpointRuntime]:
+def _weighted_pick(candidates: List[AzureEndpointRuntime]) -> AzureEndpointRuntime:
+    """平滑加权轮询。weight 相同时按候选列表顺序逐个轮转，保证每个区域都会被命中。"""
+    total = sum(ep.weight for ep in candidates)
+    chosen = candidates[0]
+    for ep in candidates:
+        ep.rr_credit += ep.weight
+        if ep.rr_credit > chosen.rr_credit:
+            chosen = ep
+    chosen.rr_credit -= total
+    return chosen
+
+
+def _select_endpoint(excluded: Set[str]) -> Optional[AzureEndpointRuntime]:
+    """从端点池轮询选出一个区域。
+
+    跳过本次已试过和熔断中的区域。优先选未打满并发上限的区域，让请求铺到每一个区域；
+    全部打满时仍按轮询选一个，由该区域的 semaphore 排队。
+    """
     now = time.monotonic()
     healthy = [
         ep for ep in _require_endpoint_pool()
         if ep.name not in excluded and ep.circuit_until <= now
     ]
-    return sorted(
-        healthy,
-        key=lambda ep: (ep.inflight / max(1, ep.weight), ep.consecutive_failures, ep.name),
-    )
+    if not healthy:
+        return None
+    under_cap = [ep for ep in healthy if ep.inflight < ep.max_concurrency]
+    return _weighted_pick(under_cap or healthy)
 
 
 def _mark_endpoint_success(ep: AzureEndpointRuntime) -> None:
@@ -636,11 +655,11 @@ async def _post_with_retry(
     last_exc: Optional[BaseException] = None
 
     for attempt in range(max_attempts):
-        candidates = _healthy_endpoints(excluded)
-        if not candidates:
+        ep = _select_endpoint(excluded)
+        if ep is None:
             excluded.clear()
-            candidates = _healthy_endpoints(excluded)
-        if not candidates:
+            ep = _select_endpoint(excluded)
+        if ep is None:
             if last_exc:
                 raise last_exc
             raise HTTPException(
@@ -648,8 +667,11 @@ async def _post_with_retry(
                 detail="所有 Azure image endpoint 当前均处于熔断状态。",
             )
 
-        ep = candidates[0]
         excluded.add(ep.name)
+        logger.info(
+            f"Azure 生图轮询选路 endpoint={ep.name} "
+            f"inflight={ep.inflight}/{ep.max_concurrency} attempt={attempt + 1}"
+        )
         headers = {"api-key": ep.api_key}
         if json_body is not None:
             headers["Content-Type"] = "application/json"
