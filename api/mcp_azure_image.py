@@ -119,9 +119,9 @@ TOOL_OUTPUT_SCHEMA: dict[str, Any] = {
             "type": "object",
             "description": "成功时含 images[].public_url 与 text_parts",
         },
-        "text": {"type": "string", "description": "由 public_url 组装的 Markdown 图片"},
+        "image_markdown": {"type": "string", "description": "由 public_url 组装的 Markdown 图片"},
     },
-    "required": ["code", "message", "text"],
+    "required": ["code", "message", "image_markdown"],
 }
 
 
@@ -180,19 +180,19 @@ def _markdown_from_envelope(body: dict[str, Any]) -> str:
 
 def _tool_result(status: int, body: dict[str, Any]) -> dict[str, Any]:
     code = body.get("code", status)
-    text = _markdown_from_envelope(body)
+    image_markdown = _markdown_from_envelope(body)
     structured = {
         "code": code,
         "message": body.get("message") or "",
         "data": body.get("data"),
-        "text": text,
+        "image_markdown": image_markdown,
     }
     is_error = status >= 400 or (isinstance(code, int) and code >= 400)
     content: list[dict[str, str]] = [
         {"type": "text", "text": json.dumps(structured, ensure_ascii=False)}
     ]
-    if text:
-        content.append({"type": "text", "text": text})
+    if image_markdown:
+        content.append({"type": "text", "text": image_markdown})
     return {"content": content, "structuredContent": structured, "isError": is_error}
 
 
