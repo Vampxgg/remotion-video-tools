@@ -376,6 +376,9 @@ class CreImageAzureSettings(_Base):
     # 生成默认档位（medium 兼顾速度与质量；high 最慢，low 最快）
     CRE_IMAGE_AZURE_DEFAULT_QUALITY: str = "medium"      # low / medium / high
     CRE_IMAGE_AZURE_DEFAULT_OUTPUT_FORMAT: str = "png"   # png / jpeg
+    # gpt-image 自带审核。auto 为默认档；low 是官方更宽松的一档，关不掉审核。
+    # 门户里仇恨/色情/暴力/自残滑块管的是另一套过滤器，调不到 moderation_blocked。
+    CRE_IMAGE_AZURE_MODERATION: str = "low"
     # 生成结果的 GCS 子目录（与 gemini_images 分开，便于区分来源）
     CRE_IMAGE_AZURE_OUTPUT_DIR: str = "azure_images"
     # edits 接口单张输入图上限（官方 50MB）

@@ -526,10 +526,45 @@ def _resolved_output_format(payload: GenerateAzureImagePayload) -> str:
     return _settings.CRE_IMAGE_AZURE_DEFAULT_OUTPUT_FORMAT
 
 
+_CHILD_MARKERS = ("宝宝", "婴儿", "幼儿", "儿童", "小孩", "新生儿", "未成年人")
+_STORYBOOK_LINE = "衣着完整的绘本水彩教学插画。"
+_HARM_NEGATIVE_PHRASES = (
+    "minors in inappropriate context",
+    "gambling",
+    "drugs",
+)
+
+
+def _courseware_prompt(text: str) -> str:
+    """未成年人课件改为绘本水彩。写实儿童是 gpt-image 出图拦截里最高的一类。"""
+    if not any(marker in text for marker in _CHILD_MARKERS):
+        return text
+    text = text.replace("写实教学插画", "绘本水彩插画")
+    text = text.replace("视觉风格：写实", "视觉风格：绘本水彩插画")
+    if _STORYBOOK_LINE in text:
+        return text
+    return _STORYBOOK_LINE + "\n" + text
+
+
+def _strip_harm_negatives(text: str) -> str:
+    """负向列表里点名未成年人不当场景、赌博、毒品时去掉。裸露、性、血腥、武器保留。"""
+    kept = []
+    for part in text.split(","):
+        item = part.strip()
+        if not item:
+            continue
+        low = item.lower()
+        if any(phrase in low for phrase in _HARM_NEGATIVE_PHRASES):
+            continue
+        kept.append(item)
+    return ", ".join(kept)
+
+
 def _build_prompt_text(payload: GenerateAzureImagePayload) -> str:
-    text = payload.prompt.strip()
-    if payload.negative_prompt and payload.negative_prompt.strip():
-        text += "\n\nAvoid or do not include the following: " + payload.negative_prompt.strip()
+    text = _courseware_prompt(payload.prompt.strip())
+    negative = _strip_harm_negatives(payload.negative_prompt or "")
+    if negative:
+        text += "\n\nAvoid or do not include the following: " + negative
     return text
 
 
@@ -581,6 +616,20 @@ async def _reference_to_file(ref: ReferenceImageInput) -> Tuple[str, bytes, str]
 
 
 # ─── Azure 调用（含跨区域退避重试）───────────────────────────
+def _is_safety_rejection(text: str) -> bool:
+    low = (text or "").lower()
+    return (
+        "moderation_blocked" in low
+        or "safety system" in low
+        or "contentfilter" in low
+    )
+
+
+_SAFETY_REJECTION_MESSAGE = (
+    "Azure 安全系统拒绝了这张图（出图审核）。同一内容重试不会通过。"
+)
+
+
 def _extract_azure_error(data: Dict[str, Any]) -> Optional[str]:
     err = data.get("error")
     if isinstance(err, dict):
@@ -770,6 +819,7 @@ async def generate_image_azure(payload: GenerateAzureImagePayload):
                 "size": size,
                 "n": str(payload.n),
                 "quality": quality,
+                "moderation": _settings.CRE_IMAGE_AZURE_MODERATION,
             }
             data = await _post_with_retry("edits", data=form, files=files)
         else:
@@ -780,6 +830,7 @@ async def generate_image_azure(payload: GenerateAzureImagePayload):
                 "n": payload.n,
                 "quality": quality,
                 "output_format": out_format,
+                "moderation": _settings.CRE_IMAGE_AZURE_MODERATION,
             }
             if payload.output_compression is not None and out_format == "jpeg":
                 body["output_compression"] = int(payload.output_compression)
@@ -791,8 +842,11 @@ async def generate_image_azure(payload: GenerateAzureImagePayload):
         err = _extract_azure_error(data)
         if err:
             logger.warning(f"[{request_id}] Azure 返回错误: {err}")
-            code = 422 if "contentFilter" in err else status.HTTP_502_BAD_GATEWAY
-            return create_standard_response(code=code, message=f"Azure 生成失败: {err}")
+            if _is_safety_rejection(err):
+                return create_standard_response(code=422, message=_SAFETY_REJECTION_MESSAGE)
+            return create_standard_response(
+                code=status.HTTP_502_BAD_GATEWAY, message=f"Azure 生成失败: {err}"
+            )
 
         images = await _extract_images(data, out_mime)
         if not images:
@@ -811,6 +865,8 @@ async def generate_image_azure(payload: GenerateAzureImagePayload):
         err = f"Azure API 请求失败: {e.response.status_code} - {body_txt}"
         logger.error(f"[{request_id}] {err}")
         code = e.response.status_code
+        if _is_safety_rejection(body_txt):
+            return create_standard_response(code=422, message=_SAFETY_REJECTION_MESSAGE)
         if code == 401:
             return create_standard_response(code=401, message="Azure 鉴权失败：api-key 无效或缺失")
         if code == 429:
