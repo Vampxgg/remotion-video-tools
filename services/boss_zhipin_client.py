@@ -114,13 +114,19 @@ def _sanitize_hint(text: Optional[str]) -> Optional[str]:
     return scrubbed.strip()[:200]
 
 
-def _boss_access_error_kind(exc: BossAccessLimitedError) -> str:
-    text = f"{exc} {exc.raw_hint or ''}"
+def _boss_access_error_kind(exc: Exception) -> str:
+    text = f"{exc} {getattr(exc, 'raw_hint', None) or ''}"
+    if "code=32" in text:
+        return "account_restricted"
     if any(marker in text for marker in ("登录", "__zp_stoken__", "验证码", "人机验证")):
         return "login_required"
-    if any(marker in text for marker in ("Chrome", "DevTools", "tab", "浏览器")):
+    diagnostic = f"{type(exc).__module__}.{type(exc).__name__} {text}".lower()
+    if any(marker in diagnostic for marker in (
+        "chrome", "devtools", "browser", "tab", "浏览器", "drissionpage",
+        "pagedisconnected", "contextlost",
+    )):
         return "chrome_unhealthy"
-    return "proxy_limited"
+    return "proxy_limited" if isinstance(exc, BossAccessLimitedError) else "worker_error"
 
 
 def _single_profile_concurrency(value: Optional[int] = None) -> int:
@@ -366,6 +372,10 @@ class BossZhipinClient:
         self._http_clients: List[httpx.Client] = []
         self._session_pool: Optional["queue.Queue[_DirectBossSession]"] = None
         self._pool_size = 0
+        # A timed-out/cancelled await does not stop its synchronous browser thread.
+        self._pending_threads: set[asyncio.Task] = set()
+        self._unknown_threads: set[asyncio.Task] = set()
+        self._detached_errors: list[Exception] = []
 
     @property
     def browser_host_port(self) -> str:
@@ -396,31 +406,62 @@ class BossZhipinClient:
         （degree/experience/salary/scale/stage/jobType/industry/multiBusinessDistrict）
         的全维度筛选；为空/None 时不注入任何筛选，请求结构与历史完全一致（向后兼容）。
         """
-        async with self._sema:
-            try:
-                return await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self._scrape_many_sync,
-                        keywords,
-                        city_codes,
-                        max_pages,
-                        max_items_per_query,
-                        include_raw,
-                        include_description,
-                        start_page,
-                        page_size,
-                        filters,
-                    ),
-                    timeout=_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC,
-                )
-            except asyncio.TimeoutError as exc:
-                raise BossAccessLimitedError(
-                    f"BOSS 同步抓取超时（{_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC:g}s）"
-                ) from exc
+        if self._unknown_threads:
+            raise BossAccessLimitedError("BOSS 浏览器上次执行尚未结束，禁止重新分配")
+        await self._sema.acquire()
+        if self._unknown_threads:
+            self._sema.release()
+            raise BossAccessLimitedError("BOSS 浏览器上次执行尚未结束，禁止重新分配")
+        try:
+            return await self._run_browser_thread(
+                self._scrape_many_sync, keywords, city_codes, max_pages,
+                max_items_per_query, include_raw, include_description,
+                start_page, page_size, filters,
+                timeout=_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC, release_slot=True,
+            )
+        except asyncio.TimeoutError as exc:
+            raise BossAccessLimitedError(
+                f"BOSS 同步抓取超时（{_settings.BOSS_ZHIPIN_SYNC_TIMEOUT_SEC:g}s）"
+            ) from exc
+
+    @property
+    def has_pending_execution(self) -> bool:
+        return any(not task.done() for task in self._pending_threads)
+
+    async def wait_for_idle(self) -> list[Exception]:
+        while self._pending_threads:
+            await asyncio.gather(*(asyncio.shield(task) for task in list(self._pending_threads)),
+                                 return_exceptions=True)
+        errors, self._detached_errors = self._detached_errors, []
+        return errors
+
+    async def _run_browser_thread(self, function, *args, timeout=None, release_slot=False):
+        execution = asyncio.create_task(asyncio.to_thread(function, *args))
+        self._pending_threads.add(execution)
+
+        def finished(task):
+            error = None if task.cancelled() else task.exception()
+            if error is not None and task in self._unknown_threads:
+                self._detached_errors.append(error)
+            self._pending_threads.discard(task)
+            self._unknown_threads.discard(task)
+            if release_slot:
+                self._sema.release()
+
+        execution.add_done_callback(finished)
+        try:
+            if timeout is None:
+                return await asyncio.shield(execution)
+            return await asyncio.wait_for(asyncio.shield(execution), timeout=timeout)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            if not execution.done():
+                self._unknown_threads.add(execution)
+            raise
 
     async def shutdown(self) -> None:
         """释放持久化浏览器 tab / httpx client（由 lifespan 调用）。"""
         async with self._lock:
+            await self.wait_for_idle()
             await asyncio.to_thread(self._shutdown_sync)
 
     async def probe_ready(self) -> None:
@@ -428,7 +469,8 @@ class BossZhipinClient:
 
         只做资源初始化和 cookie 铸造，不拉取职位列表，避免恢复动作本身增加抓取压力。
         """
-        await asyncio.to_thread(self._probe_ready_sync)
+        await self.wait_for_idle()
+        await self._run_browser_thread(self._probe_ready_sync)
 
     # ─────────────── 持久化资源管理（worker 线程内调用）───────────────
 
@@ -1002,7 +1044,10 @@ class BossZhipinClient:
         )
 
 
-class BossWorkerPoolClient:
+from services.boss_worker_health import BossWorkerHealth
+
+
+class BossWorkerPoolClient(BossWorkerHealth):
     """BOSS 多账号 / 多 profile worker 池。
 
     对外保持 ``BossZhipinClient.scrape_many`` 合同；内部把每次采集分配给一个
@@ -1019,6 +1064,7 @@ class BossWorkerPoolClient:
         runtime_manager: Optional[BossWorkerRuntimeManager] = None,
         worker_factory=None,
         recover_failed_workers: bool = False,
+        health_file=None,
     ) -> None:
         if not workers:
             raise ValueError("BossWorkerPoolClient 至少需要一个 worker")
@@ -1054,6 +1100,8 @@ class BossWorkerPoolClient:
             else _settings.REGION_JOBS_BOSS_COOLDOWN_MINUTES * 60
         )
 
+        self._init_health(health_file)
+
     async def scrape_many(self, *args, **kwargs) -> Dict[str, Any]:
         attempted: set[str] = set()
         recovery_retries: Dict[str, int] = {}
@@ -1064,6 +1112,8 @@ class BossWorkerPoolClient:
                 reason = str(last_error) if last_error else "无可用 worker"
                 status = self.worker_status()
                 retry_after = self._next_retry_after_seconds()
+                if any(w["state"] in {"healthy", "candidate", "recovering", "unknown"} for w in status.values()):
+                    retry_after = 5
                 raise BossAccessLimitedError(
                     f"全部 BOSS worker 均不可用：{reason}",
                     retry_after_seconds=retry_after,
@@ -1072,17 +1122,34 @@ class BossWorkerPoolClient:
 
             worker_id = self._worker_id(worker)
             attempted.add(worker_id)
+            release_slot = True
             try:
-                result = await worker.scrape_many(*args, **kwargs)
+                execution = asyncio.create_task(worker.scrape_many(*args, **kwargs))
+                try:
+                    result = await asyncio.shield(execution)
+                except asyncio.CancelledError as cancelled:
+                    release_slot = False
+                    self._defer_worker_release(worker, execution, "采集等待被取消，等待底层执行结束")
+                    raise cancelled
                 self._record_success(worker_id)
                 return self._attach_worker_status(result, worker_id, self.worker_status())
             except BossAccessLimitedError as exc:
                 last_error = exc
+                if getattr(worker, "has_pending_execution", False):
+                    release_slot = False
+                    self._defer_worker_release(worker, execution, str(exc))
+                    continue
                 error_kind = _boss_access_error_kind(exc)
-                if error_kind == "login_required":
+                if error_kind in {"login_required", "account_restricted"}:
                     self._record_login_required(worker_id, reason=str(exc))
                     continue
-                recovered = await self._recover_worker(worker_id, exc)
+                recovery = asyncio.create_task(self._recover_worker(worker_id, exc))
+                try:
+                    recovered = await asyncio.shield(recovery)
+                except asyncio.CancelledError:
+                    release_slot = False
+                    self._defer_worker_release(worker, recovery, "恢复等待被取消，等待底层执行结束")
+                    raise
                 if recovered:
                     if (
                         not self._has_available_worker(exclude=attempted)
@@ -1090,16 +1157,26 @@ class BossWorkerPoolClient:
                     ):
                         recovery_retries[worker_id] = recovery_retries.get(worker_id, 0) + 1
                         attempted.discard(worker_id)
-                else:
+                elif worker_id not in self._login_required:
                     self._record_cooldown(
                         worker_id,
                         seconds=self._cooldown_seconds_for_error(exc, error_kind),
                         reason=str(exc),
                     )
+            except Exception as exc:
+                # Ordinary DrissionPage/Chrome/transport exceptions must not leave
+                # the pool advertising this worker as healthy or rotate its proxy.
+                last_error = BossAccessLimitedError(f"{type(exc).__name__}: {exc}")
+                self._quarantine_worker(worker_id, exc)
             finally:
-                self._release_worker(worker_id)
+                if release_slot:
+                    self._release_worker(worker_id)
 
     async def shutdown(self) -> None:
+        if self._drain_tasks:
+            await asyncio.gather(*(asyncio.shield(t) for t in list(self._drain_tasks)))
+        if self._verification_tasks:
+            await asyncio.gather(*list(self._verification_tasks.values()), return_exceptions=True)
         for worker in self._workers:
             shutdown = getattr(worker, "shutdown", None)
             if shutdown is not None:
@@ -1124,15 +1201,18 @@ class BossWorkerPoolClient:
                 proxy_id = getattr(worker, "proxy_id", None)
                 proxy_info = self._proxy_status(proxy_id)
                 runtime_snapshot = self._runtime_snapshot.get(worker_id, {})
-                if worker_id in self._login_required:
-                    state = "login_required"
-                elif worker_id in self._recovering:
+                if worker_id in self._recovering:
                     state = "recovering"
+                elif worker_id in self._login_required:
+                    state = "login_required"
                 elif cooling:
                     state = "cooldown"
+                elif worker_id in self._unverified:
+                    state = "unknown"
                 else:
-                    state = "healthy"
+                    state = self._health_records.get(worker_id, {}).get("state", "healthy")
                 statuses[worker_id] = {
+                    "verification": dict(self._health_records.get(worker_id, {})),
                     "state": state,
                     "in_flight": self._in_flight.get(worker_id, 0),
                     "cooldown_remaining_seconds": (
@@ -1177,7 +1257,7 @@ class BossWorkerPoolClient:
                 worker_id = self._worker_id(worker)
                 if worker_id in exclude:
                     continue
-                if worker_id in self._recovering or worker_id in self._login_required:
+                if worker_id in self._recovering or worker_id in self._login_required or worker_id in self._unverified or self._in_flight.get(worker_id, 0):
                     continue
                 cooldown_until = self._cooldown_until.get(worker_id)
                 if cooldown_until and cooldown_until > now:
@@ -1197,7 +1277,7 @@ class BossWorkerPoolClient:
                 worker_id = self._worker_id(worker)
                 if worker_id in exclude:
                     continue
-                if worker_id in self._recovering or worker_id in self._login_required:
+                if worker_id in self._recovering or worker_id in self._login_required or worker_id in self._unverified or self._in_flight.get(worker_id, 0):
                     continue
                 cooldown_until = self._cooldown_until.get(worker_id)
                 if cooldown_until and cooldown_until > now:
@@ -1212,6 +1292,7 @@ class BossWorkerPoolClient:
     def _record_success(self, worker_id: str) -> None:
         with self._lock:
             self._cooldown_until.pop(worker_id, None)
+            self._record_health_locked(worker_id, state="healthy", last_success_at=time.time(), reason_kind=None, retry_at=0, error=None)
             self._cooldown_reason.pop(worker_id, None)
 
     def _record_login_required(self, worker_id: str, *, reason: str) -> None:
@@ -1219,11 +1300,14 @@ class BossWorkerPoolClient:
             self._login_required.add(worker_id)
             self._cooldown_until.pop(worker_id, None)
             self._cooldown_reason[worker_id] = reason
+            kind = "account_restricted" if "code=32" in reason else "login_required"
+            self._record_health_locked(worker_id, state=kind, reason_kind=kind, error=reason[:500])
         logger.warning("[boss-worker-pool] worker=%s 需要人工登录/验证：%s", worker_id, reason)
 
     def _record_cooldown(self, worker_id: str, *, seconds: int, reason: str) -> None:
         until = time.monotonic() + max(1, int(seconds))
         with self._lock:
+            self._record_health_locked(worker_id, state="cooldown", reason_kind="temporary", retry_at=time.time()+max(1,int(seconds)), error=reason[:500])
             self._cooldown_until[worker_id] = until
             self._cooldown_reason[worker_id] = reason
         proxy_id = self._worker_proxy_id(worker_id)
@@ -1241,7 +1325,7 @@ class BossWorkerPoolClient:
             return exc.retry_after_seconds
         if error_kind == "chrome_unhealthy":
             return _settings.BOSS_ZHIPIN_CHROME_RECOVERY_COOLDOWN_MINUTES * 60
-        if error_kind == "login_required":
+        if error_kind in {"login_required", "account_restricted"}:
             return _settings.BOSS_ZHIPIN_LOGIN_REQUIRED_COOLDOWN_MINUTES * 60
         return self._cooldown_seconds
 
@@ -1340,9 +1424,9 @@ class BossWorkerPoolClient:
                 self._proxy_pool.release_worker(worker_id)
             with self._lock:
                 self._last_recovery_error[worker_id] = str(recovery_exc)
-                recovery_text = f"{exc} {recovery_exc}"
-                if "登录" in recovery_text or "stoken" in recovery_text:
-                    self._login_required.add(worker_id)
+            recovery_text = f"{exc} {recovery_exc}"
+            if _boss_access_error_kind(recovery_exc) in {"login_required", "account_restricted"}:
+                self._record_login_required(worker_id, reason=recovery_text)
             logger.warning(
                 "[boss-worker-pool] worker=%s 自愈换代理失败：%s",
                 worker_id,
@@ -1563,12 +1647,13 @@ def get_boss_client():
                 workers,
                 proxy_pool=_configured_proxy_pool,
                 runtime_manager=runtime_manager,
+                health_file=_PROJECT_ROOT / _settings.BOSS_ZHIPIN_WORKER_STATE_ROOT / "health" / "workers.json",
                 recover_failed_workers=(
                     _settings.BOSS_ZHIPIN_RECOVER_WORKERS_ON_ACCESS_LIMIT
                     and runtime_manager is not None
                 ),
             )
             if workers
-            else BossZhipinClient()
+            else BossWorkerPoolClient([BossZhipinClient()], health_file=_PROJECT_ROOT / _settings.BOSS_ZHIPIN_WORKER_STATE_ROOT / "health" / "workers.json")
         )
     return _shared_client

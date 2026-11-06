@@ -70,6 +70,7 @@ scripts/*
 !scripts/stop_boss_worker.ps1
 !scripts/restart_boss_worker.ps1
 !scripts/verify_boss_worker_recovery.py
+!scripts/verify_boss_worker_isolation.py
 
 # ===== 本地数据 / 文档产物（不入库）=====
 data.json
@@ -128,3 +129,11 @@ region_job_market_scan (3).yml
 report/
 static/aws_cost_export_func/_data/
 azure_cost_export_func/
+
+.test-tmp-ownership-final/
+.test-tmp-ownership-final2/
+.test-tmp-ownership-verified/
+.tmp-codex-err.txt
+.tmp-codex-out.txt
+.tmp-codex2-err.txt
+.tmp-codex2-out.txt

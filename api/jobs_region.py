@@ -12,7 +12,7 @@ from threading import Lock
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from api.job_search_v2 import get_search_client as get_zhilian_client
@@ -1611,3 +1611,65 @@ def _region_to_dict(region: RegionSpec) -> Dict[str, Any]:
         "city": region.city,
         "district": region.district,
     }
+
+
+class SourceVerificationRequest(BaseModel):
+    manual: bool = False
+    worker_id: Optional[str] = None
+
+
+async def _source_health(source: str, request: Optional[SourceVerificationRequest] = None):
+    if source == "zhilian":
+        return create_standard_response(data={"source": source, "supported": False,
+            "state": "unknown", "observed_at": time.time(), "workers": {},
+            "message": "智联通过真实采集结果验证，暂无独立 worker 探针"})
+    if source != "boss_zhipin":
+        return create_standard_response(code=400, message="未知岗位来源")
+    if _boss_region_search_proxy_enabled:
+        try:
+            async with httpx.AsyncClient(timeout=10, trust_env=False) as client:
+                response = await client.request(
+                    "POST" if request else "GET",
+                    _boss_service_url(f"/api/jobs/sources/{source}/health"),
+                    headers=_boss_service_headers(),
+                    json=request.model_dump() if request else None,
+                )
+                if response.status_code != 200:
+                    return create_standard_response(code=response.status_code, message="BOSS 内部健康服务请求失败")
+                return response.json()
+        except (httpx.RequestError, ValueError):
+            return create_standard_response(code=503, message="BOSS 健康服务不可达")
+    client = _get_boss_region_client()
+    if not hasattr(client, "begin_verification"):
+        return create_standard_response(data={"source": source, "supported": False,
+            "state": "unknown", "workers": {}})
+    cooling, until, remaining, reason = _boss_circuit.state()
+    if request and not cooling:
+        try:
+            client.begin_verification(manual=request.manual, worker_id=request.worker_id)
+        except ValueError as exc:
+            return create_standard_response(code=400, message=str(exc))
+    workers = client.worker_status()
+    available = sum(w["state"] in {"healthy", "candidate"} for w in workers.values())
+    return create_standard_response(data={"source": source, "supported": True,
+        "verification_accepted": bool(request and client.verification_in_progress(request.worker_id)),
+        "workers": workers, "available_workers": available, "observed_at": time.time(),
+        "retry_after_seconds": remaining or 0, "blocked_until": until,
+        "state": "cooldown" if cooling else "candidate" if available else "unavailable",
+        "message": reason})
+
+
+async def _require_source_health_key(x_api_key: Optional[str] = Header(None)):
+    expected = _settings.REGION_JOBS_API_KEY if _boss_region_search_proxy_enabled else (_settings.BOSS_SERVICE_API_KEY or _settings.REGION_JOBS_API_KEY)
+    if expected and x_api_key != expected:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+@router.get("/jobs/sources/{source}/health", dependencies=[Depends(_require_source_health_key)])
+async def source_health(source: str):
+    return await _source_health(source)
+
+
+@router.post("/jobs/sources/{source}/health", dependencies=[Depends(_require_source_health_key)])
+async def verify_source_health(source: str, payload: SourceVerificationRequest):
+    return await _source_health(source, payload)
