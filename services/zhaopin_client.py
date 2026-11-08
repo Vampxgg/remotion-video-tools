@@ -635,11 +635,12 @@ class ZhaopinSearchClient:
         为 None），上层据此退回启发式判界。
 
         ``filters`` 为智联原生 ``{S_SOU_*: 码值}`` 映射（由 utils.zhilian_filters
-        生成），仅直连路径支持；浏览器 fallback 不带筛选（直连已足够，fallback 仅兜底）。
+        生成），仅直连路径支持；带筛选的请求不能回退到不带筛选的浏览器结果。
         """
         if self._direct is None:
             await self.startup()
 
+        direct_error: Optional[Exception] = None
         if _settings.JOB_SEARCH_V2_DIRECT_ENABLED and self._direct is not None:
             try:
                 jobs, meta = await self._direct.search_positions(
@@ -651,13 +652,15 @@ class ZhaopinSearchClient:
                     f"(count={meta.get('count')}, verify={meta.get('isVerification')}, "
                     f"{meta.get('cost')}s)"
                 )
+                if meta.get("isVerification") in (True, 1, "1", "true"):
+                    raise RuntimeError("智联列表响应要求验证，不能当作正常职位数据")
                 if jobs:
                     return jobs, meta
                 # 直连返回空要区分两种情况：
                 # 1) 正常翻到底（isEndPage=1 且非验证码）→ 这不是失败，直接返回空，
                 #    让上层停止翻页并保留前面已抓到的结果，绝不能回退浏览器（既慢又可能撞登录墙）。
                 # 2) 疑似被拦截 / 验证码 / 异常空 → 才回退浏览器兜底。
-                if bool(meta.get("isEndPage")) and not bool(meta.get("isVerification")):
+                if meta.get("isEndPage") in (True, 1, "1", "true") or meta.get("count") in (0, "0"):
                     logger.info(
                         f"直连已到末页(isEndPage=1)，正常结束，不回退: "
                         f"{keyword}/cityId={city_id} p{page}, meta={meta}"
@@ -666,7 +669,9 @@ class ZhaopinSearchClient:
                 logger.warning(
                     f"直连列表为空: {keyword}/cityId={city_id} p{page}, meta={meta}"
                 )
+                direct_error = RuntimeError("智联返回无结束标记、无有效总数的异常空结果")
             except Exception as exc:
+                direct_error = exc
                 logger.warning(
                     f"直连列表失败，准备 fallback: "
                     f"{keyword}/cityId={city_id} p{page}: {exc}"
@@ -674,14 +679,12 @@ class ZhaopinSearchClient:
 
         # 浏览器 fallback：拿不到 count/isEndPage，回空 meta（上层退回启发式判界）。
         empty_meta: Dict[str, Any] = {"count": None, "isEndPage": None, "isVerification": None}
-        if not _settings.JOB_SEARCH_V2_BROWSER_FALLBACK_ENABLED:
-            return [], empty_meta
-
         if filters:
-            logger.warning(
-                "浏览器 fallback 不支持筛选，本页将忽略 filters: "
-                f"{keyword}/cityId={city_id} p{page}, filters={filters}"
-            )
+            raise RuntimeError(
+                "智联筛选搜索未成功，拒绝回退到会丢失过滤条件的浏览器搜索"
+            ) from direct_error
+        if not _settings.JOB_SEARCH_V2_BROWSER_FALLBACK_ENABLED:
+            raise RuntimeError("智联没有成功的搜索结果，且浏览器回退已关闭") from direct_error
         result = await self._browser.navigate_and_listen(keyword, city_id, page)
 
         source = result.get("_source", "listen")

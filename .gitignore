@@ -137,3 +137,4 @@ azure_cost_export_func/
 .tmp-codex-out.txt
 .tmp-codex2-err.txt
 .tmp-codex2-out.txt
+tests/fixtures/

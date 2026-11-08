@@ -11,7 +11,8 @@ POST /c/i/search/positions 的原生 S_SOU_* 字段与码值。
 - 对外暴露语义查询：field_name / map_value / build_filters。
 
 码值权威性：学历/经验/公司性质/公司规模/雇佣类型均经真实接口实测确认生效
-（见 dev 探测记录），行业/职位类型取自 dict.zhaopin.cn 字典服务。
+（见 dev 探测记录）。行业码于2026-11-08按登录页面全量选项和真实搜索核验，
+旧公开 industry_relation 字典不能作为当前行业搜索码依据；职位类型沿用原字典。
 
 约定：
 - 多选——同一维度传入以英文逗号分隔的多个标签/码值，逐项映射后重新用逗号拼接。
@@ -27,12 +28,14 @@ POST /c/i/search/positions 的原生 S_SOU_* 字段与码值。
 """
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
+from utils.filter_errors import InvalidIndustryFilter
 
 logger = setup_module_logger(__name__, "logs/jobs/region_search.log")
 
@@ -187,10 +190,12 @@ def _map_single(dim: str, token: str, options: Dict[str, str]) -> Optional[str]:
     - 命中 options 键（业务标签/中文/别名）→ 对应码值
     - 已是 options 的码值 → 原样返回
     - passthrough 维度（salary/subway）→ 原样返回
-    - 其余未知 token → 原样返回（宽松兜底，交由智联接口判定）
+    - 行业未知值报配置错误；其它维度保留历史透传行为。
     """
     t = (token or "").strip()
     if t.lower() in _UNLIMITED_TOKENS:
+        return None
+    if dim == "industry" and t == "-1":
         return None
     if dim in _PASSTHROUGH_DIMS:
         # salary：面板统一传档位标签 → 转成智联 min,max 区间；
@@ -204,6 +209,11 @@ def _map_single(dim: str, token: str, options: Dict[str, str]) -> Optional[str]:
         return options[t]
     if t in set(options.values()):
         return t
+    if dim == "industry":
+        known = {code for value in options.values() for code in value.split(",")}
+        if t in known:
+            return t
+        raise InvalidIndustryFilter(f"未知或未核验的智联行业：{t}；请使用当前行业码表")
     return t
 
 
@@ -223,14 +233,18 @@ def map_value(dim: str, raw: Optional[str], city: Optional[str] = None) -> Optio
     else:
         info = _load().get(dim)
         options = (info.get("options") if info else {}) or {}
-    parts = [p for p in (raw.split(",") if isinstance(raw, str) else [str(raw)])]
+    parts = (re.split(r"[,;]", raw) if dim == "industry" else raw.split(",")) if isinstance(raw, str) else [str(raw)]
     codes: list[str] = []
     seen: set[str] = set()
     for p in parts:
         code = _map_single(dim, p, options)
-        if code and code not in seen:
-            seen.add(code)
-            codes.append(code)
+        # An industry business label may expand to multiple native categories.
+        # Deduplicate after expansion (e.g. AI + software), not as a whole string.
+        mapped_codes = code.split(",") if code and dim == "industry" else [code]
+        for mapped_code in mapped_codes:
+            if mapped_code and mapped_code not in seen:
+                seen.add(mapped_code)
+                codes.append(mapped_code)
     return ",".join(codes) if codes else None
 
 

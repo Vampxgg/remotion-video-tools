@@ -10,7 +10,8 @@ GET /wapi/zpgeek/search/joblist.json 的原生 query 参数与码值。
 - 文件缺失或解析失败时回退到内置 _SEED，保证核心维度始终可用。
 - 对外暴露语义查询：field_name / map_value / build_filters。
 
-码值权威性：全部维度码值均在登录态（用户"何曦"）下实测确认——面板 ka 埋点给出码值、
+码值来源：历史维度来自登录页面；2026-11-08另对全部行业码逐项搜索核验。
+本轮不代表其他维度已全量复验。面板 ka 埋点给出码值、
 点击后 URL 给出真实 query 参数名（ka 前缀 sel-job-rec-exp- 对应的真实参数名是
 `experience`；ka 序号 sel-industry-N 不是行业真实码，industry 真实码由点击 URL 抓取）。
 
@@ -35,6 +36,7 @@ from typing import Any, Dict, Optional
 
 from utils.logger import setup_module_logger
 from utils.settings import settings as _settings
+from utils.filter_errors import InvalidIndustryFilter
 
 logger = setup_module_logger(__name__, "logs/jobs/region_search.log")
 
@@ -168,7 +170,7 @@ def _map_single(dim: str, token: str, options: Dict[str, str]) -> Optional[str]:
     - 「不限/空」→ None
     - 命中 options 键（业务标签/中文/别名）→ 对应码值
     - 已是 options 的码值 → 原样返回
-    - 其余未知 token → 原样返回（宽松兜底，交由 BOSS 接口判定）
+    - 行业未知值报配置错误；其它维度保留历史透传行为。
     """
     t = (token or "").strip()
     if t.lower() in _UNLIMITED_TOKENS:
@@ -177,6 +179,11 @@ def _map_single(dim: str, token: str, options: Dict[str, str]) -> Optional[str]:
         return options[t]
     if t in set(options.values()):
         return t
+    if dim == "industry":
+        known = {code for value in options.values() for code in value.split(",")}
+        if t in known:
+            return t
+        raise InvalidIndustryFilter(f"未知或未核验的 BOSS 行业：{t}；请使用当前行业码表")
     return t
 
 
@@ -201,9 +208,13 @@ def map_value(dim: str, raw: Optional[str], city: Optional[str] = None) -> Optio
     seen: set[str] = set()
     for p in parts:
         code = _map_single(dim, p, options)
-        if code and code not in seen:
-            seen.add(code)
-            codes.append(code)
+        # Flatten configured multi-code aliases before deduplication, if any.
+        # Active original BOSS categories retain their own native codes.
+        mapped_codes = code.split(",") if code and dim == "industry" else [code]
+        for mapped_code in mapped_codes:
+            if mapped_code and mapped_code not in seen:
+                seen.add(mapped_code)
+                codes.append(mapped_code)
     return ",".join(codes) if codes else None
 
 

@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "source": "BOSS直聘 GET https://www.zhipin.com/wapi/zpgeek/search/joblist.json 真实 query 参数。登录态(何曦)实测面板 ka 埋点 + 点击后 URL 确认参数名/码值。",
+    "source": "BOSS 登录搜索页字段及行业组件；当前页面实际列表请求为 POST /wapi/zpgeek/search/joblist.json，生产直连客户端使用 GET。",
     "note": "salary 用档位码(非数值区间)，只做标签->档位码映射。experience 面板 ka 前缀是 exp 但真实 query 参数名为 experience。district 用 multiBusinessDistrict=国标行政区划码。industry 为 BOSS 行业码。多选：同维码值用英文逗号拼接。",
     "verified_at": "2026-09-07"
   },
@@ -6682,7 +6682,7 @@
   },
   "industry": {
     "field": "industry",
-    "_note": "BOSS 行业码，登录态实测面板逐项点击 URL 抓取(145 项)。",
+    "_note": "行业码来自登录页面。2026-11-08 已验证原/新分类对照；不声称全部行业逐一实测。",
     "options": {
       "互联网": "100020",
       "电子商务": "100001",
@@ -6829,6 +6829,52 @@
       "非营利组织": "101302",
       "政府/公共事业": "101301",
       "其他行业": "101304"
+    },
+    "_profile_crosswalk": {
+      "verified_at": "2026-11-08",
+      "source": "logged-in https://www.zhipin.com/web/geek/jobs industryList and POST /wapi/zpgeek/search/joblist.json",
+      "note": "原分类与新细分类均存在于登录页面且真实搜索成功；原标签恢复原生码，不再擅自改成新码并集。两者搜索范围不保证等价。",
+      "previous_unverified_alias_targets": {
+        "机械设备/机电/重工": [
+          "通用设备",
+          "专用设备"
+        ],
+        "仪器仪表/工业自动化": [
+          "仪器仪表",
+          "自动化设备"
+        ],
+        "原材料及加工/模具": [
+          "金属制品"
+        ],
+        "电子/半导体/集成电路": [
+          "半导体/芯片",
+          "电子/硬件开发",
+          "计算机/通信/其他电子设备"
+        ],
+        "4S店/后市场": [
+          "汽车经销商",
+          "汽车后市场"
+        ]
+      },
+      "original_category_codes": {
+        "机械设备/机电/重工": "100901",
+        "仪器仪表/工业自动化": "100902",
+        "原材料及加工/模具": "100903",
+        "电子/半导体/集成电路": "101407",
+        "4S店/后市场": "100803"
+      },
+      "authenticated_search_verified": true,
+      "verification_scope": "5个原码、10个新码及其组合；完整专业组合见 data_server/data/major_profiles/boss_live_verification.json"
+    },
+    "_verification": {
+      "date": "2026-11-08",
+      "scope": "当前登录页面全部145个行业叶子分类，逐项全国/经理搜索，非其他维度全表",
+      "canonical_count": 145,
+      "queries": 147,
+      "method": "页面原生POST，记录并核对实际industry参数；另含无过滤基线和无效码对照",
+      "result": "145个行业均有职位，全部请求code=0；无效码对照为空。原5类与新细分类并存，保持原生映射。",
+      "evidence": "data_server/data/major_profiles/industry_verification_20261108/manifest.json",
+      "limit": "行业返回样本可显示关联或历史分类名称，不代表岗位相关性精确率或召回率。"
     }
   }
 }

@@ -195,7 +195,9 @@ class _DirectBossSession:
                 f"{SEARCH_PAGE_URL}?{urlencode({'query': 'Java', 'city': 101280600})}"
             )
             time.sleep(_settings.BOSS_ZHIPIN_DIRECT_COOKIE_WAIT_SEC)
-            raw = self._tab.cookies(all_domains=True)
+            # This browser can also contain other signed-in sites. Only copy
+            # cookies applicable to the BOSS page, never the whole profile.
+            raw = self._tab.cookies(all_domains=False)
             try:
                 cookies = raw.as_dict()
             except Exception:

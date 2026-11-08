@@ -20,6 +20,7 @@ from services.boss_zhipin_client import BossAccessLimitedError, get_boss_client
 from utils import region_map
 from utils import boss_filters as boss_filters_util
 from utils import zhilian_filters as zhilian_filters_util
+from utils.filter_errors import InvalidIndustryFilter
 from utils.logger import setup_module_logger
 from utils.responses import create_standard_response
 from utils.security import require_api_key
@@ -626,7 +627,24 @@ def _failure_status_code(failed: List["SourceRunResult"]) -> int:
     return 409
 
 
+def _industry_validation_error(payload, source, mapper) -> Optional[SourceRunResult]:
+    """Reject unknown industry values before proxy/client initialization or network access."""
+    if payload.query.filters is None or payload.query.filters.industry is None:
+        return None
+    try:
+        mapper.map_value("industry", payload.query.filters.industry)
+    except InvalidIndustryFilter as exc:
+        return SourceRunResult(
+            source=source, ok=False, error=str(exc), error_code="invalid_industry_filter",
+            queries_attempted=0, pages_requested=0, retryable=False,
+        )
+    return None
+
+
 async def _run_zhilian(payload: RegionJobSearchPayload) -> SourceRunResult:
+    invalid = _industry_validation_error(payload, SourceName.ZHILIAN, zhilian_filters_util)
+    if invalid is not None:
+        return invalid
     city_name = payload.region.city
     city_id = payload.region.platform_hints.zhilian_city_id
     if city_id is None:
@@ -837,6 +855,9 @@ async def _run_boss_via_service(payload: RegionJobSearchPayload) -> SourceRunRes
 
 
 async def _run_boss(payload: RegionJobSearchPayload) -> SourceRunResult:
+    invalid = _industry_validation_error(payload, SourceName.BOSS_ZHIPIN, boss_filters_util)
+    if invalid is not None:
+        return invalid
     if _boss_region_search_proxy_enabled:
         return await _run_boss_via_service(payload)
 
