@@ -9,9 +9,13 @@ import os
 import re
 import sys
 import time
+import threading
 from logging.handlers import TimedRotatingFileHandler
 
 from utils.settings import settings
+
+_file_handlers = {}
+_file_handlers_lock = threading.RLock()
 
 
 class SafeTimedRotatingFileHandler(TimedRotatingFileHandler):
@@ -76,6 +80,9 @@ def setup_module_logger(
     logger = logging.getLogger(logger_name)
 
     if logger.hasHandlers():
+        for handler in list(logger.handlers):
+            if handler not in _file_handlers.values():
+                handler.close()
         logger.handlers.clear()
 
     logger.setLevel(logging.INFO)
@@ -100,33 +107,46 @@ def setup_module_logger(
         else:
             log_path = os.path.join(base, log_file)
 
+    # Windows cannot rename a file held open by another worker. Each process
+    # owns its files so daily rollover is reliable with multi-worker uvicorn.
+    # Existing shared logs are retained as historical evidence.
+    if os.name == "nt":
+        stem, extension = os.path.splitext(log_path)
+        log_path = f"{stem}.{os.getpid()}{extension}"
+
     # --- 1. 文件日志 Handler (始终启用，按时间滚动) ---
     log_dir = os.path.dirname(log_path)
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
 
-    file_handler = SafeTimedRotatingFileHandler(
-        filename=log_path,
-        when=when,
-        interval=1,
-        backupCount=backup_count,
-        encoding='utf-8',
-        delay=False,
-        utc=False,
-    )
-    # 让归档文件名形如 fish.log.2026-04-20，并让 backupCount 清理逻辑能正确识别这些文件。
-    # 不显式设置 extMatch 时，Python 默认正则在某些版本下匹配不到自定义 suffix，
-    # 会导致旧文件无法被自动清理。
-    if when == 'midnight' or when.upper().startswith('D'):
-        file_handler.suffix = "%Y-%m-%d"
-        file_handler.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}(\.\w+)?$")
-    elif when.upper() == 'H':
-        file_handler.suffix = "%Y-%m-%d_%H"
-        file_handler.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}(\.\w+)?$")
-    # 其他取值（如 'S'、'M'）保持 TimedRotatingFileHandler 默认行为，便于调试验证。
+    # Several modules log into region_search: share one handle within a process
+    # as well, otherwise Windows would still refuse the midnight rename.
+    with _file_handlers_lock:
+        file_handler = _file_handlers.get(os.path.abspath(log_path))
+        if file_handler is None:
+            file_handler = SafeTimedRotatingFileHandler(
+                filename=log_path,
+                when=when,
+                interval=1,
+                backupCount=backup_count,
+                encoding='utf-8',
+                delay=False,
+                utc=False,
+            )
+            # 让归档文件名形如 fish.log.2026-04-20，并让 backupCount 清理逻辑能正确识别这些文件。
+            # 不显式设置 extMatch 时，Python 默认正则在某些版本下匹配不到自定义 suffix，
+            # 会导致旧文件无法被自动清理。
+            if when == 'midnight' or when.upper().startswith('D'):
+                file_handler.suffix = "%Y-%m-%d"
+                file_handler.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}(\.\w+)?$")
+            elif when.upper() == 'H':
+                file_handler.suffix = "%Y-%m-%d_%H"
+                file_handler.extMatch = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}(\.\w+)?$")
+            # 其他取值（如 'S'、'M'）保持 TimedRotatingFileHandler 默认行为，便于调试验证。
 
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(log_formatter)
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(log_formatter)
+            _file_handlers[os.path.abspath(log_path)] = file_handler
     logger.addHandler(file_handler)
 
     # --- 2. 终端日志 Handler (根据 settings.LOG_DISABLE_CONSOLE 决定是否启用) ---

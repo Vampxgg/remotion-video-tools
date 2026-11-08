@@ -634,6 +634,10 @@ def _industry_validation_error(payload, source, mapper) -> Optional[SourceRunRes
     try:
         mapper.map_value("industry", payload.query.filters.industry)
     except InvalidIndustryFilter as exc:
+        logger.warning(
+            "[region-search][%s] invalid_industry_filter: %s (no upstream request)",
+            source.value, exc,
+        )
         return SourceRunResult(
             source=source, ok=False, error=str(exc), error_code="invalid_industry_filter",
             queries_attempted=0, pages_requested=0, retryable=False,
