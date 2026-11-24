@@ -7,6 +7,7 @@
 # --- 导入模块 ---
 import os
 import logging
+import math
 import concurrent.futures
 import time
 import queue
@@ -155,6 +156,39 @@ class TranscriptData(TypedDict):
     duration: NotRequired[float]
 
 
+def _normalize_transcript(payload: Any, ignore_timestamps: bool) -> TranscriptData:
+    """保留上游分段及附加字段；纯文本响应仍兼容 Dify 的 segments[].text。"""
+    if not isinstance(payload, dict) or not isinstance(payload.get('text'), str):
+        raise ValueError('ASR response is missing a string text field.')
+    segments = payload.get('segments')
+    if segments is None or segments == []:
+        segments = [{'text': payload['text']}] if payload['text'] else []
+    if not isinstance(segments, list) or any(
+        not isinstance(seg, dict) or not isinstance(seg.get('text'), str) for seg in segments
+    ):
+        raise ValueError('ASR response has invalid segments.')
+    normalized = []
+    for segment in segments:
+        segment = dict(segment)
+        if ignore_timestamps:
+            segment.pop('start', None)
+            segment.pop('end', None)
+        else:
+            for key in ('start', 'end'):
+                if key in segment:
+                    value = segment[key]
+                    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                        raise ValueError(f'ASR segment has invalid {key} timestamp.')
+            if 'start' in segment and 'end' in segment and segment['end'] < segment['start']:
+                raise ValueError('ASR segment end timestamp precedes start.')
+        normalized.append(segment)
+    return cast(TranscriptData, {
+        **payload,
+        'segments': normalized,
+        'timestamps_available': bool(normalized) and all('start' in seg and 'end' in seg for seg in normalized),
+    })
+
+
 async def _perform_asr_request(
         workflow_id: str,
         language: str,
@@ -164,8 +198,8 @@ async def _perform_asr_request(
     """
     执行对配置的 Fish / SiliconFlow ASR API 的核心请求，包含重试逻辑。
     此函数是所有ASR操作的基础。保留 language/ignore_timestamps 入参以兼容已有调用。
-    SiliconFlow 只接受 file/model 并自动识别语言；全文适配为无时间戳的 segment，
-    供 Dify 原有 data.segments[].text 提取逻辑使用，不伪造时间戳。Fish 保留原始分段。
+    SiliconFlow 星辰 ASR 在请求时间戳时使用 verbose_json，保留原始分段。
+    SenseVoice 等纯文本模型仍适配为无时间戳的 segment，不伪造时间戳。
 
     :param workflow_id: 用于日志记录的工作流ID。
     :param language: 音频语言。
@@ -188,6 +222,12 @@ async def _perform_asr_request(
     else:
         url = SILICONFLOW_ASR_API_URL
         form_data = {'model': SILICONFLOW_ASR_MODEL}
+        if not ignore_timestamps and SILICONFLOW_ASR_MODEL in {
+            'XingChenAGI/XingChenASR-V3.2',
+            'XingChenAGI/XingChenASR-V3.2-Ultra',
+            'XingChenAGI/XingChenASR-Diarize-V3.0',
+        }:
+            form_data['response_format'] = 'verbose_json'
         file_field = 'file'
 
     audio_content = await audio_file.read()
@@ -211,22 +251,7 @@ async def _perform_asr_request(
             response.raise_for_status()
 
             logger.info(f"[{workflow_id}] ASR API 调用成功，状态码: {response.status_code}")
-            payload = response.json()
-            if not isinstance(payload, dict) or not isinstance(payload.get('text'), str):
-                raise ValueError('ASR response is missing a string text field.')
-            if ASR_PROVIDER == 'fish':
-                segments = payload.get('segments')
-                if segments is None:
-                    segments = [{'text': payload['text']}]
-                if not isinstance(segments, list) or any(
-                    not isinstance(seg, dict) or not isinstance(seg.get('text'), str) for seg in segments
-                ):
-                    raise ValueError('Fish ASR response has invalid segments.')
-                payload['segments'] = segments
-                payload['timestamps_available'] = bool(segments) and all('start' in seg and 'end' in seg for seg in segments)
-                return cast(TranscriptData, payload)
-            text = payload['text']
-            return {'text': text, 'segments': [{'text': text}], 'timestamps_available': False}
+            return _normalize_transcript(response.json(), ignore_timestamps)
 
         except httpx.HTTPStatusError as e:
             last_exception = e

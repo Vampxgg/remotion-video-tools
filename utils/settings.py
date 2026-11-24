@@ -329,7 +329,7 @@ class FishAsrSettings(_Base):
     ASR_PROVIDER: Literal["fish", "siliconflow"] = "siliconflow"
     SILICONFLOW_API_KEY: Optional[str] = None
     SILICONFLOW_ASR_API_URL: str = "https://api.siliconflow.cn/v1/audio/transcriptions"
-    SILICONFLOW_ASR_MODEL: str = "FunAudioLLM/SenseVoiceSmall"
+    SILICONFLOW_ASR_MODEL: str = "XingChenAGI/XingChenASR-V3.2"
     SILICONFLOW_ASR_PROXY_URL: Optional[str] = None
     FISH_ASR_API_URL: str = "https://api.fish.audio/v1/asr"
     FISH_ASR_PROXY_URL: Optional[str] = None

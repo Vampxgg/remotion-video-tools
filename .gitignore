@@ -62,6 +62,7 @@ head2.txt
 resp1.txt
 resp2.txt
 scripts/*
+!scripts/probe_asr.py
 !scripts/check_boss_proxy_pool.py
 !scripts/generate_boss_proxy_pool.py
 !scripts/start_boss_mihomo.ps1
