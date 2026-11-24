@@ -15,7 +15,7 @@ lxml
 DrissionPage
 
 # Database and migrations
-sqlalchemy
+sqlalchemy[asyncio]
 asyncpg
 alembic
 psycopg2-binary

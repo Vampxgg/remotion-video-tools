@@ -29,7 +29,7 @@ except Exception as exc:  # pragma: no cover - 包未装时彻底降级
 # 偶发建连/读超时自动重试：高并发下 CPU 被视觉任务占满时，建连协程可能得不到及时调度
 # 而超时；一次退避重试即可吸收这类瞬时抖动，避免误判为 limiter_unavailable 而降级。
 try:  # pragma: no cover - 不同 redis-py 版本路径可能不同
-    from redis.retry import Retry
+    from redis.asyncio.retry import Retry
     from redis.backoff import ExponentialBackoff
     from redis.exceptions import ConnectionError as _RedisConnError, TimeoutError as _RedisTimeoutError
 except Exception:  # noqa: BLE001

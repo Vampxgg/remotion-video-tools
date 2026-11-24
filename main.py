@@ -83,7 +83,7 @@ _LIFESPAN_MODULES = [
     cre_video_omni,
     cre_image,
     cre_image_azure,
-    # fish_asr,
+    fish_asr,
     job_search,
     job_search_v2,
     gemini_live,
@@ -217,7 +217,7 @@ app.include_router(document_import.router, prefix="/api", tags=["document_import
 app.include_router(usage_report_api.router, prefix="/api", tags=["usage_report"])
 app.include_router(aws_usage_report_api.router, prefix="/api", tags=["aws_usage_report"])
 app.include_router(aws_spend_guard_api.router, prefix="/api", tags=["aws_spend_guard"])
-# app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
+app.include_router(fish_asr.router_asr, prefix="/api", tags=["fish_asr"])
 # app.include_router(fenbi_gateway.router, prefix="/api", tags=["fenbi_requestes"])
 app.include_router(video_compress.router, prefix="/api", tags=["video_compress"])
 app.include_router(gemini_live.router, prefix="/api", tags=["gemini_live"])

@@ -12,8 +12,9 @@
 """
 
 from functools import lru_cache
+import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -38,7 +39,8 @@ class _Base(BaseSettings):
 class AppSettings(_Base):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 2906
-    APP_WORKERS: int = 4
+    # Windows 默认单进程，规避多 worker 共享监听 socket 的 WinError 10022。
+    APP_WORKERS: int = 1 if os.name == "nt" else 4
     APP_PUBLIC_BASE_URL: str = "http://127.0.0.1:2906"
     CORS_ALLOW_ORIGINS: List[str] = ["*"]
     # 当 CORS_ALLOW_ORIGINS=["*"] 时，CORS 规范要求 allow_credentials 必须为 False
@@ -323,7 +325,12 @@ class GoogleTtsSettings(_Base):
 
 
 class FishAsrSettings(_Base):
-    """对应 api/fish_asr.py"""
+    """对应 api/fish_asr.py；通过 ASR_PROVIDER 选择 fish 或 siliconflow。"""
+    ASR_PROVIDER: Literal["fish", "siliconflow"] = "siliconflow"
+    SILICONFLOW_API_KEY: Optional[str] = None
+    SILICONFLOW_ASR_API_URL: str = "https://api.siliconflow.cn/v1/audio/transcriptions"
+    SILICONFLOW_ASR_MODEL: str = "FunAudioLLM/SenseVoiceSmall"
+    SILICONFLOW_ASR_PROXY_URL: Optional[str] = None
     FISH_ASR_API_URL: str = "https://api.fish.audio/v1/asr"
     FISH_ASR_PROXY_URL: Optional[str] = None
     FISH_ASR_THREAD_WORKERS: int = 10

@@ -14,7 +14,7 @@ import sys
 import asyncio
 from asyncio import Semaphore
 import threading
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TypedDict, NotRequired, cast
 
 # HTTP 客户端
 import httpx
@@ -68,7 +68,7 @@ def _startup_resources() -> None:
         read=_settings.FISH_ASR_HTTP_READ_TIMEOUT,
         write=_settings.FISH_ASR_HTTP_WRITE_TIMEOUT,
     )
-    # trust_env=False 屏蔽进程环境变量代理；仅当显式配置 FISH_ASR_PROXY_URL 时才走代理。
+    # trust_env=False 屏蔽进程环境变量代理；仅使用当前提供商显式配置的代理。
     async_http_client = httpx.AsyncClient(timeout=timeout, trust_env=False, proxy=proxies)
 
     logger.info("ASR 模块启动完成。")
@@ -104,9 +104,12 @@ async def lifespan_resources(app):
 
 # --- 配置区 ---
 from utils.settings import settings as _settings  # noqa: E402  (settings 单点入口)
-PROXY_URL = _settings.FISH_ASR_PROXY_URL or ""  # 示例: "http://127.0.0.1:7890"
-FISH_ASR_API_URL = _settings.FISH_ASR_API_URL
-FISH_API_KEY = _settings.FISH_API_KEY or ""  # 必须由 .env 提供，避免明文密钥进 repo
+ASR_PROVIDER = _settings.ASR_PROVIDER
+FISH_API_KEY = (_settings.FISH_API_KEY or "").strip()
+PROXY_URL = (_settings.FISH_ASR_PROXY_URL if ASR_PROVIDER == "fish" else _settings.SILICONFLOW_ASR_PROXY_URL) or ""  # 示例: "http://127.0.0.1:7890"
+SILICONFLOW_ASR_API_URL = _settings.SILICONFLOW_ASR_API_URL
+SILICONFLOW_ASR_MODEL = _settings.SILICONFLOW_ASR_MODEL
+SILICONFLOW_API_KEY = (_settings.SILICONFLOW_API_KEY or "").strip()  # 必须由 .env 提供，避免明文密钥进 repo
 MAX_ASR_RETRIES = _settings.FISH_ASR_MAX_RETRIES
 ASR_RETRY_DELAY = _settings.FISH_ASR_RETRY_DELAY  # 秒
 
@@ -139,15 +142,30 @@ class BatchASRResponseData(BaseModel):
 # --- 核心业务逻辑函数 ---
 # ======================================================================================
 
+class TranscriptSegment(TypedDict):
+    text: str
+    start: NotRequired[float]
+    end: NotRequired[float]
+
+
+class TranscriptData(TypedDict):
+    text: str
+    segments: List[TranscriptSegment]
+    timestamps_available: bool
+    duration: NotRequired[float]
+
+
 async def _perform_asr_request(
         workflow_id: str,
         language: str,
         ignore_timestamps: bool,
         audio_file: UploadFile
-) -> Dict[str, Any]:
+) -> TranscriptData:
     """
-    执行对 Fish Audio ASR API 的核心请求，包含重试逻辑。
-    此函数是所有ASR操作的基础。
+    执行对配置的 Fish / SiliconFlow ASR API 的核心请求，包含重试逻辑。
+    此函数是所有ASR操作的基础。保留 language/ignore_timestamps 入参以兼容已有调用。
+    SiliconFlow 只接受 file/model 并自动识别语言；全文适配为无时间戳的 segment，
+    供 Dify 原有 data.segments[].text 提取逻辑使用，不伪造时间戳。Fish 保留原始分段。
 
     :param workflow_id: 用于日志记录的工作流ID。
     :param language: 音频语言。
@@ -156,17 +174,27 @@ async def _perform_asr_request(
     :return: ASR API 返回的 JSON 数据。
     :raises: 如果所有重试都失败，则抛出 Exception。
     """
-    headers = {'Authorization': f'Bearer {FISH_API_KEY}'}
-    form_data = {
-        'language': language,
-        'ignore_timestamps': str(ignore_timestamps).lower()  # API需要字符串'true'/'false'
-    }
+    api_key = FISH_API_KEY if ASR_PROVIDER == 'fish' else SILICONFLOW_API_KEY
+    if not api_key:
+        name = 'FISH_API_KEY' if ASR_PROVIDER == 'fish' else 'SILICONFLOW_API_KEY'
+        raise ValueError(f'未配置 {name}，无法调用语音识别服务。')
+    if async_http_client is None:
+        raise RuntimeError('ASR HTTP client is not initialized.')
+    headers = {'Authorization': f'Bearer {api_key}'}
+    if ASR_PROVIDER == 'fish':
+        url = _settings.FISH_ASR_API_URL
+        form_data = {'language': language, 'ignore_timestamps': str(ignore_timestamps).lower()}
+        file_field = 'audio'
+    else:
+        url = SILICONFLOW_ASR_API_URL
+        form_data = {'model': SILICONFLOW_ASR_MODEL}
+        file_field = 'file'
 
     audio_content = await audio_file.read()
     if not audio_content:
         raise ValueError(f"提供的音频文件 '{audio_file.filename}' 为空。")
 
-    files = {'audio': (audio_file.filename, audio_content, audio_file.content_type)}
+    files = {file_field: (audio_file.filename, audio_content, audio_file.content_type)}
 
     last_exception = None
     for attempt in range(MAX_ASR_RETRIES):
@@ -174,7 +202,7 @@ async def _perform_asr_request(
             logger.info(f"[{workflow_id}] 第 {attempt + 1}/{MAX_ASR_RETRIES} 次尝试调用 ASR API...")
 
             response = await async_http_client.post(
-                FISH_ASR_API_URL,
+                url,
                 headers=headers,
                 data=form_data,
                 files=files
@@ -183,7 +211,22 @@ async def _perform_asr_request(
             response.raise_for_status()
 
             logger.info(f"[{workflow_id}] ASR API 调用成功，状态码: {response.status_code}")
-            return response.json()
+            payload = response.json()
+            if not isinstance(payload, dict) or not isinstance(payload.get('text'), str):
+                raise ValueError('ASR response is missing a string text field.')
+            if ASR_PROVIDER == 'fish':
+                segments = payload.get('segments')
+                if segments is None:
+                    segments = [{'text': payload['text']}]
+                if not isinstance(segments, list) or any(
+                    not isinstance(seg, dict) or not isinstance(seg.get('text'), str) for seg in segments
+                ):
+                    raise ValueError('Fish ASR response has invalid segments.')
+                payload['segments'] = segments
+                payload['timestamps_available'] = bool(segments) and all('start' in seg and 'end' in seg for seg in segments)
+                return cast(TranscriptData, payload)
+            text = payload['text']
+            return {'text': text, 'segments': [{'text': text}], 'timestamps_available': False}
 
         except httpx.HTTPStatusError as e:
             last_exception = e
@@ -192,7 +235,7 @@ async def _perform_asr_request(
                 f"[{workflow_id}] ASR API 返回错误状态码 {e.response.status_code}。"
                 f"Body: {error_body[:200]}"
             )
-            if 400 <= e.response.status_code < 500:
+            if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
                 break
             if attempt < MAX_ASR_RETRIES - 1:
                 wait_time = ASR_RETRY_DELAY * (2 ** attempt)
@@ -200,7 +243,7 @@ async def _perform_asr_request(
                 await asyncio.sleep(wait_time)
         except httpx.RequestError as e:
             last_exception = e
-            logger.error(f"[{workflow_id}] ASR API 请求时发生网络错误: {e}")
+            logger.error(f"[{workflow_id}] ASR API 请求时发生网络错误: {type(e).__name__}: {e}")
             if attempt < MAX_ASR_RETRIES - 1:
                 wait_time = ASR_RETRY_DELAY * (2 ** attempt)
                 logger.warning(f"[{workflow_id}] 将在 {wait_time:.1f} 秒后重试...")
@@ -210,7 +253,7 @@ async def _perform_asr_request(
             logger.error(f"[{workflow_id}] ASR 处理中发生未知异常: {e}", exc_info=True)
             break
 
-    raise Exception(f"ASR 请求在 {MAX_ASR_RETRIES} 次尝试后失败。最终错误: {last_exception}")
+    raise Exception(f"ASR 请求在 {MAX_ASR_RETRIES} 次尝试后失败。最终错误: {type(last_exception).__name__}: {last_exception}")
 
 
 async def _process_single_audio_file(
@@ -271,7 +314,7 @@ async def speech_to_text(
         audio: UploadFile = File(..., description="要进行语音识别的音频文件。")
 ):
     """
-    接收一个音频文件和相关参数，调用 Fish Audio ASR 服务进行语音转文本。
+    接收一个音频文件和相关参数，调用当前配置的 ASR 提供商进行语音转文本。
     """
     log_id = f"{workflow_id}-{audio.filename}"
     logger.info(f"[{log_id}] 收到单文件 ASR 请求。")
